@@ -2,18 +2,18 @@
 
 Local, inspectable earnings growth research. Company earnings per share; stock-price returns are not included.
 
-T07 is implemented: separate Jev and OpenAI-compatible adapters with inspectable compatibility probes, table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Financial processing starts in later tasks.
+T08 is implemented: inspectable relevance probabilities, structural table safeguards, bounded coverage recovery and cached screening; separate Jev and OpenAI-compatible adapters with inspectable compatibility probes, table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Financial processing starts in later tasks.
 
 Requires Python 3.12 and uv. From the repository root:
 
 ```sh
 uv sync --locked
 uv run profitlab doctor
-uv run profitlab demo --through T07 --run-id demo-t07
+uv run profitlab demo --through T08 --run-id demo-t08
 uv run profitlab serve
 ```
 
-Open http://127.0.0.1:8000/runs/demo-t07/trace. Expand the **fake-jev** request and **Fixture agent history** to inspect the read-only tool call and validated marker. The run also retains discovery, sources and chunks. Home accepts ticker discovery in demo or live mode. Use a fresh run ID each time; existing runs cannot be overwritten. Runtime summaries are stored under `data/runs/`.
+Open http://127.0.0.1:8000/runs/demo-t08/chunks. Compare a retained EPS table, uncertain explanation, dropped irrelevant paragraph and low-scored table with a structural override. Click a probability to inspect its exact request/response in Trace. The run also retains discovery, sources and chunks. Home accepts ticker discovery in demo or live mode. Use a fresh run ID each time; existing runs cannot be overwritten. Runtime summaries are stored under `data/runs/`.
 
 The interface binds to `127.0.0.1:8000` by default. Demo and UI need no credentials or network after installation. Optionally copy `.env.example` to `.env`; configuration checks report presence only and do not probe external services. Never commit credentials.
 
@@ -31,7 +31,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T08: Jev relevance screening and coverage recovery. Discovered filing coverage is separate from extracted financial coverage; financial stages remain unavailable. Earlier runs stay readable.
+Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T09: candidate extraction with source validation. Discovered filing coverage is separate from extracted financial coverage; financial stages remain unavailable. Earlier runs stay readable.
 
 ```sh
 uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04
@@ -101,7 +101,7 @@ Open `/runs/demo-t06/chunks`. Inspect **Prose overlap**, follow a primary block
 link to its saved source, and use **Following chunk** to traverse table pieces.
 The synthetic 2025 filing includes an intact table exceeding the target and a
 large table split with repeated year/unit headers. Filter by filing, heading,
-or estimated size. No screening decisions exist yet.
+or estimated size. Earlier T06 runs have no screening decisions; T08 adds them below.
 
 `CHUNK_TARGET_TOKENS=1500` and `CHUNK_OVERLAP_TOKENS=180` configure block-based
 prose chunking. Tables can exceed the target. `CHUNK_REQUEST_BUDGET=24000`
@@ -152,3 +152,31 @@ provider token usage.
 See [PROGRESS.md](docs/PROGRESS.md) for exact run IDs and limits. The Jev contract
 follows the [official API reference](https://docs.typesafe.ai/api); agent history
 uses the [Pydantic AI message API](https://ai.pydantic.dev/message-history/).
+
+Relevance screening (T08):
+
+```sh
+uv run profitlab demo --through T08 --run-id demo-t08
+uv run profitlab stage <chunked-run-id> screen
+uv run profitlab stage <chunked-run-id> screen --filing-id <filing-id> --max-chunks 5
+uv run profitlab stage <chunked-run-id> screen --chunk-id <chunk-id> --chunk-id <another-id>
+uv run pytest tests/task_gates/test_t08.py
+```
+
+Demo uses explicitly labeled fixture judgments; live runs use configured Jev.
+The five questions are versioned in `src/profitlab/prompts/screen-v1.json`.
+Experimental thresholds: `SCREEN_KEEP_THRESHOLD=0.65` and
+`SCREEN_UNCERTAIN_THRESHOLD=0.20`. Uncertain and failed answers remain available;
+financial statement/EPS tables have a visible structural safeguard. One label and
+neighbor recovery pass retains up to `SCREEN_RECOVERY_MAX_CHUNKS=12` dropped chunks
+without changing their reported scores. Coverage counts unique primary source IDs;
+it indicates candidate labels per filing/report-end year, not validated facts.
+
+`SCREEN_MAX_REQUESTS=100` bounds evaluation calls; existing HTTP retry limits apply
+within each call. `PROVIDER_TOTAL_TIMEOUT=120` bounds new screening requests.
+Subset selection, failed answers, missing label coverage or exhausted limits produce
+a partial run. Unscreened chunks remain explicitly unknown. Cached results preserve
+their returned model and historical usage; new-request usage is separate. Changing
+source/chunk/prompt/model/endpoint/policy invalidates cached judgments. Alias model
+reuse cannot prove that today's alias points to the same model. Prior immutable
+artifacts remain inspectable; the chunk page shows the latest screening selection.

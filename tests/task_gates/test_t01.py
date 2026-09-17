@@ -41,7 +41,7 @@ def test_offline_demo_and_navigation(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("arguments", [
-    ["demo", "--through", "T08", "--run-id", "future"],
+    ["demo", "--through", "T09", "--run-id", "future"],
     ["demo", "--run-id", "../escape"],
     ["demo"],
     ["doctor", "--live", "unknown"],

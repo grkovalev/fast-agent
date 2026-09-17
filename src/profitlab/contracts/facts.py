@@ -24,6 +24,13 @@ class ScreeningDecision(Contract):
     reasons: list[str]
     provider_call_id: StableID
     actual_model: str
+    structural_override: bool = False
+    recovery_for: list[str] = Field(default_factory=list)
+    error: str | None = None
+    synthetic: bool = False
+    cache_key: str = ''
+    requested_model: str = ''
+    alias_uncertainty: bool = False
     token_usage: dict[str, int] = Field(default_factory=dict)
 
 

@@ -200,6 +200,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             run, all_chunks = ChunkService(settings).list(run_id)
         except (ValueError, FileNotFoundError):
             raise HTTPException(404, 'Chunks not found or damaged') from None
+        from profitlab.providers.screening import ScreeningService
+
+        screening, decisions = ScreeningService(settings).latest(run_id)
         items = []
         for i, chunk in enumerate(all_chunks):
             if (filing and chunk.filing_id != filing or
@@ -209,10 +212,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 continue
             previous = all_chunks[i-1] if i and all_chunks[i-1].filing_id == chunk.filing_id else None
             following = all_chunks[i+1] if i+1 < len(all_chunks) and all_chunks[i+1].filing_id == chunk.filing_id else None
-            items.append({'chunk': chunk, 'previous': previous, 'following': following})
+            items.append({'chunk': chunk, 'previous': previous, 'following': following,
+                          'screen': decisions.get(chunk.chunk_id)})
         return templates.TemplateResponse(request=request, name='chunks.html', context={
             'run': run, 'items': items, 'filings': sorted({c.filing_id for c in all_chunks}),
             'filing': filing, 'heading': heading, 'min_tokens': min_tokens,
-            'max_tokens': max_tokens})
+            'max_tokens': max_tokens, 'screening': screening})
 
     return app

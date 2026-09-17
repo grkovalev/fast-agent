@@ -13,8 +13,9 @@ class ProviderFailure(ValueError):
 
 
 class TracedTransport(httpx.AsyncBaseTransport):
-    def __init__(self, recorder, settings, provider, inner=None):
+    def __init__(self, recorder, settings, provider, inner=None, stage='probe'):
         self.recorder = recorder
+        self.stage = stage
         self.settings = settings
         self.provider = provider
         self.inner = inner or httpx.AsyncHTTPTransport(retries=0)
@@ -27,7 +28,7 @@ class TracedTransport(httpx.AsyncBaseTransport):
                 with self.recorder.operation(
                     'provider.http', {'method': request.method, 'url': str(request.url),
                                      'body': json.loads(request.content)},
-                    stage='probe', provider=self.provider, attempt=attempt, call_id=call_id,
+                    stage=self.stage, provider=self.provider, attempt=attempt, call_id=call_id,
                     actor='model' if self.provider == 'llm' else 'pipeline',
                 ) as output:
                     response = await self.inner.handle_async_request(request)
@@ -46,7 +47,7 @@ class TracedTransport(httpx.AsyncBaseTransport):
                     output.update(status=response.status_code, body=body,
                                   headers=dict(response.headers))
                     self.recorder.emit(kind='http_response', span_id=call_id, call_id=call_id,
-                                       provider=self.provider, stage='probe', attempt=attempt,
+                                       provider=self.provider, stage=self.stage, attempt=attempt,
                                        summary=f'HTTP {response.status_code}', result=output)
                     if (self.provider == 'llm' and response.status_code == 429
                             and isinstance(body, dict) and isinstance(body.get('error'), dict)
@@ -73,7 +74,7 @@ class TracedTransport(httpx.AsyncBaseTransport):
             if not retry or attempt == self.settings.max_http_attempts:
                 raise failure
             self.recorder.emit(kind='retry', span_id=call_id, call_id=call_id,
-                               provider=self.provider, stage='probe', attempt=attempt + 1,
+                               provider=self.provider, stage=self.stage, attempt=attempt + 1,
                                summary='Transport retry with bounded exponential backoff.')
             await asyncio.sleep(min(8, 0.5 * 2 ** (attempt - 1)))
         raise AssertionError('Unreachable')

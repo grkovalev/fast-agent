@@ -1,0 +1,10 @@
+{
+  "version": "screen-1",
+  "questions": {
+    "income": "Does this excerpt contain numeric annual earnings or net income for the company or its common shareholders, with a reporting period identifiable from the supplied context?",
+    "eps": "Does this excerpt contain numeric annual diluted earnings per share, with a reporting period identifiable from the supplied context?",
+    "shares": "Does this excerpt contain numeric weighted-average diluted common shares for an annual reporting period?",
+    "explanation": "Does this excerpt explicitly explain why net income or earnings per share changed between annual periods?",
+    "comparability": "Does this excerpt disclose a restatement, recast, stock split, or share-class distinction relevant to interpreting earnings or earnings per share?"
+  }
+}

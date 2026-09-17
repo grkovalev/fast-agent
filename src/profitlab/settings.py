@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     chunk_request_budget: int = Field(24000, ge=1000, le=28000)
     chunk_question_overhead: int = Field(2000, ge=500)
     chunk_max_count: int = Field(10000, ge=1)
+    screen_keep_threshold: float = Field(0.65, ge=0, le=1)
+    screen_uncertain_threshold: float = Field(0.20, ge=0, le=1)
+    screen_max_requests: int = Field(100, ge=1)
+    screen_recovery_max_chunks: int = Field(12, ge=0)
     sec_user_agent: str = ""
     sec_requests_per_second: float = Field(2, gt=0, le=10)
     sec_timeout: float = Field(15, gt=0, le=60)

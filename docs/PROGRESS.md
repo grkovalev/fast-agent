@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T07 complete locally; separate typed Jev and generative adapters, traced compatibility probes and native agent histories.
-- Next task: **T08 — Jev relevance screening and coverage recovery.**
-- Latest verified task: T07 local acceptance and live Jev/LLM probes; visual inspection remains pending.
-- Last runnable demo: `demo-t07-v3` (sources/chunks, fake Jev and fixture-backed agent tool/typed-output probe). Earlier demos remain readable.
+- Implementation status: T08 complete locally; inspectable relevance screening, structural safeguards, bounded coverage recovery and immutable cached judgments.
+- Next task: **T09 — Candidate extraction with source validation.**
+- Latest verified task: T08 local acceptance and bounded live Jev spot check; visual inspection remains pending.
+- Last runnable demo: `demo-t08-v2` (sources/chunks, fixture-backed probes and screening decisions). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
@@ -24,7 +24,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T05 | Filing downloads and anchored source viewer | DONE | SEC download/parse passed; visual citation inspection pending |
 | T06 | Table-aware chunking and chunk inspector | DONE | Not applicable |
 | T07 | Jev and OpenAI-compatible provider adapters | DONE | Jev and LLM passed; visual inspection pending |
-| T08 | Jev relevance screening and coverage recovery | TODO | Not run |
+| T08 | Jev relevance screening and coverage recovery | DONE | Bounded Jev spot check passed; visual inspection pending |
 | T09 | Candidate extraction with source validation | TODO | Not run |
 | T10 | Candidate reconciliation and coverage selection | TODO | Not applicable |
 | T11 | Deterministic annual-growth calculations | TODO | Not applicable |
@@ -46,6 +46,69 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T08 — Jev relevance screening and coverage recovery.
+Implemented: five complete, versioned Noul questions sent together per chunk,
+separate excerpt/metadata/source instructions, typed persisted ScreeningDecisions,
+experimental configurable thresholds, explicit structural table overrides retaining
+original probabilities, and one bounded label/neighbor recovery pass with lineage.
+Retained candidate coverage is filing/report-end-year/metric scoped and uses unique
+primary source identities; it is not extracted numeric fact coverage. No global top-k.
+Failed/unknown answers remain retained and never become successful cache entries.
+Limits, omitted chunks and missing label coverage produce a partial stage.
+
+Caches hash source/chunk/prompt contents, endpoint/model, fixture mode and policy.
+Original calls and returned models survive reuse; latest aliases disclose uncertainty.
+Immutable snapshots preserve prior judgments and recovery decisions. The inspector
+shows the latest selection, all five score links, decision/reasons, override/recovery,
+coverage, retained text totals, unique blocks/cells and historical/new-request usage.
+Other chunks in a subset remain explicitly unknown. CLI adds screen, --max-chunks
+and repeatable --chunk-id; no provider substitution. Nested live adapter/HTTP events
+use stage=screen (probe remains the default for existing callers).
+
+Commands/results:
+- `uv run pytest tests/task_gates/test_t08.py`: 3 passed. Offline gate forbids socket
+  connections and covers real persisted service/UI, all decisions, unchanged low
+  table scores, overlap deduplication, recovery, unknown/malformed/failed responses,
+  request limits, cache reuse and source/prompt/model/endpoint/policy invalidation,
+  alias uncertainty, restart persistence and configured-secret redaction.
+- `uv run pytest`: 51 passed (before final bounded selection/tracing additions).
+- Final `uv run pytest tests/task_gates/test_t08.py tests/task_gates/test_t07.py`:
+  11 passed after those additions; existing upstream Starlette/AnyIO warning only.
+- `uv run ruff check .` and `git diff --check`: passed.
+- `uv run profitlab demo --through T08 --run-id demo-t08`: passed, 57 fixture
+  evaluations; 7 ordinary keeps, 5 structural keeps, 5 uncertain, 40 drops.
+- Final `uv run profitlab demo --through T08 --run-id demo-t08-v2`: passed.
+- `uv run profitlab stage live-sec-t04 chunk --filing-id filing-000032019325000079`:
+  passed; 135 chunks from the saved Apple 2025 10-K.
+- `uv run profitlab stage live-sec-t04 screen --filing-id filing-000032019325000079 --max-chunks 5`:
+  passed as a partial subset; five low-scored cover-material chunks, five actual
+  requests, 3,938 input/445 output tokens, returned model jev-1.13.0.
+- `uv run profitlab stage live-sec-t04 screen --filing-id filing-000032019325000079 --chunk-id chunk-cf12f77b4bf34bd2079bd083 --chunk-id chunk-b3adc82acbe89d50f942a5fe --chunk-id chunk-2211585aba51a1891c3557e4`:
+  partial subset as intended, two new requests plus one cache hit; new usage
+  2,099 input/178 output tokens. Cover dropped (maximum 0.04); income/EPS table
+  retained (income 0.99, EPS 0.98, shares 0.95); EPS note retained (0.98 for all
+  three metrics). Returned model jev-1.13.0. Exact saved text and typed answers
+  inspected in persisted artifacts; this is a spot check, not an accuracy benchmark.
+- `uv run profitlab serve`: running at localhost:8000. Escalated localhost HTTP
+  checks passed /health and /runs/demo-t08/chunks with visible screening markup.
+
+Open http://127.0.0.1:8000/runs/demo-t08-v2/chunks. Compare the annual EPS table,
+uncertain management explanation, dropped prose and low-scored diluted-share table
+with Structural override. Click a probability to open the exact call in Trace.
+Real sample: http://127.0.0.1:8000/runs/live-sec-t04/chunks (only three selected
+chunks have current results; all others unknown, stage visibly partial).
+
+Visual verification unrun: CUA inventory has no browser connectors; Safari returned
+“Computer Use was not approved to use Safari.” HTTP checks are not visual inspection.
+No dependency/lockfile changes. UTF-8 estimates and safety budgets remain provisional;
+fixture scores are explicitly labeled and never presented as measured Jev behavior.
+Recovery performs label/neighbor retention using existing answers rather than a
+second inference pass; its original-to-recovered decision lineage is traced.
+Changed chunk configurations remain separate immutable inputs; choosing a pipeline
+configuration across versions belongs to T13. Next task: T09.
+
+## T07 task handoff
 
 Task: T07 — Jev and OpenAI-compatible provider adapters.
 Implemented: separate live/fake Jev Noul clients and typed request/response/usage
@@ -398,3 +461,9 @@ financial extraction/quality benchmark. No dependencies or lockfile changes.
   responses, one executed read-only tool and validated typed marker. Native history
   persisted; 376 input/35 output tokens total, no repairs. Earlier quota and local
   compatibility failures remain saved and are historical, not current blockers.
+
+- 2026-09-17, TypeSafe screening on saved Apple 2025 10-K, `live-sec-t04`:
+  bounded five-cover-chunk sample and three-chunk relevant/irrelevant comparison,
+  seven new requests total, 6,037 input/623 output tokens, actual model jev-1.13.0.
+  Typed responses validated; relevant table/note retained, cover dropped. Subset
+  remains partial; visual inspection pending. No screening-accuracy claim.

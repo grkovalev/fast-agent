@@ -211,6 +211,11 @@ class Repository:
                 'SELECT * FROM artifacts WHERE run_id=? ORDER BY artifact_id', (run_id,))]
 
     def manifest(self, run_id):
+        snapshots = [a for a in self.artifacts(run_id)
+                     if a['artifact_id'].startswith('manifest-screen-')]
+        if snapshots:
+            return max((RunManifest.model_validate_json(self.read(run_id, a['artifact_id']))
+                        for a in snapshots), key=lambda m: m.updated_at)
         # Stage snapshots preserve the original immutable manifest.
         for stage in ('probe', 'chunk', 'parse', 'download', 'discovery'):
             try:
