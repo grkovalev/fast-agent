@@ -1,6 +1,7 @@
 """Redact before persistence; reuse the same policy at presentation boundaries."""
 import re
 from collections.abc import Mapping
+from decimal import Decimal
 from urllib.parse import quote
 
 from pydantic import BaseModel, SecretStr
@@ -32,6 +33,9 @@ class Redactor:
                 str(key)) else self(item) for key, item in value.items()}
         if isinstance(value, (list, tuple)):
             return [self(item) for item in value]
+        if isinstance(value, Decimal):
+            # Usage costs and financial values retain exact precision in JSON.
+            return self.text(str(value))
         if isinstance(value, str):
             return self.text(value)
         return value

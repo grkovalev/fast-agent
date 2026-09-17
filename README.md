@@ -2,26 +2,25 @@
 
 Local, inspectable earnings growth research. Company earnings per share; stock-price returns are not included.
 
-T06 is implemented: table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Financial processing starts in later tasks.
+T07 is implemented: separate Jev and OpenAI-compatible adapters with inspectable compatibility probes, table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Financial processing starts in later tasks.
 
 Requires Python 3.12 and uv. From the repository root:
 
 ```sh
 uv sync --locked
 uv run profitlab doctor
-uv run profitlab demo --through T04 --run-id demo-t04
+uv run profitlab demo --through T07 --run-id demo-t07
 uv run profitlab serve
 ```
 
-Open http://127.0.0.1:8000/runs/demo-t04. You should see DEMO, a **Synthetic demo** badge, the matched company and four annual report periods plus an associated amendment. Click Saved artifacts → discovery for exact metadata, or Trace for requests and older-history traversal. Home accepts ticker discovery in demo or live mode. Use a fresh run ID each time; existing runs cannot be overwritten. Runtime summaries are stored under `data/runs/`.
+Open http://127.0.0.1:8000/runs/demo-t07/trace. Expand the **fake-jev** request and **Fixture agent history** to inspect the read-only tool call and validated marker. The run also retains discovery, sources and chunks. Home accepts ticker discovery in demo or live mode. Use a fresh run ID each time; existing runs cannot be overwritten. Runtime summaries are stored under `data/runs/`.
 
 The interface binds to `127.0.0.1:8000` by default. Demo and UI need no credentials or network after installation. Optionally copy `.env.example` to `.env`; configuration checks report presence only and do not probe external services. Never commit credentials.
 
 The default model configuration is OpenAI API (`https://api.openai.com/v1`) with
 `gpt-5.6-luna`, selected for low cost. Set `LLM_API_KEY` in your local `.env`
 to your OpenAI API key. `LLM_BASE_URL` and `LLM_MODEL` remain configurable;
-remove old blank assignments or use the values in `.env.example`. Model calls
-will be implemented in T07; configuration alone does not make paid requests.
+remove old blank assignments or use the values in `.env.example`. Configuration alone does not make paid requests. Only explicit live commands contact providers.
 See [official model capabilities and pricing](https://developers.openai.com/api/docs/models/gpt-5.6-luna).
 
 ```sh
@@ -32,7 +31,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T07: Jev and OpenAI-compatible provider adapters. Discovered filing coverage is separate from extracted financial coverage; financial stages remain unavailable. Earlier runs stay readable.
+Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T08: Jev relevance screening and coverage recovery. Discovered filing coverage is separate from extracted financial coverage; financial stages remain unavailable. Earlier runs stay readable.
 
 ```sh
 uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04
@@ -111,3 +110,45 @@ conservative UTF-8 bytes/3 proxy; these are estimates, not measured Jev usage.
 Oversized blocks or inseparable row groups fail explicitly without truncation.
 Changed configurations save additional immutable chunk versions; earlier
 versions remain inspectable. The safe budget is provisional until T07/T14.
+
+Provider probes (T07):
+
+```sh
+uv run profitlab doctor --live jev
+uv run profitlab doctor --live llm
+uv run pytest tests/task_gates/test_t07.py
+```
+
+Each explicit live probe prints its saved trace URL, including on failure. Jev uses
+`TYPESAFE_BASE_URL`, `TYPESAFE_MODEL`, and `TYPESAFE_API_KEY` independently of the
+Chat Completions provider. `LLM_OUTPUT_MODE=tool` uses typed output tools;
+`native` explicitly requests native JSON schema. Neither mode silently falls back.
+For the default `gpt-5.6-luna` on the official OpenAI endpoint, the model factory
+explicitly disables reasoning to permit Chat Completions function tools. Override
+with `LLM_REASONING_EFFORT` when needed; other models/endpoints receive no automatic
+reasoning override. The effective setting is visible in the trace. The live API
+identified this restriction in a saved HTTP 400 response; the
+[official model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna)
+lists `none` among its supported reasoning efforts.
+The LLM probe must call `read_probe` exactly once and return its marker as validated
+output. No financial extraction or report writing is implemented by these probes.
+
+`MAX_HTTP_ATTEMPTS=3` controls the single transport retry owner; SDK retries are
+disabled. Jev 429/529 and transient server/transport errors use bounded exponential
+backoff; authentication and request-validation failures stop immediately. Exhausted
+LLM account quota stops immediately. `STRUCTURED_OUTPUT_REPAIRS=1` is a separate
+validation budget. `PROVIDER_TIMEOUT=30`, `PROVIDER_TOTAL_TIMEOUT=120`, and
+`PROVIDER_MAX_RESPONSE_BYTES=2000000` bound probes. Native message snapshots are
+saved incrementally, including on interruption; filter Trace by `conversation` or
+`structured_repair`. Fixture usage is labeled an estimate, never live consumption.
+The implemented Jev contract currently supports the Noul primitive used by screening.
+
+Live checks passed on 2026-09-17: Jev returned `jev-1.13.0`; LLM returned
+`gpt-5.6-luna`, executed one read-only tool and produced the validated marker.
+Inspect [the live LLM trace](http://127.0.0.1:8000/runs/probe-llm-516a2123c5de/trace).
+Earlier quota/compatibility failures remain inspectable. Trace usage costs are
+serialized as exact Decimal strings; framework cost estimates are distinct from
+provider token usage.
+See [PROGRESS.md](docs/PROGRESS.md) for exact run IDs and limits. The Jev contract
+follows the [official API reference](https://docs.typesafe.ai/api); agent history
+uses the [Pydantic AI message API](https://ai.pydantic.dev/message-history/).

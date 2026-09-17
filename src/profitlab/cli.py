@@ -18,23 +18,33 @@ def serve():
 
 
 @app.command()
-def doctor(live: str | None = typer.Option(None, help='Explicit live probe: sec.')):
-    """Check local configuration or explicitly probe SEC with a saved run."""
+def doctor(live: str | None = typer.Option(None, help='Explicit live probe: sec, jev or llm.')):
+    """Check configuration or run an explicit, saved provider probe."""
     settings = Settings()
     if live is not None:
+        if live in ('jev', 'llm'):
+            from profitlab.providers.service import ProbeService
+
+            run = ProbeService(settings).create(live)
+            console.print(f'{live}: {run.status} · {run.limitation}', markup=False)
+            console.print(f'http://{settings.host}:{settings.port}/runs/{run.run_id}/trace',
+                          markup=False)
+            if run.status == 'failed':
+                raise typer.Exit(1)
+            return
         if live != 'sec':
-            console.print('Error: Supported live probe: sec.')
+            console.print('Error: Supported live probes: sec, jev, llm.')
             raise typer.Exit(2)
         _discover(settings, 'AAPL', 1, 'live', None)
         return
     for name, ready in settings.readiness().items():
         console.print(f"{name}: {'ready' if ready else 'not configured (optional for demo)'}")
-    console.print('Configuration presence only. Use doctor --live sec for an explicit probe.')
+    console.print('Configuration presence only. Use doctor --live sec|jev|llm for an explicit probe.')
 
 
 @app.command()
 def demo(
-    through: str = typer.Option("T06", help="Latest implemented task: T06."),
+    through: str = typer.Option("T07", help="Latest implemented task: T07."),
     run_id: str = typer.Option(..., help="Unique run ID; existing runs are preserved."),
     scenario: str = typer.Option("normal", help="normal or two-years synthetic fixtures."),
 ):

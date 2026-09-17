@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block content %}
 <p><a href="/runs/{{ run.run_id }}">← Run overview</a></p>
 <h2>Trace · {{ run.run_id }}</h2><span class="badge">{{ {'demo': 'Synthetic demo', 'replay': 'Recorded replay', 'live': 'Live run'}[run.mode] }}</span>
-<p>Observable service operations. Model conversations begin with the provider/agent tasks; this demo contains no model calls.</p>
+{% if run.stage != "probe" %}<p>Observable service operations; no model calls in this run.</p>{% else %}<p>Observable service operations and model conversations. Fake providers and fixture agent histories are explicitly labeled. Filter kind to “conversation” to inspect native Pydantic AI messages, tool calls, results, retries and usage.</p>{% endif %}
 <form method="get">
 {% for key in ['stage', 'actor', 'kind', 'provider', 'tool', 'q'] %}
 <label>{{ key }} <input name="{{ key }}" value="{{ filters.get(key, '') }}"></label>

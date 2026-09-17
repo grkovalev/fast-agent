@@ -3,13 +3,13 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T06 complete; deterministic table-aware chunks and source-linked chunk inspector.
-- Next task: **T07 — Jev and OpenAI-compatible provider adapters.**
-- Latest verified task: T06 local acceptance; visual inspection remains pending.
-- Last runnable demo: `demo-t06` (four periods plus amendment, parser html-2, chunker blocks-1). Earlier demos remain readable.
+- Implementation status: T07 complete locally; separate typed Jev and generative adapters, traced compatibility probes and native agent histories.
+- Next task: **T08 — Jev relevance screening and coverage recovery.**
+- Latest verified task: T07 local acceptance and live Jev/LLM probes; visual inspection remains pending.
+- Last runnable demo: `demo-t07-v3` (sources/chunks, fake Jev and fixture-backed agent tool/typed-output probe). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
-- Current external blockers: browser visual inspection lacks Computer Use permissions. SEC contact is configured and live discovery succeeded. Model integrations remain unverified until T07.
+- Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
 
 ## Task tracker
 
@@ -23,7 +23,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T04 | SEC ticker lookup and filing discovery | DONE | SEC discovery passed; visual inspection pending |
 | T05 | Filing downloads and anchored source viewer | DONE | SEC download/parse passed; visual citation inspection pending |
 | T06 | Table-aware chunking and chunk inspector | DONE | Not applicable |
-| T07 | Jev and OpenAI-compatible provider adapters | TODO | Not run |
+| T07 | Jev and OpenAI-compatible provider adapters | DONE | Jev and LLM passed; visual inspection pending |
 | T08 | Jev relevance screening and coverage recovery | TODO | Not run |
 | T09 | Candidate extraction with source validation | TODO | Not run |
 | T10 | Candidate reconciliation and coverage selection | TODO | Not applicable |
@@ -46,6 +46,65 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T07 — Jev and OpenAI-compatible provider adapters.
+Implemented: separate live/fake Jev Noul clients and typed request/response/usage
+contracts; explicit configured OpenAIChatModel/OpenAIProvider factory using the
+installed Pydantic AI 2.44.0 API and OpenAI SDK 3.14.1. Compatibility agent calls
+the harmless local read_probe tool exactly once and validates its returned marker.
+The fixture uses the actual agent framework with FunctionModel, not a scripted
+conversation. Configured URL/model/output mode are honored without fallback.
+A shared transport owns bounded retries; SDK transport retries are disabled.
+Jev 429/529 and transient errors back off; authentication, validation and LLM
+exhausted quota stop immediately. Structured-output repairs are tracked separately.
+Requests/full responses, actual returned models, usage, native message snapshots,
+tool call IDs, validation feedback and interrupted histories persist redacted.
+Doctor live probes share the service and print a trace URL even on failure.
+
+Commands/results:
+- `uv run pytest tests/task_gates/test_t07.py`: five-test gate passed at initial handoff; follow-up full suite covers eight T07 tests. Gate covers full T07 offline progression
+  with socket connections forbidden and absent keys, fake transport retries,
+  auth/validation/quota errors, malformed probabilities/IDs/output, custom URL/model,
+  actual SDK Chat Completions requests, real agent tools, independent repair budgets,
+  native history round-trip, cancellation, persisted/exported secret redaction and UI.
+- `uv run pytest`: 48 passed after follow-up fixes; existing Starlette/AnyIO deprecation warning.
+  Updated obsolete T01 invalid-input examples to T08/unknown provider so automated
+  checks no longer invoke newly supported live commands.
+- `uv run ruff check .`: passed.
+- `uv run profitlab demo --through T07 --run-id demo-t07-v3`: passed.
+  Earlier `demo-t07` retained a failed initial usage-serialization attempt;
+  `demo-t07-v2` and final v3 are successful and remain inspectable.
+- `uv run profitlab doctor --live jev`: passed, `probe-jev-898d593055c2`;
+  returned model jev-1.13.0, 311 input/20 output tokens, one HTTP 200 request.
+- `uv run profitlab doctor --live llm`: failed, `probe-llm-51ceec570bc0`;
+  three HTTP 429 insufficient_quota/credit_balance_exhausted responses.
+  Added nonretryable exhausted-quota classification based on this observed response.
+- User added LLM credits; `doctor --live llm` retried as `probe-llm-da62f895dc55`;
+  still HTTP 429 insufficient_quota, now stops after one request. Final delayed
+  retry `probe-llm-f36f7dcc9a8f` also returned exhausted quota on one request.
+- `uv run profitlab serve`: running at http://127.0.0.1:8000.
+- `git diff --check`: passed.
+
+Open http://127.0.0.1:8000/runs/demo-t07-v3/trace. Expand fake-jev to see the
+state/question fixture and fixture-jev-1 response. Expand Fixture agent history
+or filter kind=conversation, then Full result JSON to inspect native tool calls,
+returns and typed marker. Actor=agent_tool shows the actual framework-dispatched
+read_probe call. Live Jev and failed LLM runs have their own trace URLs.
+
+Visual inspection unrun: CUA inventory returned no browser connectors; selecting
+native Safari returned “Computer Use permissions are not granted.” HTTP acceptance
+is not visual inspection. Live LLM tool/schema capabilities passed in `probe-llm-516a2123c5de` after
+reasoning-effort, decompression and Decimal-serialization fixes (details below). No silent
+provider substitution and no invented live agent/tool conversation. Probe success
+is not a financial accuracy or screening benchmark. Jev supports only the Noul
+primitive required for T08; other TypeSafe primitives are outside this slice.
+Native JSON-schema output mode is explicit; live mode compatibility is not assumed.
+Probe budgets: 30-second requests, 120-second total, three HTTP attempts, one
+structured repair, four model requests, two tool calls, 2MB HTTP response cap.
+Fixture framework token estimates are labeled and separate from provider usage.
+No dependencies or lockfile changes. Next task: T08.
+
+## T06 task handoff
 
 Task: T06 — Table-aware chunking and chunk inspector.
 Implemented: deterministic filing-scoped blocks-1 chunker, configurable 1500/180
@@ -268,3 +327,74 @@ Add date, provider, actual model ID, command, run ID, outcome, and unresolved is
   `live-sec-t04`, Apple 2025 10-K accession 0000320193-25-000079, passed. Exact raw
   bytes/provenance and html-2 block/cell artifacts saved. All 105 mapped DOM anchors
   exist; visual original-anchor scrolling remains pending due to CUA permissions.
+
+- 2026-09-17, TypeSafe /v1/systemone: `doctor --live jev`, run
+  `probe-jev-898d593055c2`, passed; actual model `jev-1.13.0`, HTTP 200,
+  311 input/20 output tokens. Typed Noul answer validated; no screening benchmark.
+- 2026-09-17, configured OpenAI-compatible Chat Completions, requested model
+  `gpt-5.6-luna`: `doctor --live llm`, run `probe-llm-51ceec570bc0`, failed
+  with HTTP 429 `insufficient_quota` / `credit_balance_exhausted` on three attempts.
+  No actual returned model, tool call or typed output; native partial history saved.
+- 2026-09-17, same configured LLM after user added credits: `doctor --live llm`,
+  run `probe-llm-da62f895dc55`, still HTTP 429 exhausted quota on one request.
+  Tool/typed-output live verification remains pending; account/key billing state
+  may need propagation or correction. No credential values recorded.
+
+- 2026-09-17, final delayed LLM retry after credit update, `doctor --live llm`,
+  run `probe-llm-f36f7dcc9a8f`, HTTP 429 exhausted quota again, one request.
+  Live tool/schema compatibility remains unverified. Local acceptance is complete.
+
+## T07 follow-up — Live Chat Completions compatibility
+
+User live run `probe-llm-86c3afb529cb` returned HTTP 400: function tools with
+reasoning are unsupported for gpt-5.6-luna in Chat Completions; the API instructed
+using Responses or reasoning_effort=none. Kept the specified Chat Completions
+adapter and model, and explicitly set none for this model on api.openai.com when
+not otherwise configured. Added overrideable LLM_REASONING_EFFORT and traced the
+effective model settings. Other models/endpoints get no automatic reasoning setting.
+Official model docs confirm none is supported; endpoint/tool restriction is based
+on the observed API error, rather than an inferred capability from the model page.
+
+Run `probe-llm-4f0e938f2c0b` then received HTTP 200, returned model gpt-5.6-luna,
+with a real requested read_probe call and usage of 173 prompt/13 completion tokens.
+The call was not dispatched because the transport rebuilt a decoded response with
+its original gzip header, causing httpx to decode it twice. Fixed by removing wire
+content-encoding/content-length when rebuilding decoded responses, while retaining
+original headers in trace payloads. Added regression checks for gzip responses,
+explicit default reasoning, configured overrides and exact transmitted reasoning.
+
+Final `doctor --live llm`, `probe-llm-e82b18c948e1`, again received HTTP 429
+insufficient_quota/credit_balance_exhausted on its first request. The HTTP 400 and
+double-decompression defects are fixed locally, but a complete live read-only tool
+invocation plus validated typed response is still pending available account quota.
+No successful live probe or tool invocation claimed. Dependencies/lockfile unchanged.
+
+## T07 follow-up — Decimal usage serialization and successful live probe
+
+User run `probe-llm-ee4d9ef3d9a8` received HTTP 200 but failed when recording
+RunUsage.cost, which Pydantic AI represents as Decimal. Shared trace redaction
+now converts Decimal to an exact string before JSON encoding, without conversion
+to float or loss of precision. Added a FunctionModel regression with explicit
+Decimal usage costs checking completed tool/typed-output flow, snapshots and
+exported payloads. Framework cost values are estimates; native provider token
+counts and raw usage remain separately inspectable.
+
+`uv run profitlab doctor --live llm`: PASSED, `probe-llm-516a2123c5de`.
+Two HTTP 200 Chat Completions requests, actual model gpt-5.6-luna in both responses;
+173/13 then 203/22 prompt/completion tokens (376 input, 35 output total).
+Exactly one real framework-dispatched read_probe call,
+call_vFjFqb120qxgmQScLuK1ELMg, completed with matching call IDs. Final typed output
+value=profitlab-probe-v1; zero structured-output repairs. Native observable message
+history, request bodies, raw responses and usage persisted successfully.
+Open http://127.0.0.1:8000/runs/probe-llm-516a2123c5de/trace and filter
+actor=agent_tool for the tool, or kind=conversation for native messages.
+Visual verification remains pending; successful live compatibility is not a
+financial extraction/quality benchmark. No dependencies or lockfile changes.
+`uv run pytest`: 48 passed; existing Starlette/AnyIO warning.
+`uv run ruff check .` and `git diff --check`: passed. Next task remains T08.
+
+- 2026-09-17, OpenAI Chat Completions, `doctor --live llm`, run
+  `probe-llm-516a2123c5de`, PASSED with actual model gpt-5.6-luna, two HTTP 200
+  responses, one executed read-only tool and validated typed marker. Native history
+  persisted; 376 input/35 output tokens total, no repairs. Earlier quota and local
+  compatibility failures remain saved and are historical, not current blockers.
