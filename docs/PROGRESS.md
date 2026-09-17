@@ -3,13 +3,13 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T01 complete; runnable CLI and local setup inspection interface.
-- Next task: **T02 — Pydantic contracts, fixtures, and persistent run storage.**
-- Latest verified task: T01 local acceptance.
-- Last runnable demo: `demo-t01`, setup only.
+- Implementation status: T02 complete; validated contracts, SQLite/immutable storage, fixtures and artifact inspection.
+- Next task: **T03 — Persistent trace recorder and trace viewer.**
+- Latest verified task: T02 local acceptance.
+- Last runnable demos: `demo-t02` and `two-years-t02`, setup plus stored fixture inputs.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
-- Current external blockers: none for starting T01. Live stages later need SEC contact identification, a TypeSafe API key, and an OpenAI-compatible provider/model configuration.
+- Current external blockers: none for offline implementation. Live stages later need SEC contact identification, a TypeSafe API key, and an OpenAI-compatible provider/model configuration.
 
 ## Task tracker
 
@@ -18,7 +18,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | Task | Deliverable | Local status | Live verification |
 | --- | --- | --- | --- |
 | T01 | uv project, CLI, local UI, offline demo skeleton | DONE | Not applicable |
-| T02 | Pydantic contracts, fixtures, persistent run storage | TODO | Not applicable |
+| T02 | Pydantic contracts, fixtures, persistent run storage | DONE | Not applicable |
 | T03 | Trace recording, conversation/tool viewer, export | TODO | Not applicable |
 | T04 | SEC ticker lookup and filing discovery | TODO | Not run |
 | T05 | Filing downloads and anchored source viewer | TODO | Not run |
@@ -47,36 +47,44 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 
 ## Latest task handoff
 
-Task: T01 — Bootstrap application and runnable inspection interface.
-Implemented: uv/Python 3.12 src package, locked dependencies, typed settings,
-CLI serve/doctor/demo, FastAPI/Jinja home and overview, local CSS, health endpoint,
-synthetic setup summary service, unavailable future stages, configuration guidance.
+Task: T02 — Pydantic contracts, fixtures, and persistent run storage.
+Implemented: versioned contracts split by domain; Decimal string serialization;
+explicit metric missingness; probability, fiscal interval, identity and unit checks;
+SQLite schema v1 run/artifact index; atomic temporary-file publication; immutable
+content checks and read-time SHA-256 verification; run-scoped typed reference
+validation, evidence quote/anchor/hash checks, candidate grouping key checks and
+final report selection checks. Added four synthetic annual HTML inputs, ticker and
+submissions responses, two-year scenario, test-only gold answers, inspect CLI and
+escaped raw artifact pages. Existing T01 summaries remain readable.
+
 Commands executed and results:
-- `uv sync` and `uv sync --locked`: passed, Python 3.12.11.
-- `uv run profitlab doctor`: passed without keys; external configuration absent.
-- `uv run profitlab demo --through T01 --run-id demo-t01`: passed.
-- `uv run pytest tests/task_gates/test_t01.py`: 6 passed; one upstream
-  Starlette/AnyIO deprecation warning.
-- `uv run ruff check .`: passed after UTC alias correction.
-- `uv run profitlab serve`: started successfully on localhost.
-Demo run ID: demo-t01.
-Server command: `uv run profitlab serve`.
-Browser URL and click path: http://127.0.0.1:8000/runs/demo-t01;
-“All runs” → home → demo-t01.
-Expected visible result: DEMO, Synthetic demo badge, Setup complete, disabled
-future tabs and stages marked Not implemented yet.
-Automated checks: credential-free startup, health, navigation/static routes,
-no demo network (socket guard), duplicate preservation, invalid input and help.
-Browser checks: attempted CUA browser selection; tooling returned “No browser is
-available.” Visual inspection remains unrun; HTTP tests are not visual checks.
-Live checks: not applicable to T01; no external services called.
-Known limitations / blockers: setup only; T02 introduces full contracts and
-SQLite/immutable artifacts. uv cache access failed in sandbox and alternate cache
-triggered an uv system-configuration panic; required uv commands ran successfully
-with approved escalation. No browser available.
-Files changed: pyproject.toml, uv.lock, .python-version, .gitignore, .env.example,
-README.md, docs/PROGRESS.md, docs/VERSIONS.md, src/profitlab and T01 task gate.
-Next task: T02.
+- `uv run profitlab demo --through T02 --run-id demo-t02`: passed.
+- `uv run profitlab inspect demo-t02`: passed; manifest and nine indexed artifacts.
+- `uv run profitlab demo --through T02 --scenario two-years --run-id two-years-t02`: passed.
+- `uv run pytest tests/task_gates/test_t01.py tests/task_gates/test_t02.py`: initially
+  caught a source-ID self-reference defect; corrected, then 9 passed.
+- Final `uv run pytest`: 10 passed; one upstream Starlette/AnyIO deprecation warning.
+- Final `uv run ruff check .` and `git diff --check`: passed.
+- `uv run profitlab serve`: started at localhost:8000; server left running.
+
+Browser URLs: http://127.0.0.1:8000/runs/demo-t02 and
+http://127.0.0.1:8000/runs/two-years-t02.
+Click Saved artifacts → manifest → back → fixture-metadata (decimal string 1.00,
+USD and scales) or annual-2025 (raw HTML with explicit financial units).
+Automated checks create new repository/app instances to verify restart persistence,
+check immutable conflicts and corruption, prohibit network, and prohibit runtime
+reads of gold/test fixtures. Missing and selected zero values stay distinct.
+Browser checks: CUA inventory has no browser connector; attempted native Safari,
+which returned “Computer Use permissions are not granted.” Visual verification
+and manual server-restart browser inspection remain unrun.
+Live checks: not applicable; no external services called.
+Limitations: these are fixture inputs, not extracted/selected financial facts.
+Manifest covered_years remains empty. A run-ID reservation survives interrupted
+creation; do not overwrite it. Stage status updates/recovery arrive in T13.
+Reference validators will grow with parsing/extraction services, including inline
+XBRL contexts. Trace redaction and export are T03 work. Required uv commands
+needed escalation for access to the existing uv cache; dependencies/lock unchanged.
+Next task: T03.
 
 ## Durable decisions / deviations
 
