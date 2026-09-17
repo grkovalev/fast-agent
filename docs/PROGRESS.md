@@ -3,13 +3,13 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T03 complete; persistent trace recording, filtered viewer, redaction and trace export.
-- Next task: **T04 — SEC ticker lookup and annual filing discovery.**
-- Latest verified task: T03 local acceptance.
-- Last runnable demo: `demo-t03`, fixture inputs plus scripted service trace. Earlier T01/T02 demos remain readable.
+- Implementation status: T04 complete; typed SEC client, ticker resolution, annual filing discovery, cache, bounded retries and discovery UI.
+- Next task: **T05 — Download reports and build the anchored source viewer.**
+- Latest verified task: T04 local acceptance and live SEC discovery.
+- Last runnable demos: `demo-t04` (four periods plus amendment) and `two-years-t04` (two periods). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
-- Current external blockers: none for offline implementation. Live stages later need SEC contact identification, a TypeSafe API key, and an OpenAI-compatible provider/model configuration.
+- Current external blockers: browser visual inspection lacks Computer Use permissions. SEC contact is configured and live discovery succeeded. Model integrations remain unverified until T07.
 
 ## Task tracker
 
@@ -20,7 +20,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T01 | uv project, CLI, local UI, offline demo skeleton | DONE | Not applicable |
 | T02 | Pydantic contracts, fixtures, persistent run storage | DONE | Not applicable |
 | T03 | Trace recording, conversation/tool viewer, export | DONE | Not applicable |
-| T04 | SEC ticker lookup and filing discovery | TODO | Not run |
+| T04 | SEC ticker lookup and filing discovery | DONE | SEC discovery passed; visual inspection pending |
 | T05 | Filing downloads and anchored source viewer | TODO | Not run |
 | T06 | Table-aware chunking and chunk inspector | TODO | Not applicable |
 | T07 | Jev and OpenAI-compatible provider adapters | TODO | Not run |
@@ -46,6 +46,55 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T04 — SEC ticker lookup and annual filing discovery.
+Implemented: typed httpx SEC client, shared disk rate limiter across local threads
+and processes, declared contact identity, bounded per-request/total timeouts,
+response bytes, historical-file traversal and one retry owner. Validated atomic
+JSON caches include retrieval timestamps and hashes (24h ticker/1h submissions).
+All requests, responses, failures, retries and cache hits have complete redacted
+trace payloads. Ticker normalization trims/uppercases and maps class dots to
+hyphens without fuzzy matching. Resolution distinguishes not_found, ambiguous,
+unsupported and service_error. Annual selection deduplicates accession/report
+period, excludes quarterlies, traverses both recent and historical array shapes,
+and retains amendments without consuming annual slots. Both accession formats
+are stored. Original SEC URLs are constructed from validated metadata; synthetic
+sources use explicit badges. Home discovery form and CLI stop at discovery.
+One live operation at a time is enforced within the local app; the disk limiter
+also coordinates separate CLI processes using the same data directory.
+
+Immutable initial manifests remain intact; discovery publishes a validated
+`manifest-discovery` snapshot that repository readers prefer. Historical-file or
+request limits report incomplete service failure, never not-found. Two-year
+coverage is partial and does not fabricate additional years.
+
+Commands/results:
+- `uv run pytest tests/task_gates/test_t04.py`: initial gate caught a missing test
+  import; fixed before final acceptance. Expanded gate covers retry recovery,
+  redaction on success/failure, corrupt cache, malformed arrays/history, identity
+  mismatch, byte/history/time limits, cache persistence and all lookup outcomes.
+- Final `uv run pytest`: 31 passed; one upstream Starlette/AnyIO deprecation warning.
+- Final `uv run ruff check .` and `git diff --check`: passed.
+- `uv run profitlab demo --through T04 --run-id demo-t04`: passed.
+- `uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04`: passed.
+- `uv run profitlab doctor --live sec`: passed; run `discover-e09052541481`.
+- `uv run profitlab discover AAPL --years 4 --mode live --run-id live-sec-t04`:
+  passed; Apple Inc., CIK 0000320193, four distinct report periods 2022–2025.
+- `uv run profitlab serve`: server available on localhost:8000.
+
+Open http://127.0.0.1:8000/runs/demo-t04 to inspect the company, four annual
+periods and amendment; open `/runs/two-years-t04` to see two periods. Home →
+Synthetic demo → UNKNOWN gives not_found; TIMEOUT gives service_error. Trace
+shows actual adapter requests, including the fixture older-history file. Live
+run: http://127.0.0.1:8000/runs/live-sec-t04 (SEC original links and cached request
+payloads). Filing downloads, source inspection and financial processing await T05+.
+
+Visual check remains unrun: CUA inventory has no browser connector, and native
+Safari returned “Computer Use permissions are not granted.” HTTP acceptance is
+not represented as visual verification. Dependencies/uv.lock unchanged. Some uv
+commands needed escalation to read the existing uv cache. Next task: T05.
+
+## Previous task handoff
 
 Task: T03 — Persistent trace recorder and trace viewer.
 Implemented: append-only fsynced JSONL trace, run-scoped process locks and ordered
@@ -109,4 +158,11 @@ cache. Next task: T04.
 
 Add date, provider, actual model ID, command, run ID, outcome, and unresolved issue for each live check. Never store credentials here.
 
-No live checks executed.
+- 2026-09-17, SEC public JSON API (no model): `doctor --live sec`, run
+  `discover-e09052541481`, passed. AAPL resolved to Apple Inc./0000320193;
+  report date 2025-09-27, accession 0000320193-25-000079. Ticker and submissions
+  returned HTTP 200 with validated schemas; complete payloads are saved in trace.
+- 2026-09-17, SEC: `discover AAPL --years 4 --mode live --run-id live-sec-t04`,
+  passed using the validated live-response cache. Report dates: 2025-09-27,
+  2024-09-28, 2023-09-30, 2022-09-24. No filing downloads or original-anchor
+  verification claimed; those are T05. No Jev or LLM calls made.

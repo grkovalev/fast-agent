@@ -18,16 +18,23 @@ def serve():
 
 
 @app.command()
-def doctor():
-    """Check local configuration presence; no network or live probes."""
-    for name, ready in Settings().readiness().items():
+def doctor(live: str | None = typer.Option(None, help='Explicit live probe: sec.')):
+    """Check local configuration or explicitly probe SEC with a saved run."""
+    settings = Settings()
+    if live is not None:
+        if live != 'sec':
+            console.print('Error: Supported live probe: sec.')
+            raise typer.Exit(2)
+        _discover(settings, 'AAPL', 1, 'live', None)
+        return
+    for name, ready in settings.readiness().items():
         console.print(f"{name}: {'ready' if ready else 'not configured (optional for demo)'}")
-    console.print("Configuration presence only; live integrations are not implemented yet.")
+    console.print('Configuration presence only. Use doctor --live sec for an explicit probe.')
 
 
 @app.command()
 def demo(
-    through: str = typer.Option("T03", help="Latest implemented task: T03."),
+    through: str = typer.Option("T04", help="Latest implemented task: T04."),
     run_id: str = typer.Option(..., help="Unique run ID; existing runs are preserved."),
     scenario: str = typer.Option("normal", help="normal or two-years synthetic fixtures."),
 ):
@@ -40,6 +47,40 @@ def demo(
         raise typer.Exit(2) from None
     console.print(f"Synthetic demo · Run ID: {run.run_id}", markup=False)
     console.print(f"http://{settings.host}:{settings.port}/runs/{run.run_id}", markup=False)
+
+
+def _discover(settings, ticker, years, mode, run_id):
+    from profitlab.sec.contracts import DiscoveryResult
+    from profitlab.sec.service import DiscoveryService
+    from profitlab.storage import Repository
+
+    try:
+        run = DiscoveryService(settings).create(ticker, years, mode, run_id)
+    except ValueError as error:
+        console.print(f'Error: {settings.redactor().text(str(error))}', markup=False)
+        raise typer.Exit(2) from None
+    result = DiscoveryResult.model_validate_json(Repository(settings.data_dir).read(
+        run.run_id, 'discovery'))
+    console.print(f'{run.ticker}: {result.outcome} · {result.message}', markup=False)
+    if run.company:
+        console.print(f'{run.company.name} · CIK {run.company.cik}', markup=False)
+    for filing in result.filings:
+        console.print(f'{filing.report_date} · {filing.form} · {filing.accession}', markup=False)
+    console.print(f'http://{settings.host}:{settings.port}/runs/{run.run_id}', markup=False)
+    console.print(f'http://{settings.host}:{settings.port}/runs/{run.run_id}/trace', markup=False)
+    if result.outcome != 'found':
+        raise typer.Exit(1)
+
+
+@app.command()
+def discover(
+    ticker: str,
+    years: int = typer.Option(4, min=1, max=4),
+    mode: str = typer.Option('live', help='demo or live; live requires SEC contact.'),
+    run_id: str | None = typer.Option(None, help='Optional unique run ID.'),
+):
+    """Resolve a ticker and save up to four annual periods; stop at discovery."""
+    _discover(Settings(), ticker, years, mode, run_id)
 
 
 @app.command()

@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .base import Contract, StableID
 
@@ -10,6 +10,7 @@ class FilingRecord(Contract):
     filing_id: StableID
     cik: str = Field(pattern=r'^\d{10}$')
     accession: str = Field(pattern=r'^\d{10}-\d{2}-\d{6}$')
+    accession_compact: str | None = Field(default=None, pattern=r'^\d{18}$')
     form: str
     report_date: date
     filing_date: date
@@ -17,6 +18,14 @@ class FilingRecord(Contract):
     amendment_of: StableID | None = None
     fetch_status: Literal['pending', 'saved', 'failed'] = 'pending'
     source_hash: str | None = Field(default=None, pattern=r'^[a-f0-9]{64}$')
+
+    @model_validator(mode='after')
+    def accession_identity(self):
+        compact = self.accession.replace('-', '')
+        if self.accession_compact is not None and self.accession_compact != compact:
+            raise ValueError('Accession representations disagree')
+        object.__setattr__(self, 'accession_compact', compact)
+        return self
 
 
 class SourceBlock(Contract):

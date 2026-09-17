@@ -41,10 +41,10 @@ def test_offline_demo_and_navigation(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("arguments", [
-    ["demo", "--through", "T04", "--run-id", "future"],
+    ["demo", "--through", "T05", "--run-id", "future"],
     ["demo", "--run-id", "../escape"],
     ["demo"],
-    ["doctor", "--live", "sec"],
+    ["doctor", "--live", "llm"],
 ])
 def test_invalid_cli_input(arguments, tmp_path, monkeypatch):
     monkeypatch.setenv("PROFITLAB_DATA_DIR", str(tmp_path))

@@ -1,7 +1,14 @@
 {% extends "base.html" %}{% block content %}
-<p><a href="/">← All runs</a></p><section><span class="badge">Synthetic demo</span><h2>{{ run.ticker }} · {{ run.run_id }}</h2><p>Setup complete</p><p>{{ run.limitation }}</p><p class="muted">Created {{ run.created_at.isoformat() }}</p></section>
+<p><a href="/">← All runs</a></p><section><span class="badge">{{ 'Synthetic demo' if run.mode == 'demo' else 'Live SEC' }}</span><h2>{{ run.ticker }} · {{ run.run_id }}</h2><p>{{ 'Discovery ' ~ run.status if discovery else 'Setup complete' }}</p><p>{{ run.limitation }}</p><p class="muted">Created {{ run.created_at.isoformat() }}</p></section>
 <nav aria-label="Run tabs"><span aria-current="page">Overview</span>{% for tab in ['Report', 'Evidence', 'Chunks', 'Candidates', 'Calculations', 'Checks'] %}<button disabled title="Not implemented yet">{{ tab }}</button>{% endfor %}<a href="/runs/{{ run.run_id }}/trace">Trace</a></nav>
-<section><h2>Pipeline progress</h2><p>Setup: Completed</p>{% for stage in ['Lookup', 'Discover', 'Download', 'Parse', 'Chunk', 'Screen', 'Extract', 'Reconcile', 'Calculate', 'Write', 'Validate'] %}<p>{{ stage }}: <span class="muted">Not implemented yet</span></p>{% endfor %}</section>
+{% if discovery %}<section><h2>Annual filing coverage</h2>
+{% if discovery.company %}<p>{{ discovery.company.name }} · CIK {{ discovery.company.cik }} · Matched {{ discovery.company.ticker }}</p>{% endif %}
+<p role="status">{{ discovery.outcome }}: {{ discovery.message }}{% if discovery.error_code %} ({{ discovery.error_code }}){% endif %}</p>
+<p>{{ discovery.report_periods | length }} distinct annual periods. Report-end years are shown; fiscal intervals will be validated during extraction.</p>
+{% if discovery.filings %}<table><thead><tr><th>Year / report date</th><th>Form</th><th>Filing date</th><th>Accession</th><th>Original</th></tr></thead><tbody>
+{% for filing in discovery.filings %}<tr><td>{{ filing.report_date.year }} / {{ filing.report_date }}</td><td>{{ filing.form }}{% if filing.amendment_of %} (amends {{ filing.amendment_of }}){% endif %}</td><td>{{ filing.filing_date }}</td><td>{{ filing.accession }}</td><td>{% if run.mode == 'demo' %}<span class="badge">Synthetic source</span>{% else %}<a href="{{ filing.primary_document_url }}" target="_blank" rel="noopener">SEC original</a>{% endif %}</td></tr>{% endfor %}</tbody></table>{% endif %}
+</section>{% endif %}
+<section><h2>Pipeline progress</h2><p>Setup: Completed</p><p>Lookup / Discover: {{ discovery.outcome if discovery else 'Unavailable in this earlier demo' }}</p>{% for stage in ['Download', 'Parse', 'Chunk', 'Screen', 'Extract', 'Reconcile', 'Calculate', 'Write', 'Validate'] %}<p>{{ stage }}: <span class="muted">Not implemented yet</span></p>{% endfor %}</section>
 <section><h2>Saved artifacts</h2><p>Immutable fixture inputs and validated run data. Financial extraction: Not implemented yet.</p>
 {% for artifact in artifacts %}<p><a href="/runs/{{ run.run_id }}/artifacts/{{ artifact.artifact_id }}">{{ artifact.artifact_id }}</a> · {{ artifact.media_type }} <small>SHA-256 {{ artifact.hash }}</small></p>{% else %}<p>Legacy T01 summary only.</p>{% endfor %}</section>
 {% endblock %}

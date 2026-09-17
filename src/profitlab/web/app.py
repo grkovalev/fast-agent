@@ -2,8 +2,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 
 from profitlab.demo import DemoService
 from profitlab.settings import Settings
@@ -45,11 +47,36 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             run = service.get(run_id)
         except (FileNotFoundError, ValueError):
             raise HTTPException(404, "Run not found") from None
+        from profitlab.sec.contracts import DiscoveryResult
+
+        try:
+            discovery = DiscoveryResult.model_validate_json(
+                Repository(settings.data_dir).read(run_id, 'discovery'))
+        except FileNotFoundError:
+            discovery = None
         return templates.TemplateResponse(
             request=request, name="run.html", context={
                 "run": run, "artifacts": Repository(settings.data_dir).artifacts(run_id),
+                'discovery': discovery,
             },
         )
+
+    @app.post('/discover')
+    async def discover(request: Request):
+        from urllib.parse import parse_qs
+
+        from profitlab.sec.service import DiscoveryService
+
+        fields = parse_qs((await request.body()).decode())
+        try:
+            run = await run_in_threadpool(DiscoveryService(settings).create,
+                fields.get('ticker', [''])[0], int(fields.get('years', ['4'])[0]),
+                fields.get('mode', ['demo'])[0])
+        except ValueError as error:
+            return templates.TemplateResponse(request=request, name='home.html', status_code=400,
+                context={'runs': service.recent(), 'readiness': settings.readiness(),
+                         'error': settings.redactor().text(str(error))})
+        return RedirectResponse(f'/runs/{run.run_id}', status_code=303)
 
     @app.get('/runs/{run_id}/artifacts/{artifact_id}')
     def artifact(request: Request, run_id: str, artifact_id: str):

@@ -23,8 +23,14 @@ class DemoService:
 
     def create(self, run_id: str, through: str, scenario: str = 'normal') -> RunManifest:
         validate_run_id(run_id)
+        if through == 'T04':
+            from profitlab.sec.service import DiscoveryService
+            from profitlab.settings import Settings
+
+            return DiscoveryService(Settings(PROFITLAB_DATA_DIR=self.data_dir)).create(
+                'DEMO', mode='demo', run_id=run_id, scenario=scenario)
         if through not in ('T01', 'T02', 'T03'):
-            raise ValueError('Only --through T01, T02 and T03 are implemented.')
+            raise ValueError('Only --through T01, T02, T03 and T04 are implemented.')
         if scenario not in ('normal', 'two-years'):
             raise ValueError('Supported scenarios: normal, two-years.')
         now = datetime.now(UTC)
