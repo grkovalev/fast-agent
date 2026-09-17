@@ -27,7 +27,7 @@ def doctor():
 
 @app.command()
 def demo(
-    through: str = typer.Option("T02", help="Latest implemented task: T02."),
+    through: str = typer.Option("T03", help="Latest implemented task: T03."),
     run_id: str = typer.Option(..., help="Unique run ID; existing runs are preserved."),
     scenario: str = typer.Option("normal", help="normal or two-years synthetic fixtures."),
 ):
@@ -36,7 +36,7 @@ def demo(
     try:
         run = DemoService(settings.data_dir).create(run_id, through, scenario)
     except ValueError as error:
-        console.print(f"Error: {error}", markup=False)
+        console.print(f"Error: {settings.redactor().text(str(error))}", markup=False)
         raise typer.Exit(2) from None
     console.print(f"Synthetic demo · Run ID: {run.run_id}", markup=False)
     console.print(f"http://{settings.host}:{settings.port}/runs/{run.run_id}", markup=False)
@@ -55,5 +55,22 @@ def inspect(run_id: str):
             console.print(f"{artifact['artifact_id']} · {artifact['media_type']} · "
                           f"sha256:{artifact['hash']}", markup=False)
     except (ValueError, FileNotFoundError) as error:
-        console.print(f"Error: {error}", markup=False)
+        console.print(f"Error: {settings.redactor().text(str(error))}", markup=False)
         raise typer.Exit(2) from None
+
+
+@app.command()
+def export(run_id: str, output: str = typer.Option(..., help="New trace export directory.")):
+    """Export complete redacted trace and payloads; report bundles come in T16."""
+    from pathlib import Path
+
+    from profitlab.storage import Repository
+    from profitlab.trace import TraceRecorder
+
+    settings = Settings()
+    try:
+        TraceRecorder(Repository(settings.data_dir), run_id, settings.redactor()).export(Path(output))
+    except (ValueError, OSError) as error:
+        console.print(f"Error: {settings.redactor().text(str(error))}", markup=False)
+        raise typer.Exit(2) from None
+    console.print(f"Redacted trace exported to {output}", markup=False)

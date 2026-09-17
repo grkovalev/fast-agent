@@ -23,14 +23,14 @@ class DemoService:
 
     def create(self, run_id: str, through: str, scenario: str = 'normal') -> RunManifest:
         validate_run_id(run_id)
-        if through not in ('T01', 'T02'):
-            raise ValueError('Only --through T01 and T02 are implemented.')
+        if through not in ('T01', 'T02', 'T03'):
+            raise ValueError('Only --through T01, T02 and T03 are implemented.')
         if scenario not in ('normal', 'two-years'):
             raise ValueError('Supported scenarios: normal, two-years.')
         now = datetime.now(UTC)
         years = [2022, 2023, 2024, 2025] if scenario == 'normal' else [2024, 2025]
         artifact_ids = (['ticker', 'submissions', 'fixture-metadata'] +
-                        [f'annual-{year}' for year in years]) if through == 'T02' else []
+                        [f'annual-{year}' for year in years]) if through in ('T02', 'T03') else []
         manifest = RunManifest(
             run_id=run_id, ticker='DEMO', mode='demo', created_at=now, updated_at=now,
             company=CompanyIdentity(ticker='DEMO', name='Synthetic Demo Corporation',
@@ -44,7 +44,7 @@ class DemoService:
         repo.create_run(manifest)
         # Keep the T01 summary filename as an indexed immutable compatibility artifact.
         repo.put(run_id, 'summary', manifest.model_dump_json(indent=2).encode())
-        if through == 'T02':
+        if through in ('T02', 'T03'):
             repo.put(run_id, 'ticker', (FIXTURES / 'ticker.json').read_bytes())
             submissions = json.loads((FIXTURES / 'submissions.json').read_bytes())
             recent = submissions['filings']['recent']
@@ -62,6 +62,11 @@ class DemoService:
             for year in years:
                 repo.put(run_id, f'annual-{year}',
                          (FIXTURES / f'annual-{year}.html').read_bytes(), 'text/html')
+        if through == 'T03':
+            from profitlab.trace import TraceRecorder
+            from profitlab.trace.demo import record_demo
+
+            record_demo(TraceRecorder(repo, run_id))
         return manifest
 
     def get(self, run_id: str) -> RunManifest:

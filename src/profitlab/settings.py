@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     llm_api_key: SecretStr = SecretStr("")
     llm_model: str = "gpt-5.6-luna"
 
+    def redactor(self):
+        from profitlab.trace import Redactor
+
+        return Redactor([self.typesafe_api_key.get_secret_value(),
+                         self.llm_api_key.get_secret_value()])
+
     def readiness(self) -> dict[str, bool]:
         return {
             "Offline demo and interface": True,

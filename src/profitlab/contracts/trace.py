@@ -12,6 +12,7 @@ class TraceEvent(Contract):
     kind: str
     actor: str
     stage: str
+    provider: str | None = None
     tool: str | None = None
     call_id: StableID | None = None
     timestamp: AwareDatetime

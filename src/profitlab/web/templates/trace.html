@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% block content %}
+<p><a href="/runs/{{ run.run_id }}">← Run overview</a></p>
+<h2>Trace · {{ run.run_id }}</h2><span class="badge">{{ {'demo': 'Synthetic demo', 'replay': 'Recorded replay', 'live': 'Live run'}[run.mode] }}</span>
+<p>Observable service operations. Model conversations begin with the provider/agent tasks; this demo contains no model calls.</p>
+<form method="get">
+{% for key in ['stage', 'actor', 'kind', 'provider', 'tool', 'q'] %}
+<label>{{ key }} <input name="{{ key }}" value="{{ filters.get(key, '') }}"></label>
+{% endfor %}
+<label><input type="checkbox" name="error_only" value="1" {% if filters.get('error_only') %}checked{% endif %}>Errors only</label>
+<button>Filter</button><a href="/runs/{{ run.run_id }}/trace">Clear</a>
+</form>
+{% for warning in warnings %}<p role="alert">{{ warning }}</p>{% endfor %}
+<p id="updates" aria-live="polite"></p>
+{% for event in events %}
+<section><details id="{{ event.event_id }}"><summary>#{{ event.sequence }} · {{ event.kind }} · {{ event.actor }} · {{ event.status }} · {{ event.summary }}</summary>
+<p>{{ event.timestamp }} · Attempt {{ event.attempt }} · Duration {{ event.duration if event.duration is not none else 'pending' }} seconds</p>
+<p>Span {{ event.span_id }} · Parent {{ event.parent_id or 'none' }} · Call {{ event.call_id or 'none' }}</p>
+{% for field, label in [('request_artifact_id', 'Full request'), ('result_artifact_id', 'Full result')] %}
+{% if event[field] %}<p><a href="/runs/{{ run.run_id }}/trace/payloads/{{ event[field] }}">{{ label }} JSON</a> · <a href="/runs/{{ run.run_id }}/artifacts/{{ event[field] }}">{{ label }} viewer</a></p><pre class="payload-json" data-payload-url="/runs/{{ run.run_id }}/trace/payloads/{{ event[field] }}">Expand to load complete redacted payload.</pre>{% endif %}
+{% endfor %}
+{% if event.error %}<pre>{{ event.error | tojson(indent=2) }}</pre>{% endif %}
+<button type="button" class="copy-event">Copy event JSON</button>
+<pre class="event-json">{{ event | tojson(indent=2) }}</pre>
+</details></section>
+{% else %}<p>No matching events recorded.</p>{% endfor %}
+<script src="/static/trace.js" defer></script>
+{% endblock %}

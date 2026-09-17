@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T02 complete; validated contracts, SQLite/immutable storage, fixtures and artifact inspection.
-- Next task: **T03 — Persistent trace recorder and trace viewer.**
-- Latest verified task: T02 local acceptance.
-- Last runnable demos: `demo-t02` and `two-years-t02`, setup plus stored fixture inputs.
+- Implementation status: T03 complete; persistent trace recording, filtered viewer, redaction and trace export.
+- Next task: **T04 — SEC ticker lookup and annual filing discovery.**
+- Latest verified task: T03 local acceptance.
+- Last runnable demo: `demo-t03`, fixture inputs plus scripted service trace. Earlier T01/T02 demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
 - Current external blockers: none for offline implementation. Live stages later need SEC contact identification, a TypeSafe API key, and an OpenAI-compatible provider/model configuration.
@@ -19,7 +19,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | --- | --- | --- | --- |
 | T01 | uv project, CLI, local UI, offline demo skeleton | DONE | Not applicable |
 | T02 | Pydantic contracts, fixtures, persistent run storage | DONE | Not applicable |
-| T03 | Trace recording, conversation/tool viewer, export | TODO | Not applicable |
+| T03 | Trace recording, conversation/tool viewer, export | DONE | Not applicable |
 | T04 | SEC ticker lookup and filing discovery | TODO | Not run |
 | T05 | Filing downloads and anchored source viewer | TODO | Not run |
 | T06 | Table-aware chunking and chunk inspector | TODO | Not applicable |
@@ -47,44 +47,51 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 
 ## Latest task handoff
 
-Task: T02 — Pydantic contracts, fixtures, and persistent run storage.
-Implemented: versioned contracts split by domain; Decimal string serialization;
-explicit metric missingness; probability, fiscal interval, identity and unit checks;
-SQLite schema v1 run/artifact index; atomic temporary-file publication; immutable
-content checks and read-time SHA-256 verification; run-scoped typed reference
-validation, evidence quote/anchor/hash checks, candidate grouping key checks and
-final report selection checks. Added four synthetic annual HTML inputs, ticker and
-submissions responses, two-year scenario, test-only gold answers, inspect CLI and
-escaped raw artifact pages. Existing T01 summaries remain readable.
+Task: T03 — Persistent trace recorder and trace viewer.
+Implemented: append-only fsynced JSONL trace, run-scoped process locks and ordered
+sequence allocation, content-addressed immutable payloads, context-local nested
+spans, shared call IDs across attempts, service/tool operation wrapper, duration,
+errors and BaseException/cancellation closure. Server startup reconciles open spans
+as interrupted; malformed final lines remain on disk with a visible warning and
+usable earlier history. Shared redaction handles configured secrets, sensitive
+keys/headers, bearer tokens, URL credentials and query tokens before persistence.
+Added filtered timeline, one-expansion full request/result loading, standalone
+payload JSON/viewer links, copy event JSON, payload/ID search, incremental event
+endpoint/polling notification and trace-only JSON/JSONL export. No fabricated model
+conversation; scripted operations are labeled pipeline and Synthetic demo.
 
 Commands executed and results:
-- `uv run profitlab demo --through T02 --run-id demo-t02`: passed.
-- `uv run profitlab inspect demo-t02`: passed; manifest and nine indexed artifacts.
-- `uv run profitlab demo --through T02 --scenario two-years --run-id two-years-t02`: passed.
-- `uv run pytest tests/task_gates/test_t01.py tests/task_gates/test_t02.py`: initially
-  caught a source-ID self-reference defect; corrected, then 9 passed.
-- Final `uv run pytest`: 10 passed; one upstream Starlette/AnyIO deprecation warning.
+- `uv run pytest tests/task_gates/test_t01.py tests/task_gates/test_t02.py`: 10 passed.
+- `uv run pytest tests/task_gates/test_t03.py`: initially caught a secret echoed in
+  the tool label; fixed metadata redaction, then complete suite passed.
+- `uv run profitlab demo --through T03 --run-id demo-t03`: passed.
+- `uv run profitlab export demo-t03 --output ./exports/demo-t03`: passed; complete
+  payloads exported alongside trace.json and events.jsonl.
+- Final `uv run pytest`: 13 passed, one upstream Starlette/AnyIO deprecation warning.
 - Final `uv run ruff check .` and `git diff --check`: passed.
-- `uv run profitlab serve`: started at localhost:8000; server left running.
+- `uv run profitlab serve`: started, then stopped and restarted with final changes;
+  server left running at localhost:8000.
 
-Browser URLs: http://127.0.0.1:8000/runs/demo-t02 and
-http://127.0.0.1:8000/runs/two-years-t02.
-Click Saved artifacts → manifest → back → fixture-metadata (decimal string 1.00,
-USD and scales) or annual-2025 (raw HTML with explicit financial units).
-Automated checks create new repository/app instances to verify restart persistence,
-check immutable conflicts and corruption, prohibit network, and prohibit runtime
-reads of gold/test fixtures. Missing and selected zero values stay distinct.
-Browser checks: CUA inventory has no browser connector; attempted native Safari,
-which returned “Computer Use permissions are not granted.” Visual verification
-and manual server-restart browser inspection remain unrun.
-Live checks: not applicable; no external services called.
-Limitations: these are fixture inputs, not extracted/selected financial facts.
-Manifest covered_years remains empty. A run-ID reservation survives interrupted
-creation; do not overwrite it. Stage status updates/recovery arrive in T13.
-Reference validators will grow with parsing/extraction services, including inline
-XBRL contexts. Trace redaction and export are T03 work. Required uv commands
-needed escalation for access to the existing uv cache; dependencies/lock unchanged.
-Next task: T03.
+Open http://127.0.0.1:8000/runs/demo-t03/trace. Expand the failed fixture request,
+inspect full arguments/error, and follow its call ID to attempt 2. Expand fixture
+read to see the full large result or use Full result JSON/viewer. Refresh preserves
+history. Export directory: exports/demo-t03 (ignored runtime output).
+Automated gate checks concurrent recorder instances (80 uniquely ordered events),
+matching start/end IDs and nested parentage, startup recovery after a truncated
+journal tail, cancellation closure, filters, full large payload retrieval, run
+scoping, HTML escaping, restart persistence, overwrite refusal and credential scans
+across all saved/exported artifacts. Earlier invalid-future CLI gate now uses T04.
+Browser checks: CUA inventory contains no browser connector; native Safari returned
+“Computer Use permissions are not granted.” Visual expansion/copy/polling checks
+remain unrun; HTTP checks are not claimed as visual inspection.
+Live checks: not applicable; no external service calls or paid model requests.
+Limitations: trace-only export; actual agent conversation hooks start in T07/T12.
+Polling announces new matching events with a refresh link. Restart reconciliation
+assumes the specified single local server and stopped application workers; it does
+not infer remote completion or retry interrupted calls. Future integrations must
+pass Settings.redactor() and use the recorder instead of logging raw failures.
+Dependencies and uv.lock unchanged. uv commands required escalation for the existing
+cache. Next task: T04.
 
 ## Durable decisions / deviations
 

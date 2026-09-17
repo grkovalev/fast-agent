@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block content %}
 <p><a href="/">← All runs</a></p><section><span class="badge">Synthetic demo</span><h2>{{ run.ticker }} · {{ run.run_id }}</h2><p>Setup complete</p><p>{{ run.limitation }}</p><p class="muted">Created {{ run.created_at.isoformat() }}</p></section>
-<nav aria-label="Run tabs"><span aria-current="page">Overview</span>{% for tab in ['Report', 'Evidence', 'Chunks', 'Candidates', 'Calculations', 'Trace', 'Checks'] %}<button disabled title="Not implemented yet">{{ tab }}</button>{% endfor %}</nav>
+<nav aria-label="Run tabs"><span aria-current="page">Overview</span>{% for tab in ['Report', 'Evidence', 'Chunks', 'Candidates', 'Calculations', 'Checks'] %}<button disabled title="Not implemented yet">{{ tab }}</button>{% endfor %}<a href="/runs/{{ run.run_id }}/trace">Trace</a></nav>
 <section><h2>Pipeline progress</h2><p>Setup: Completed</p>{% for stage in ['Lookup', 'Discover', 'Download', 'Parse', 'Chunk', 'Screen', 'Extract', 'Reconcile', 'Calculate', 'Write', 'Validate'] %}<p>{{ stage }}: <span class="muted">Not implemented yet</span></p>{% endfor %}</section>
 <section><h2>Saved artifacts</h2><p>Immutable fixture inputs and validated run data. Financial extraction: Not implemented yet.</p>
 {% for artifact in artifacts %}<p><a href="/runs/{{ run.run_id }}/artifacts/{{ artifact.artifact_id }}">{{ artifact.artifact_id }}</a> · {{ artifact.media_type }} <small>SHA-256 {{ artifact.hash }}</small></p>{% else %}<p>Legacy T01 summary only.</p>{% endfor %}</section>
