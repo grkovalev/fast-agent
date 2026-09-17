@@ -46,7 +46,7 @@ def doctor(live: str | None = typer.Option(None, help='Explicit live probe: sec,
 
 @app.command()
 def demo(
-    through: str = typer.Option("T11", help="Latest implemented task: T11."),
+    through: str = typer.Option("T12", help="Latest implemented task: T12."),
     run_id: str = typer.Option(..., help="Unique run ID; existing runs are preserved."),
     scenario: str = typer.Option("normal", help="normal, two-years, conflict, restatement, split-adjusted or losses fixtures."),
 ):
@@ -134,12 +134,23 @@ def stage(run_id: str, stage: str, filing_id: str | None = typer.Option(None),
           chunk_id: Annotated[list[str] | None, typer.Option(help='Select saved screening/extraction chunks; repeatable.')] = None,
           max_chunks: int | None = typer.Option(None, min=1, help='Bound screening/extraction to a subset; result is partial.'),
           company_facts_file: str | None = typer.Option(None, help='Optional saved SEC Company Facts JSON cross-check for extraction.')):
-    """Download, parse, chunk, screen, extract, reconcile or calculate saved discovered filings; optionally select one filing."""
+    """Run an implemented stage on saved filings; write/validate use the current full snapshot."""
     from profitlab.documents.service import SourceService
 
     settings = Settings()
     try:
-        if stage == 'calculate':
+        if stage in ('write', 'validate'):
+            from profitlab.analysis.reporting import ReportingService
+
+            if filing_id or chunk_id or max_chunks or company_facts_file:
+                raise ValueError('Writing uses the current full calculation snapshot.')
+            reporter = ReportingService(settings)
+            if stage == 'write':
+                result = reporter.progress(run_id)
+                console.print(result.limitation, markup=False)
+            else:
+                console.print(reporter.verify(run_id), markup=False)
+        elif stage == 'calculate':
             from profitlab.analysis.calculations import CalculationService
 
             if filing_id or chunk_id or max_chunks or company_facts_file:
@@ -177,5 +188,19 @@ def stage(run_id: str, stage: str, filing_id: str | None = typer.Option(None),
     except (ValueError, FileNotFoundError) as error:
         console.print(f"Error: {settings.redactor().text(str(error))}", markup=False)
         raise typer.Exit(2) from None
-    page = 'calculations' if stage == 'calculate' else 'candidates' if stage in ('extract', 'reconcile') else 'chunks' if stage in ('chunk', 'screen') else 'sources'
+    page = 'report' if stage in ('write', 'validate') else 'calculations' if stage == 'calculate' else 'candidates' if stage in ('extract', 'reconcile') else 'chunks' if stage in ('chunk', 'screen') else 'sources'
     console.print(f"{stage} complete · http://{settings.host}:{settings.port}/runs/{run_id}/{page}")
+
+
+@app.command()
+def verify(run_id: str):
+    """Check current report references and citations without provider calls."""
+    from profitlab.analysis.reporting import ReportingService
+
+    settings = Settings()
+    try:
+        checks = ReportingService(settings).verify(run_id)
+        console.print(checks, markup=False)
+    except (ValueError, FileNotFoundError) as error:
+        console.print(settings.redactor().text(str(error)), markup=False)
+        raise typer.Exit(2) from None

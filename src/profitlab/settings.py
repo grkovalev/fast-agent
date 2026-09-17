@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     provider_total_timeout: float = Field(120, gt=0, le=300)
     provider_max_response_bytes: int = Field(2000000, ge=1024)
     structured_output_repairs: int = Field(1, ge=0, le=2)
+    writer_max_requests: int = Field(6, ge=1, le=20)
+    writer_max_tool_calls: int = Field(8, ge=1, le=30)
     llm_reasoning_effort: Literal['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] | None = None
     llm_output_mode: Literal['tool', 'native'] = 'tool'
     llm_base_url: str = "https://api.openai.com/v1"

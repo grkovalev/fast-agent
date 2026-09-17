@@ -3,6 +3,7 @@ import json
 import os
 import sqlite3
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from pydantic import BaseModel, TypeAdapter
@@ -34,11 +35,16 @@ class Repository:
                 PRAGMA user_version=1;
             ''')
 
+    @contextmanager
     def connect(self):
         db = sqlite3.connect(self.db_path, timeout=30)
-        db.row_factory = sqlite3.Row
-        db.execute('PRAGMA foreign_keys=ON')
-        return db
+        try:
+            db.row_factory = sqlite3.Row
+            db.execute('PRAGMA foreign_keys=ON')
+            with db:
+                yield db
+        finally:
+            db.close()
 
     def create_run(self, manifest: RunManifest):
         run_dir = self.root / 'runs' / manifest.run_id

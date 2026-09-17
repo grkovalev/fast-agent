@@ -1,7 +1,18 @@
 {% extends "base.html" %}{% block content %}
 <p><a href="/runs/{{ run.run_id }}">← Run overview</a> · <a href="/runs/{{ run.run_id }}/report">Report</a> · <a href="/runs/{{ run.run_id }}/calculations">Calculations</a> · <a href="/runs/{{ run.run_id }}/candidates">Selected evidence</a> · <a href="/runs/{{ run.run_id }}/trace?stage=calculate">Calculation trace</a></p>
 <span class="badge">{{ 'Synthetic demo' if run.mode == 'demo' else 'Recorded replay' if run.mode == 'replay' else 'Live run' }}</span>
-<h2>{{ run.ticker }} · {{ run.run_id }}</h2><p><strong>Data table; narrative not generated.</strong></p>
+<h2>{{ run.ticker }} · {{ run.run_id }}</h2>{% if report and narrative %}
+<h2>Earnings growth report</h2><p>Company earnings per share; stock-price returns are not included.</p>
+<p><strong>{{ 'Validated model narrative' if written.model_narrative else 'Data-only partial report; model narrative failed' }}</strong> · {{ narrative.validation_status }}</p>
+{% if written.synthetic %}<span class="badge">Fake provider · actual Pydantic AI framework conversation</span>{% endif %}
+{% if written.failure %}<p role="alert">{{ written.failure }}</p>{% endif %}
+{% for sentence in narrative.sentences %}<section id="{{ sentence.sentence_id }}"><p><strong>{{ sentence.attribution }}</strong>: {{ rendered[sentence.sentence_id] }}</p>
+{% for cid in sentence.fact_ids %}<a href="/runs/{{ run.run_id }}/candidates#{{ cid }}">Selected fact</a> {% endfor %}
+{% for cid in sentence.calculation_ids %}<a href="/runs/{{ run.run_id }}/calculations#{{ cid }}">View calculation</a> {% endfor %}
+{% for eid in sentence.evidence_ids %}<details><summary>Source drawer · {{ sentence.attribution }}</summary>{% set ref = evidence[eid] %}<blockquote>{{ ref.exact_segments | join(' ') }}</blockquote><p>{{ run.company.name }} · {{ run.company.ticker }} · CIK {{ run.company.cik }}</p><p>Source hash {{ ref.source_hash }}</p><a href="/runs/{{ run.run_id }}/sources/{{ ref.filing_id }}{{ ref.local_anchor }}">Open saved source</a> · {% if run.mode == 'demo' %}<span class="badge">Synthetic source</span>{% else %}<a href="{{ ref.original_url }}" rel="noopener" target="_blank">Open SEC original</a>{% endif %}</details>{% endfor %}</section>{% endfor %}
+{% for limitation in narrative.limitations %}<p>Limitation: {{ limitation }}</p>{% endfor %}
+<p><a href="/runs/{{ run.run_id }}/trace?stage=write&amp;kind=conversation">Writer conversation</a> · <a href="/runs/{{ run.run_id }}/checks">Mechanical checks</a></p>
+{% else %}<p><strong>Data table; narrative not generated.</strong></p>{% endif %}
 {% if not index %}<p>Calculations unavailable. Run reconcile against the latest extraction, then calculate. Earlier immutable artifacts remain readable.</p>{% else %}
 <p>Base-unit values retain source precision. Percentage displays use two decimal places, half-up; calculation details expose unrounded Decimal results.</p>
 <h2>Annual metrics</h2><table><thead><tr><th>Fiscal year / exact period</th><th>Net income · common shareholders</th><th>Diluted EPS</th><th>Diluted shares</th></tr></thead><tbody>

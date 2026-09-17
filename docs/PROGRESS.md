@@ -3,10 +3,11 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T11 complete locally; deterministic annual changes/CAGR, explicit eligibility reasons and linked preliminary data tables.
-- Next task: **T12 — Report-writing agent, actual conversation, and citations.**
-- Latest verified task: T11 local acceptance; earlier SEC-original visual verification remains pending.
-- Last runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
+- Implementation status: T12 complete locally; validated report writer, bounded evidence tools, cited narrative and incremental framework conversations; failed live drafts remain data-only partial reports.
+- Next task: **T13 — Complete ticker-to-report workflow and run controls.**
+- Latest verified task: T12 local acceptance; earlier SEC-original visual verification remains pending.
+- Last runnable T12 demo: `demo-t12` (final writer snapshot and mechanical checks).
+- Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
@@ -28,7 +29,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T09 | Candidate extraction with source validation | DONE | Saved Apple table extraction passed; original/visual inspection pending |
 | T10 | Candidate reconciliation and coverage selection | DONE | Not applicable |
 | T11 | Deterministic annual-growth calculations | DONE | Not applicable |
-| T12 | Pydantic AI report agent and citation validation | TODO | Not run |
+| T12 | Pydantic AI report agent and citation validation | DONE | Configured model called twice; actual get_coverage observed; narrative validation failed, honest partial fallback verified |
 | T13 | Complete ticker-to-report workflow and run controls | TODO | Not run |
 | T14 | Measured chunk-size and screening evaluation | TODO | Not run |
 | T15 | End-to-end verification and failure/recovery cases | TODO | Not run |
@@ -46,6 +47,97 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T12 — Report-writing agent, actual conversation, and citations.
+Implemented: versioned Pydantic AI Report writer with typed run dependencies,
+four bounded read-only evidence/selection/calculation/coverage tools, selected
+artifact inputs, source ownership checks and explicit missing tool results.
+Quantitative placeholders resolve only selected facts, fiscal years and existing
+calculation result keys. Application rendering owns the annual table. Output
+validation checks company, coverage, table IDs, limitations, source IDs, exact
+management quotes, attribution, quantitative placeholders and unavailable results.
+Bounded framework repair feedback and incremental native conversations survive
+failure/interruption. Fixture writer executes an actual get_evidence call and
+repairs an intentional unsupported numeric claim. Persistent failure saves a
+clearly labeled data-only partial Report and the diagnostic, without claiming
+successful model narrative. Old snapshots remain immutable; changed upstream
+calculations hide stale reports.
+
+CLI adds write/validate stages and initial offline verify. UI adds cited narrative,
+management source drawers, fact/calculation links, fake-provider labels and a
+mechanical Checks page. Trace accurately distinguishes early runs without model
+calls and writer histories, each with separate conversation IDs. README updated;
+dependencies/lock unchanged. Necessary regression fix: SQLite transaction context
+managers now close connections on both success and exception; the extended suite
+exposed descriptor exhaustion from connections otherwise awaiting garbage
+collection. Added closure/rollback-path verification.
+
+Commands/results:
+- `uv run profitlab demo --through T12 --run-id demo-t12`: passed, using actual
+  offline services/framework with explicit fake providers.
+- `uv run profitlab stage demo-t12 write`: passed after final prompt/validator
+  changes, preserving earlier snapshots and conversations.
+- `uv run profitlab stage demo-t12 validate` and
+  `uv run profitlab verify demo-t12`: passed, model_narrative=true, validation
+  status valid, rendered placeholder output matches persisted output.
+- Final `uv run pytest tests/task_gates/test_t12.py`: 15 passed. Includes actual
+  fixture framework tools/repairs, invalid numbers/IDs/quotes, unsupported
+  management attribution, exact coverage, unavailable calculations, source
+  ownership, tool budgets, fallback, interrupted native history, immutable
+  report snapshots, stale-report hiding, connection closure and two-year coverage.
+- Initial `uv run pytest`: 85 passed / six failures. Two obsolete UI labels were
+  restored; four downstream failures were caused by SQLite descriptor exhaustion,
+  corrected by explicit transactional connection closure. Final `uv run pytest`:
+  **92 passed**, existing upstream warning only. This collection preceded the
+  two supplemental T12 cases; the final 15-case T12 gate passed separately.
+- `uv run ruff check .` and `git diff --check`: passed. Existing upstream
+  Starlette/AnyIO deprecation warning only.
+- `PROFITLAB_PORT=8002 uv run profitlab serve`: updated interface running on
+  localhost:8002, leaving existing servers untouched. `/health` returned 200;
+  `/runs/demo-t12/report` returned 200 with validated narrative, fake-provider
+  badge, management source drawers and 25.00% markup. HTTP checks are not visual
+  inspection.
+- `uv run profitlab stage live-sec-t04 reconcile`, then calculate, then write:
+  used previously saved public Apple SEC extraction artifacts. Two bounded actual
+  configured `gpt-5.6-luna` writer attempts were made; both exhausted one allowed
+  repair and persisted data-only partial reports. First attempt used raw fiscal
+  years and literal RESULT_KEY fields; clarified prompt examples and added
+  validated fiscal_year placeholders. Second attempt added an unsupported custom
+  coverage sentence despite the exact supplied coverage contract. First attempt
+  had no tool call. Second made actual `get_coverage`, call ID
+  `call_OSDDOZb8YJTXCQJAQatSHkD1`; its real request/result and conversation are saved.
+  No tool call is invented. Successful live model narrative remains pending;
+  these partial saved selections are not an end-to-end ticker report measurement.
+- `uv run profitlab verify live-sec-t04`: passed mechanical integrity for the
+  data-only partial report, explicitly model_narrative=false and status partial.
+
+Open http://127.0.0.1:8002/runs/demo-t12/report. Click an EPS figure, then
+**View source** for the cell/row/year highlight. Click **View calculation** for
+narrative growth arithmetic. Expand a management **Source drawer**, inspect its
+exact quote and open the saved passage. Follow **Writer conversation**; inspect
+get_evidence, its returned source and retry-prompt in the redacted native messages.
+Trace with stage=write and kind=structured_repair shows validation feedback.
+Checks records reference integrity only; it does not prove causal truth. Next: T13.
+
+Visual verification remains unrun: CUA inventory has no browser connectors and
+Safari returned “Computer Use was not approved to use Safari.” Source-viewer
+visual confirmation and successful live model narrative remain visibly pending.
+No new SEC/Jev call was made. Full workflow/resume/cancel remain T13; expanded
+verification and portable report exports remain T15/T16.
+
+## T12 discovery-mode follow-up
+
+User entered MSFT with Synthetic demo selected. The synthetic ticker map contains
+DEMO, so that run's not_found outcome is expected and is not a live SEC lookup.
+Clarified the home form's ticker/mode guidance and synthetic lookup failures.
+Replaced stale discovery text saying extraction is unimplemented with the accurate
+statement that extraction has not run. Earlier immutable manifests remain unchanged;
+overview rendering clarifies their legacy wording and shows live-mode guidance.
+`uv run pytest tests/task_gates/test_t04.py tests/task_gates/test_t01.py`: 24 passed.
+`uv run ruff check .` and `git diff --check`: passed. Restarted only the task's
+localhost:8002 server. The home form still stops at discovery; full flow is T13.
+
+## T11 task handoff
 
 Task: T11 — Deterministic annual-growth calculations.
 Implemented: Decimal-based absolute changes and eligible annual percentages,

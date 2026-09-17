@@ -2,14 +2,14 @@
 
 Local, inspectable earnings growth research. Company earnings per share; stock-price returns are not included.
 
-T11 is implemented: deterministic Decimal annual changes, eligibility statuses, CAGR and linked preliminary metrics tables; ordered candidate reconciliation, source-preserving alternatives and unresolved conflicts, annual metric coverage and complementary explanations; source-validated numeric candidates, exact-cell source drawers, separate narrative quotes and inspectable rejected extraction proposals; inspectable relevance probabilities, structural table safeguards, bounded coverage recovery and cached screening; separate Jev and OpenAI-compatible adapters with inspectable compatibility probes, table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Narrative report writing starts in T12.
+T12 is implemented: a Pydantic AI report writer with run-scoped evidence tools, quantitative placeholders, bounded validation repairs, incremental native conversations and cited explanations; deterministic Decimal annual changes, eligibility statuses, CAGR and linked preliminary metrics tables; ordered candidate reconciliation, source-preserving alternatives and unresolved conflicts, annual metric coverage and complementary explanations; source-validated numeric candidates, exact-cell source drawers, separate narrative quotes and inspectable rejected extraction proposals; inspectable relevance probabilities, structural table safeguards, bounded coverage recovery and cached screening; separate Jev and OpenAI-compatible adapters with inspectable compatibility probes, table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Failed writer output produces a clearly marked data-only partial report.
 
 Requires Python 3.12 and uv. From the repository root:
 
 ```sh
 uv sync --locked
 uv run profitlab doctor
-uv run profitlab demo --through T11 --run-id demo-t11-new
+uv run profitlab demo --through T12 --run-id demo-t12-new
 uv run profitlab serve
 ```
 
@@ -31,7 +31,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T12: report writing and citation validation. Discovered filing coverage is separate from selected metric coverage; narrative reporting remains unavailable. Earlier runs stay readable.
+Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T13: complete workflow and run controls. Discovered filing coverage is separate from selected metric coverage; narrative reports require current calculations and a successful validated writer output. Earlier runs stay readable.
 
 ```sh
 uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04
@@ -271,3 +271,32 @@ requires every annual value to be positive. Ordinary leap-year and 52/53-week
 variation is allowed. Calculations use Decimal precision 60; two-decimal half-up
 rounding applies only to display. Re-extraction or reconciliation hides stale
 calculations until those stages are rerun. No financial model calls are used.
+
+
+Report writing (T12):
+
+```sh
+uv run profitlab demo --through T12 --run-id demo-t12
+uv run profitlab stage <run-id> write
+uv run profitlab stage <run-id> validate
+uv run profitlab verify <run-id>
+```
+
+Open the Report tab: annual figures come from selected fact artifacts and growth
+values come from deterministic calculation artifacts. Click a figure, then View
+source for its highlighted row/year. Click View calculation for a narrative
+comparison. Expand a management sentence's Source drawer to inspect its exact
+quote and saved/original source. Interpretations carry a separate attribution.
+Trace with stage=write and kind=conversation shows native framework messages;
+kind=structured_repair shows output feedback. Demo writers use an explicitly fake
+provider, exercise a real read-only tool call and repair an intentionally invalid
+quantitative assertion. Live writers use only the configured model.
+
+`verify` currently checks report reference integrity, source quotes, coverage and
+placeholder availability; broader end-to-end verification is T15. A failed writer
+is a data-only partial report, not successful model narrative. Reports are hidden
+when extraction, reconciliation or calculations change; previous immutable
+artifacts remain inspectable. `writer_max_requests` (6) and
+`writer_max_tool_calls` (8), provider timeout and configured structured-output
+repairs bound writing. Tools return explicit missing results for unknown IDs and
+never search another run. No tools execute code or fetch arbitrary URLs.

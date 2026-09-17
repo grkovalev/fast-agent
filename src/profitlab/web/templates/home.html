@@ -1,6 +1,7 @@
 {% extends "base.html" %}{% block content %}
 <section><h2>Discover annual filings</h2>{% if error %}<p role="alert">{{ error }}</p>{% endif %}
-<form action="/discover" method="post"><label for="ticker">Ticker</label><input id="ticker" name="ticker" placeholder="DEMO or AAPL" required maxlength="20">
+<form action="/discover" method="post"><label for="ticker">Ticker</label><input id="ticker" name="ticker" placeholder="DEMO (synthetic) or MSFT (live)" aria-describedby="ticker-mode-help" required maxlength="20">
+<p id="ticker-mode-help">Synthetic demo uses the fixture ticker <strong>DEMO</strong>. For <strong>MSFT</strong> or another real company, select <strong>Live SEC</strong>.</p>
 <label for="mode">Mode</label><select id="mode" name="mode"><option value="demo">Synthetic demo</option><option value="live">Live SEC</option></select>
 <label for="years">Annual periods</label><select id="years" name="years">{% for year in [4,3,2,1] %}<option>{{ year }}</option>{% endfor %}</select>
 <button type="submit">Discover filings</button></form><p>Stops at discovery. Demo: DEMO; unknown ticker: UNKNOWN; simulated service failure: TIMEOUT. Live requires a configured SEC contact.</p></section>

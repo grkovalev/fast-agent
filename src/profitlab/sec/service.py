@@ -125,7 +125,7 @@ class DiscoveryService:
             'covered_years': sorted({period.year for period in result.report_periods}),
             'status': status, 'stage': 'discover', 'updated_at': datetime.now(UTC),
             'artifact_ids': ['discovery'] + [r.filing_id for r in result.filings],
-            'limitation': result.message + ' Financial extraction is not implemented yet.'})
+            'limitation': result.message + ' This run stopped at discovery; financial extraction has not run.'})
         repo.save_contract(run_id, 'manifest-discovery', final)
         return final
 
@@ -142,7 +142,7 @@ class DiscoveryService:
             identities = {entry.cik_str for entry in matches}
             if not matches:
                 result = DiscoveryResult(outcome='not_found', ticker=ticker,
-                                         message='Ticker not found in SEC mapping.')
+                                         message=('Ticker not found in the synthetic fixture mapping. Use DEMO for synthetic data or select Live SEC for real tickers such as MSFT.' if synthetic else 'Ticker not found in SEC mapping.'))
                 output.update(result.model_dump(mode='json'))
                 return result
             if len(identities) > 1:

@@ -1,3 +1,4 @@
+import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -133,6 +134,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         run, events, warnings = trace_data(run_id, filters)
         return templates.TemplateResponse(request=request, name='trace.html', context={
             'run': run, 'events': events, 'warnings': warnings, 'filters': filters,
+            'has_model_calls': any(e.actor == 'model' for e in TraceRecorder(Repository(settings.data_dir), run_id).history()[0]),
         })
 
     @app.get('/runs/{run_id}/trace/payloads/{artifact_id}')
@@ -261,8 +263,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             index, items, observations, facts = CalculationService(settings).latest(run_id)
         except (ValueError, FileNotFoundError):
             raise HTTPException(404, 'Run not found or damaged') from None
+        from profitlab.analysis.reporting import ReportingService
+
+        written, narrative, rendered = ReportingService(settings).latest(run_id)
         return templates.TemplateResponse(request=request, name='calculations.html', context={
             'run': run, 'index': index, 'items': items, 'observations': observations,
+            'evidence': {eid: json.loads(Repository(settings.data_dir).read(run_id, eid)) for eid in narrative.source_index} if narrative else {},
+            'written': written, 'narrative': narrative, 'rendered': rendered,
             'facts': facts, 'display': display, 'report': request.url.path.endswith('/report')})
+
+    @app.get('/runs/{run_id}/checks')
+    def checks(request: Request, run_id: str):
+        try:
+            run = service.get(run_id)
+            repo = Repository(settings.data_dir)
+            items = [json.loads(repo.read(run_id, a['artifact_id'])) for a in repo.artifacts(run_id) if a['artifact_id'].startswith('checks-report-')]
+        except (ValueError, FileNotFoundError):
+            raise HTTPException(404, 'Run not found or damaged') from None
+        return templates.TemplateResponse(request=request, name='checks.html', context={'run': run, 'items': items})
 
     return app
