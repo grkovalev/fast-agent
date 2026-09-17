@@ -1,9 +1,27 @@
 {% extends "base.html" %}{% block content %}
 <nav aria-label="Run navigation"><a href="/runs/{{ run.run_id }}">← Overview</a><a href="/runs/{{ run.run_id }}/sources">Filings</a><a href="/runs/{{ run.run_id }}/trace?stage=extract">Trace</a></nav>
-<h2>{{ run.company.name if run.company else run.ticker }} · Extracted figures</h2>
-<p class="muted">Click View source to check a figure in its filing. These candidates have not yet been reconciled into a final report.</p>
+<h2>{{ run.company.name if run.company else run.ticker }} · {{ 'Reconciled candidates' if reconciliation else 'Extracted figures' }}</h2>
+<p class="muted">Click View source to check a figure in its filing. {% if reconciliation %}Selections and alternatives are shown below. Calculations and the final report are not implemented yet.{% else %}These candidates have not yet been reconciled into a final report.{% endif %}</p>
 {% if index and index.synthetic %}<p class="badge">Synthetic demo · fake extraction provider</p>{% endif %}
-{% if run.status == 'partial' %}<p class="notice">Partial extraction: only available evidence is shown. Some filings or contexts remain unresolved.</p>{% endif %}
+{% if run.status == 'partial' %}<p class="notice">Partial {{ 'reconciliation' if reconciliation else 'extraction' }}: only available evidence is shown. Some filings or contexts remain unresolved.</p>{% endif %}
+{% if stale_selection %}<p class="notice">Extraction has changed since selection. Run reconcile again; earlier selections remain in saved artifacts.</p>{% endif %}
+{% if reconciliation %}
+<section><h2>Annual metric coverage</h2><p>{{ reconciliation.support_policy }}</p>
+<div class="source-table"><table><thead><tr><th>Fiscal year</th>{% for m in ['net_income_common', 'eps_diluted', 'weighted_average_shares_diluted'] %}<th>{{ names[m] }}</th>{% endfor %}</tr></thead><tbody>
+{% for row in reconciliation.coverage %}<tr><th>{{ row.fiscal_year }}{% for period in row.periods %}<small>{{ period.start }} to {{ period.end }}</small>{% endfor %}</th>
+{% for m in ['net_income_common', 'eps_diluted', 'weighted_average_shares_diluted'] %}{% set entry = row.metrics[m] %}<td><strong>{{ entry.status | capitalize }}</strong>{% if entry.candidate_id %}{% set c = facts[entry.candidate_id] %}<p>{{ c.raw_numeric_text }} {{ c.currency or c.unit }}{% if c.scale != 1 %} × {{ c.scale }}{% endif %}</p>{% endif %}<details><summary>Why / compare sources</summary><p>{{ entry.reason }}</p>{% for gid in entry.group_ids %}<a href="#{{ gid }}">Compare candidate group</a>{% endfor %}</details></td>{% endfor %}</tr>
+{% if row.comparability_flags %}<tr><td colspan="4">{{ row.comparability_flags | join('; ') }}</td></tr>{% endif %}{% endfor %}
+</tbody></table></div><p>Parent and consolidated income remain separate contextual metrics; they never fill a missing common-share earnings cell.</p></section>
+<section><h2>Selections and competing sources</h2>
+{% for g in groups %}<details id="{{ g.group_id }}" {% if g.unresolved_conflicts %}open{% endif %}><summary>{{ names[g.metric.value] }} · {{ g.period.fiscal_year }} · {{ 'Unresolved conflict — no value selected' if g.unresolved_conflicts else 'Selected' if g.selected_id else 'No eligible selection' }}{% if g.share_class %} · {{ g.share_class }}{% endif %}</summary>
+<p>{{ g.period.start }} to {{ g.period.end }} · {{ g.annuality }} · {{ g.scope }} · {{ g.attribution }} · {{ g.basis }} · {{ g.currency or g.unit }}</p>
+<p>{{ g.selection_reasons | join('; ') }} {{ g.unresolved_conflicts | join('; ') }}</p>
+{% for cid in g.candidate_ids %}{% set c = facts[cid] %}{% set d = reconciliation.decisions[cid] %}<article><h3>{{ d.status | capitalize }} · {{ c.raw_numeric_text }} {{ c.currency or c.unit }}</h3><p>Normalized Decimal {{ c.value }} · reported scale {{ c.scale }} · precision step {{ d.reported_quantum }}</p><p>{{ d.reason_code }}: {{ d.reason }}</p><p>Presented {{ d.filing_date }} · {{ d.accession }}{% if d.adjustment %} · Explicit {{ d.adjustment }}{% endif %}</p>
+{% for eid in c.evidence_ids %}{% set e = evidence[eid] %}{% set cell = cells[e.cell_ids[0]] if e.cell_ids else none %}<a href="/runs/{{ run.run_id }}/artifacts/{{ eid }}">Evidence and exact quote</a> <a href="/runs/{{ run.run_id }}/sources/{{ e.filing_id }}?focus=table{% if cell %}&amp;cell={{ cell.cell_id }}&amp;row={{ cell.row_id }}&amp;column={{ cell.column_id }}{% endif %}{{ e.local_anchor }}">View competing source</a>{% endfor %}</article>{% endfor %}
+{% if g.duplicate_groups %}<p>Equivalent repeated presentations (not independent corroboration): {{ g.duplicate_groups | length }} set(s). All provenance is retained.</p>{% endif %}</details>{% endfor %}</section>
+{% if reconciliation.passages %}<section><h2>Complementary explanations</h2>{% for p in reconciliation.passages %}<article><h3>{{ p.year }} · {{ p.topic }}</h3><p>{{ p.attribution }}</p><blockquote>{{ p.quote }}</blockquote>{% for eid in p.evidence_ids %}<a href="/runs/{{ run.run_id }}/artifacts/{{ eid }}">Supporting passage {{ loop.index }}</a>{% endfor %}</article>{% endfor %}</section>{% endif %}
+<p><a href="/runs/{{ run.run_id }}/trace?stage=reconcile">Selection trace and full rule results</a></p>
+{% endif %}
 {% set figures = attempts | selectattr('candidate') | list %}
 {% for year, rows in figures | groupby('candidate.period.fiscal_year') | reverse %}
 <section><h2>{{ year }}</h2><div class="source-table"><table class="figure-table"><thead><tr><th>Figure</th><th>Reported value</th><th>Check</th></tr></thead><tbody>

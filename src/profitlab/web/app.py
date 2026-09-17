@@ -221,20 +221,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get('/runs/{run_id}/candidates')
     def candidates(request: Request, run_id: str):
+        from profitlab.analysis.reconciliation import ReconciliationService
         from profitlab.providers.extraction import ExtractionService
 
         try:
             run = service.get(run_id)
             index, attempts = ExtractionService(settings).latest(run_id)
+            reconciliation, groups, observations = ReconciliationService(settings).latest(run_id)
+            stale_selection = bool(reconciliation and index and
+                                   reconciliation['extraction_created_at'] != index['created_at'])
+            if stale_selection:
+                reconciliation, groups, observations = None, [], []
         except (ValueError, FileNotFoundError):
             raise HTTPException(404, 'Candidates not found or damaged') from None
         import json
 
-        evidence = {a.evidence_id: json.loads(Repository(settings.data_dir).read(run_id, a.evidence_id))
-                    for a in attempts if a.evidence_id}
-        cells = {a.proposal['cell_id']: json.loads(Repository(settings.data_dir).read(run_id, a.proposal['cell_id']))
-                 for a in attempts if a.candidate}
+        repo = Repository(settings.data_dir)
+        evidence_ids = {a.evidence_id for a in attempts if a.evidence_id}
+        evidence_ids.update(eid for a in attempts if a.candidate for eid in a.candidate.evidence_ids)
+        evidence = {eid: json.loads(repo.read(run_id, eid)) for eid in evidence_ids}
+        cells = {cid: json.loads(repo.read(run_id, cid)) for e in evidence.values() for cid in e['cell_ids']}
         return templates.TemplateResponse(request=request, name='candidates.html',
-            context={'run': run, 'index': index, 'attempts': attempts, 'evidence': evidence, 'cells': cells})
+            context={'run': run, 'index': index, 'attempts': attempts, 'evidence': evidence, 'cells': cells,
+                     'reconciliation': reconciliation, 'groups': groups, 'observations': observations,
+                     'stale_selection': stale_selection,
+                     'facts': {a.candidate.candidate_id: a.candidate for a in attempts if a.candidate},
+                     'names': {'eps_diluted': 'Diluted EPS', 'weighted_average_shares_diluted': 'Diluted shares',
+                               'net_income_common': 'Net income · common shareholders',
+                               'net_income_parent': 'Net income · parent',
+                               'net_income_consolidated': 'Net income · consolidated'}})
 
     return app

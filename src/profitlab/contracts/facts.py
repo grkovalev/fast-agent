@@ -74,7 +74,8 @@ class CandidateGroup(Contract):
     attribution: str
     share_class: str | None = None
     basis: str
-    candidate_ids: list[StableID]
+    annuality: str = 'annual'
+    candidate_ids: list[StableID] = Field(min_length=1)
     selected_id: StableID | None = None
     duplicate_groups: list[list[StableID]] = Field(default_factory=list)
     selection_reasons: list[str] = Field(default_factory=list)
@@ -83,6 +84,13 @@ class CandidateGroup(Contract):
 
     @model_validator(mode='after')
     def selection(self):
+        if len(set(self.candidate_ids)) != len(self.candidate_ids):
+            raise ValueError('Candidate group IDs must be unique')
+        if self.latest_comparative_id and self.latest_comparative_id not in self.candidate_ids:
+            raise ValueError('Latest comparative must belong to the group')
+        if any(len(ids) < 2 or not set(ids) <= set(self.candidate_ids)
+               for ids in self.duplicate_groups):
+            raise ValueError('Duplicate sets must contain group members')
         if self.selected_id and self.selected_id not in self.candidate_ids:
             raise ValueError('Selected candidate must belong to the group')
         if self.selected_id and self.unresolved_conflicts:

@@ -2,18 +2,18 @@
 
 Local, inspectable earnings growth research. Company earnings per share; stock-price returns are not included.
 
-T09 is implemented: source-validated numeric candidates, exact-cell source drawers, separate narrative quotes and inspectable rejected extraction proposals; inspectable relevance probabilities, structural table safeguards, bounded coverage recovery and cached screening; separate Jev and OpenAI-compatible adapters with inspectable compatibility probes, table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Candidate selection and report calculations start in later tasks.
+T10 is implemented: ordered candidate reconciliation, source-preserving alternatives and unresolved conflicts, annual metric coverage and complementary explanations; source-validated numeric candidates, exact-cell source drawers, separate narrative quotes and inspectable rejected extraction proposals; inspectable relevance probabilities, structural table safeguards, bounded coverage recovery and cached screening; separate Jev and OpenAI-compatible adapters with inspectable compatibility probes, table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Calculations and report writing start in later tasks.
 
 Requires Python 3.12 and uv. From the repository root:
 
 ```sh
 uv sync --locked
 uv run profitlab doctor
-uv run profitlab demo --through T09 --run-id demo-t09-v2
+uv run profitlab demo --through T10 --run-id demo-t10-new
 uv run profitlab serve
 ```
 
-Open http://127.0.0.1:8000/runs/demo-t08/chunks. Compare a retained EPS table, uncertain explanation, dropped irrelevant paragraph and low-scored table with a structural override. Click a probability to inspect its exact request/response in Trace. The run also retains discovery, sources and chunks. Home accepts ticker discovery in demo or live mode. Use a fresh run ID each time; existing runs cannot be overwritten. Runtime summaries are stored under `data/runs/`.
+Open http://127.0.0.1:8000/runs/demo-t10-new/candidates. Expand **Why / compare sources** for one annual metric, follow **Compare candidate group**, and inspect the selected value, alternatives, rule codes and filing dates. **View competing source** highlights the exact cell, row and year column. The run retains discovery, sources, chunks and traces. Home accepts ticker discovery in demo or live mode. Use a fresh run ID each time; existing runs cannot be overwritten. Runtime summaries are stored under `data/runs/`.
 
 The interface binds to `127.0.0.1:8000` by default. Demo and UI need no credentials or network after installation. Optionally copy `.env.example` to `.env`; configuration checks report presence only and do not probe external services. Never commit credentials.
 
@@ -31,7 +31,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T10: candidate reconciliation and coverage selection. Discovered filing coverage is separate from extracted financial coverage; selection, calculations and reporting remain unavailable. Earlier runs stay readable.
+Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T11: deterministic annual-growth calculations. Discovered filing coverage is separate from selected metric coverage; calculations and reporting remain unavailable. Earlier runs stay readable.
 
 ```sh
 uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04
@@ -214,3 +214,37 @@ ambiguous; malformed citations/value/year/scale mismatches are rejected. Partial
 coverage and unsupported layouts remain visible. No gold answers enter extraction.
 Company Facts cross-checks compare the same accession/concept/interval/unit and
 label conflicts; they are another presentation of the same filing data.
+
+
+Candidate reconciliation (T10):
+
+```sh
+uv run profitlab demo --through T10 --run-id demo-t10-new
+uv run profitlab demo --through T10 --scenario conflict --run-id conflict-t10-new
+uv run profitlab demo --through T10 --scenario restatement --run-id restatement-t10
+uv run profitlab demo --through T10 --scenario split-adjusted --run-id split-t10
+uv run profitlab stage <extracted-run-id> reconcile
+uv run pytest tests/task_gates/test_t10.py
+```
+
+The candidates page shows a coverage matrix, group comparisons and complementary
+source passages. Comparable groups use the exact fiscal interval, metric,
+annuality, unit/currency, scope, attribution, accounting basis and share class.
+Required source validations precede selection. Complete statements/EPS notes take
+precedence over isolated mentions; newest comparable presentations are used only
+when values agree or a newer cited row/header/caption explicitly labels a
+restatement, recast or split adjustment. An amendment alone is not such a label.
+Unexplained differences remain unselected, with both values and sources visible.
+Different reported precision explains differences only when the finer value rounds
+to the coarser value; equally precise differing values conflict.
+
+Repeated values retain every candidate/source reference without adding votes or
+independent corroboration. Common-share earnings never use parent/consolidated
+income as a substitute. Ambiguous periods, currencies or share classes produce
+explicit missing/conflicting coverage. Fiscal transition periods and mixed original
+and adjusted per-share bases have comparability flags for subsequent calculations.
+Passages are grouped by filing report-end year and topic; identical normalized text
+is shown once per year/topic with all its evidence references. This is deterministic
+evidence selection, not a generated narrative. Selection trace events expose the
+complete rule results. Reconciliation snapshots are immutable; rerunning selection
+preserves earlier artifacts and the latest index is used by the UI.

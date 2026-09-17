@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T09 complete locally; source-validated extraction candidates, narrative evidence and inspectable rejected/ambiguous proposals.
-- Next task: **T10 — Candidate reconciliation and coverage selection.**
-- Latest verified task: T09 local acceptance and bounded extraction from saved Apple source; SEC-original visual verification remains pending.
-- Last runnable demo: `demo-t09-v2` (source-validated numeric candidates and narrative passages, fixture agent rejections). Earlier demos remain readable.
+- Implementation status: T10 complete locally; ordered candidate reconciliation, source-preserving alternatives, unresolved conflicts, annual metric coverage and complementary explanations.
+- Next task: **T11 — Deterministic annual-growth calculations.**
+- Latest verified task: T10 local acceptance; earlier SEC-original visual verification remains pending.
+- Last runnable demos: `demo-t10` and `conflict-t10` (latest immutable reconciliation snapshots, selected metric coverage and an unresolved EPS conflict). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
@@ -26,7 +26,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T07 | Jev and OpenAI-compatible provider adapters | DONE | Jev and LLM passed; visual inspection pending |
 | T08 | Jev relevance screening and coverage recovery | DONE | Bounded Jev spot check passed; visual inspection pending |
 | T09 | Candidate extraction with source validation | DONE | Saved Apple table extraction passed; original/visual inspection pending |
-| T10 | Candidate reconciliation and coverage selection | TODO | Not applicable |
+| T10 | Candidate reconciliation and coverage selection | DONE | Not applicable |
 | T11 | Deterministic annual-growth calculations | TODO | Not applicable |
 | T12 | Pydantic AI report agent and citation validation | TODO | Not run |
 | T13 | Complete ticker-to-report workflow and run controls | TODO | Not run |
@@ -46,6 +46,85 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T10 — Candidate reconciliation and evidence coverage.
+Implemented: deterministic ordered selection with comparable keys for exact period,
+metric, annuality, unit/currency, whole-company/segment scope, attribution,
+accounting basis and share class. Required source/context validations precede
+selection. Duplicate/repeated values preserve every candidate and evidence ref
+without adding independent votes. Complete financial statements/EPS notes precede
+isolated mentions. Newest equivalent comparable presentations have filing-date
+provenance; differing values require explicit restated/recast/split-adjusted
+labels in the cited row, year/header or table caption. An amendment alone does not
+explain a discrepancy. Equally precise disagreements and contradictory same-date
+presentations remain unselected. Differing precision is equivalent only when the
+finer value rounds to the coarser reported precision (Decimal, half-up; pairwise
+agreement prevents a coarse-precision bridge hiding a conflict).
+
+Added typed CandidateGroups and AnnualObservations, per-candidate reason codes,
+full selection trace events, immutable content-derived group/observation IDs and
+versioned reconciliation indexes. Four-year main-metric coverage keeps contextual
+parent/consolidated income separately labeled. Missing exact periods are shown
+without invented fiscal starts. Ambiguous classes/currencies/intervals stay
+conflicting; fiscal transitions and mixed original/adjusted per-share bases are
+flagged. Adjustment basis includes presentation accession to avoid equating
+separate adjustments merely because their labels match. Complementary passages
+are deduplicated by normalized text, filing report-end year and topic, with all
+source refs retained. No model chooses a winning number or writes a narrative.
+
+CLI adds `stage <run-id> reconcile` and T10 demo progression; scenarios include
+conflict, explicit restatement, split-adjusted four-year series and two-year
+coverage. Necessary extraction fix: distinguish split-adjusted GAAP from non-GAAP
+adjusted figures in table/visible-XBRL context filters. UI adds coverage, competing
+values, selection reason codes, filing dates, exact quotes and highlighted-source
+links. After re-extraction, stale selections are hidden with a reconcile-again
+notice; historical immutable artifacts remain accessible. README/fixture notes
+updated, and T01 future-task rejection now uses T11.
+
+Commands/results:
+- `uv run profitlab demo --through T10 --run-id demo-t10`: passed.
+- `uv run profitlab demo --through T10 --scenario conflict --run-id conflict-t10`:
+  passed. Both use actual offline pipeline/services with explicitly fake providers.
+- `uv run profitlab stage demo-t10 reconcile` and
+  `uv run profitlab stage conflict-t10 reconcile`: passed after final content-ID
+  hardening; latest snapshots supersede initial selection artifacts without
+  overwriting them. Each has 12 groups, four observations and four deduplicated
+  year-scoped explanations. Normal main coverage has all 12 cells selected;
+  conflict EPS 2025 remains unselected with 2.00 and 2.25 sources preserved.
+  Runs preserve partial status from upstream unsupported extraction contexts.
+- Final `uv run pytest tests/task_gates/test_t10.py`: nine passed. Covers socket-
+  forbidden/no-gold real offline pipeline, annual/quarterly and attribution/scope
+  separation, duplicate provenance, Decimal precision/rounding, restatements,
+  split-adjusted series, unexplained/same-date conflicts, cross-check disagreement,
+  share-class ambiguity, missing periods/metrics, restart persistence, immutable
+  repeat selection, stale selection UI, source row/year highlights and CLI stage.
+- `uv run pytest`: 65 passed. Final T10 gate additionally verifies the final
+  immutable payload ID hardening. Earlier gate attempts caught an incorrect test
+  CSS name and the split-adjusted/non-GAAP filter issue; both corrected. Initial
+  obsolete gate run was interrupted; no failed run is presented as passing.
+- `uv run ruff check .` and `git diff --check`: passed. Existing upstream
+  Starlette/AnyIO deprecation warning only. Dependencies/lockfile unchanged.
+- `uv run profitlab serve`: restarted with final code, running at localhost:8000.
+  `/health`, `/runs/demo-t10/candidates` and `/runs/conflict-t10/candidates`
+  returned HTTP 200. Saved response markup contains coverage/competing-source
+  sections and both conflict values. HTTP checks are not visual inspection.
+
+Open http://127.0.0.1:8000/runs/demo-t10/candidates. Expand **Why / compare sources**
+for a metric/year, follow **Compare candidate group**, then **View competing
+source** to inspect the exact cell/row/year. Selected and alternative sources show
+dates, raw/normalized values and reason codes. Open
+http://127.0.0.1:8000/runs/conflict-t10/candidates to see EPS 2025 marked
+**Conflicting**, with both sources and no selected value. Trace → stage=reconcile
+shows the full deterministic rule results.
+
+Visual verification remains unrun: this turn's CUA inventory has no browser
+connectors; native Safari returned “Computer Use was not approved to use Safari.”
+No new live SEC/Jev/LLM request was made or claimed. T10 has no required live check;
+earlier real-source visual confirmation remains pending. Labels/layouts outside
+the bounded extraction/adjustment rules remain unsupported or ambiguous.
+Calculations and narrative report generation remain unavailable. Next task: T11.
+
+## T09 task handoff
 
 Task: T09 — Candidate extraction with source validation.
 Implemented: typed untrusted figure/passage proposals and extraction attempts;

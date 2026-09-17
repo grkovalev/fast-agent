@@ -46,9 +46,9 @@ def doctor(live: str | None = typer.Option(None, help='Explicit live probe: sec,
 
 @app.command()
 def demo(
-    through: str = typer.Option("T09", help="Latest implemented task: T09."),
+    through: str = typer.Option("T10", help="Latest implemented task: T10."),
     run_id: str = typer.Option(..., help="Unique run ID; existing runs are preserved."),
-    scenario: str = typer.Option("normal", help="normal or two-years synthetic fixtures."),
+    scenario: str = typer.Option("normal", help="normal, two-years, conflict, restatement or split-adjusted fixtures."),
 ):
     """Create an offline, synthetic setup run."""
     settings = Settings()
@@ -134,12 +134,19 @@ def stage(run_id: str, stage: str, filing_id: str | None = typer.Option(None),
           chunk_id: Annotated[list[str] | None, typer.Option(help='Select saved screening/extraction chunks; repeatable.')] = None,
           max_chunks: int | None = typer.Option(None, min=1, help='Bound screening/extraction to a subset; result is partial.'),
           company_facts_file: str | None = typer.Option(None, help='Optional saved SEC Company Facts JSON cross-check for extraction.')):
-    """Download, parse, chunk, screen or extract saved discovered filings; optionally select one filing."""
+    """Download, parse, chunk, screen, extract or reconcile saved discovered filings; optionally select one filing."""
     from profitlab.documents.service import SourceService
 
     settings = Settings()
     try:
-        if stage == 'extract':
+        if stage == 'reconcile':
+            from profitlab.analysis.reconciliation import ReconciliationService
+
+            if filing_id or chunk_id or max_chunks or company_facts_file:
+                raise ValueError('Reconcile uses the latest full extraction snapshot; subset controls apply to extraction.')
+            result = ReconciliationService(settings).progress(run_id)
+            console.print(result.limitation)
+        elif stage == 'extract':
             import json
             from pathlib import Path
 
@@ -163,5 +170,5 @@ def stage(run_id: str, stage: str, filing_id: str | None = typer.Option(None),
     except (ValueError, FileNotFoundError) as error:
         console.print(f"Error: {settings.redactor().text(str(error))}", markup=False)
         raise typer.Exit(2) from None
-    page = 'candidates' if stage == 'extract' else 'chunks' if stage in ('chunk', 'screen') else 'sources'
+    page = 'candidates' if stage in ('extract', 'reconcile') else 'chunks' if stage in ('chunk', 'screen') else 'sources'
     console.print(f"{stage} complete · http://{settings.host}:{settings.port}/runs/{run_id}/{page}")

@@ -69,6 +69,13 @@ class SourceService:
                                     if self.chunk_fixture and filing.report_date.year == 2025:
                                         extra = (FIXTURES / 'chunk-context.html').read_bytes()
                                         raw = raw.replace(b'</body>', extra + b'</body>')
+                                    scenario = run.configuration.get('scenario', 'normal')
+                                    if filing.form == '10-K/A' and scenario == 'conflict':
+                                        raw = raw.replace(b'<td>2.00</td>', b'<td>2.25</td>', 1)
+                                    elif filing.form == '10-K/A' and scenario in ('restatement', 'split-adjusted'):
+                                        # Explicit comparative intervals and labels belong to
+                                        # the saved fixture itself, before parse/extraction.
+                                        raw = (FIXTURES / f'{scenario}.html').read_bytes()
                                     content_type = 'text/html'
                                 else:
                                     raw, content_type = client.get(filing.primary_document_url, bytes,

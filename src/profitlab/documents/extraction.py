@@ -97,7 +97,8 @@ def table_figures(doc, retained):
                 lower = row_context.lower()
                 if re.search(r'quarter|three months|six months|nine months|ytd', lower):
                     reasons.append('Quarterly/YTD presentation')
-                if re.search(r'adjusted|non-gaap', lower):
+                accounting_context = re.sub(r'\bsplit[- ]adjusted\b', '', lower)
+                if re.search(r'adjusted|non-gaap', accounting_context):
                     reasons.append('Adjusted accounting basis')
                 if re.search(r'\bsegment\b', lower):
                     reasons.append('Segment scope')
@@ -163,7 +164,8 @@ def inline_figures(raw, doc, retained):
                 for row in doc['index']['tables'][cell.table_id]['rows'] for c in row
                 if doc['cells'][c['cell_id']].row_id == cell.row_id)
             visible_context = (' '.join(block.heading_path) + ' ' + row_labels).lower()
-            if re.search(r'adjusted|non-gaap|\bsegment\b', visible_context):
+            accounting_context = re.sub(r'\bsplit[- ]adjusted\b', '', visible_context)
+            if re.search(r'adjusted|non-gaap|\bsegment\b', accounting_context):
                 raise ValueError('Adjusted or segment XBRL presentation')
             if context is None:
                 raise ValueError('Missing XBRL context')

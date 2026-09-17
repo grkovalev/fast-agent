@@ -26,8 +26,8 @@ def fixture_transport(scenario='normal', ticker='DEMO'):
                   accessionNumber='0001234567-25-000090'),
              dict(rows[0], form='10-K/A', filingDate='2026-03-01',
                   accessionNumber='0001234567-26-000002'), dict(rows[0])]
-    history_rows = rows[2:4] if scenario == 'normal' else []
-    recent_rows = rows[:2] + rows[4:] if scenario == 'normal' else rows
+    history_rows = rows[2:4] if scenario != 'two-years' else []
+    recent_rows = rows[:2] + rows[4:] if scenario != 'two-years' else rows
     submissions['filings']['recent'] = {
         key: [row[key] for row in recent_rows] for key in recent}
     name = 'CIK0001234567-submissions-001.json'

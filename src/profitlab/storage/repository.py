@@ -177,7 +177,7 @@ class Repository:
             for identifier in model.candidate_ids:
                 candidate = fetch(identifier, 'FactCandidate')
                 for field in ('metric', 'period', 'unit', 'currency', 'scope', 'attribution',
-                              'share_class', 'basis'):
+                              'share_class', 'basis', 'annuality'):
                     if candidate[field] != model.model_dump(mode='json')[field]:
                         raise ValueError('Candidate does not match group comparison key')
         if isinstance(model, Report) and model.validation_status == 'valid':
@@ -212,7 +212,7 @@ class Repository:
 
     def manifest(self, run_id):
         snapshots = [a for a in self.artifacts(run_id)
-                     if a['artifact_id'].startswith(('manifest-screen-', 'manifest-extract-'))]
+                     if a['artifact_id'].startswith(('manifest-screen-', 'manifest-extract-', 'manifest-reconcile-'))]
         if snapshots:
             return max((RunManifest.model_validate_json(self.read(run_id, a['artifact_id']))
                         for a in snapshots), key=lambda m: m.updated_at)
