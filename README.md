@@ -2,7 +2,7 @@
 
 Local, inspectable earnings growth research. Company earnings per share; stock-price returns are not included.
 
-T04 is implemented: SEC ticker lookup and annual filing discovery, persistent service tracing, a filtered timeline with full redacted payloads, trace export, validated contracts, immutable storage, and synthetic fixtures. Filing downloads and financial processing start in later tasks.
+T05 is implemented: SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Financial processing starts in later tasks.
 
 Requires Python 3.12 and uv. From the repository root:
 
@@ -32,7 +32,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T05: filing downloads and anchored source viewer. Discovered filing coverage is separate from extracted financial coverage; financial stages remain unavailable. Earlier runs stay readable.
+Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T06: table-aware chunking and chunk inspector. Discovered filing coverage is separate from extracted financial coverage; financial stages remain unavailable. Earlier runs stay readable.
 
 ```sh
 uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04
@@ -74,3 +74,19 @@ Use a new output directory. The trace-only export contains `trace.json`,
 arrive in T16. TraceRecorder redacts before writing, including configured secret
 values passed through `Settings.redactor()`, sensitive headers and URL credentials.
 Service integrations must use this shared policy and avoid printing raw failures.
+
+Saved source inspection (T05):
+
+```sh
+uv run profitlab demo --through T05 --run-id demo-t05
+uv run profitlab stage <discovered-run-id> download
+uv run profitlab stage <discovered-run-id> parse
+```
+
+Open `/runs/demo-t05/sources`, choose a table block, then click a value to
+highlight that exact cell or **Row + column** to inspect its labels. Raw HTML is
+saved unchanged; the viewer renders escaped source text and reconstructed tables.
+Live progression accepts `--filing-id` to process one discovered filing. Existing
+saved downloads and parsed artifacts are reused; failed operations remain in Trace.
+Sources without an original anchor use a stable local source block, with no invented
+page number. Synthetic sources have no SEC-original link.

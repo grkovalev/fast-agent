@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block content %}
+<p><a href="/runs/{{ run.run_id }}">← Overview</a> · <a href="/runs/{{ run.run_id }}/trace">Trace</a></p>
+<h2>Saved sources · {{ run.ticker }}</h2><span class="badge">{{ 'Synthetic demo' if run.mode == 'demo' else 'Live run' }}</span>
+{% for item in items %}<section><h3>{{ item.filing.form }} · {{ item.filing.report_date }}</h3>
+<p>Accession {{ item.filing.accession }} · Filed {{ item.filing.filing_date }}</p>
+<p>Status: {{ item.metadata.status if item.metadata else ('failed' if item.error else 'pending download') }}{% if item.metadata %} · SHA-256 {{ item.metadata.sha256 }} · Retrieved {{ item.metadata.retrieved_at }}{% endif %}</p>
+{% if item.error %}<p>Recorded {{ item.error.stage }} failure: {{ item.error.error }} · {{ item.error.recorded_at }}. See Trace for the request.</p>{% endif %}
+{% if run.mode == 'demo' %}<span class="badge">Synthetic source; no SEC original</span>{% else %}<a href="{{ item.filing.primary_document_url }}" rel="noopener" target="_blank">SEC original</a>{% endif %}
+{% if item.index %}<p><a href="/runs/{{ run.run_id }}/sources/{{ item.filing.filing_id }}">Open saved source</a></p>
+{% for block in item.blocks %}<p><a href="/runs/{{ run.run_id }}/sources/{{ item.filing.filing_id }}#block-{{ block.block_id }}">{{ block.kind }} · {{ block.heading_path | join(' / ') }}</a></p>{% endfor %}
+{% else %}<p>Parse pending. Use stage {{ run.run_id }} {{ 'parse' if item.metadata else 'download' }}.</p>{% endif %}</section>{% endfor %}
+{% endblock %}

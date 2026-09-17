@@ -1,1 +1,8 @@
 :root{font-family:system-ui,sans-serif;color:#172a36;background:#f2f5f6}body{margin:0}header{padding:1.2rem 5%;background:#183b42;color:white;display:flex;justify-content:space-between}header a{color:white;font-size:1.3rem;font-weight:700;text-decoration:none}main{max-width:1000px;margin:2.5rem auto;padding:0 1.2rem}h1{margin-bottom:.5rem}h2{font-size:1.25rem}section{background:white;border:1px solid #d8e1e4;border-radius:10px;padding:1.3rem;margin:1.4rem 0}a{color:#126478}.muted{color:#596a74}.badge{display:inline-block;background:#e9eefc;color:#334788;border-radius:20px;padding:.3rem .7rem;font-size:.85rem}nav{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}button,input{padding:.6rem;border:1px solid #c5cfd5;border-radius:5px}button:disabled{color:#67747c;background:#edf1f3}label{margin-right:.6rem}code{overflow-wrap:anywhere}
+.source-table { overflow-x:auto; }
+.source-block { scroll-margin-top: 1rem; }
+.source-block:target { outline:2px solid #477cbd; }
+.selected-cell { background:#ffe18a; outline:3px solid #815600; }
+.selected-row { background:#fff3c9; }
+.selected-column { box-shadow:inset 0 0 0 3px #447bb8; }
+.source-table small { display:block; font-size:.7rem; }

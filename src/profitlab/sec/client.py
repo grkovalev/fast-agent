@@ -3,6 +3,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import tempfile
 import time
 from datetime import UTC, datetime
@@ -70,14 +71,17 @@ class SECClient:
     def close(self):
         self.client.close()
 
-    def get(self, url, schema, *, stage):
-        if url != TICKERS and not url.startswith(SUBMISSIONS):
+    def get(self, url, schema, *, stage, document=False):
+        if document:
+            if not re.fullmatch(r'https://www\.sec\.gov/Archives/edgar/data/[0-9]+/[0-9]{18}/[A-Za-z0-9_.-]+', url):
+                raise SECError('invalid_url', 'Only verified SEC archive URLs are allowed.')
+        elif url != TICKERS and not url.startswith(SUBMISSIONS):
             raise SECError('invalid_url', 'Only official SEC discovery URLs are allowed.')
         adapter = TypeAdapter(schema)
         call = 'call-' + uuid4().hex
         key = hashlib.sha256(url.encode()).hexdigest()
         path = self.cache / f'{key}.json'
-        if not self.fixture and path.exists():
+        if not document and not self.fixture and path.exists():
             try:
                 cached = json.loads(path.read_bytes())
                 if cached['url'] == url and time.time() - cached['retrieved_at'] < (
@@ -102,7 +106,7 @@ class SECClient:
                     if time.monotonic() >= self.deadline:
                         raise SECError('time_limit', 'SEC discovery time limit reached.')
                     self.limiter.wait(self.deadline)
-                    with self.client.stream('GET', url, timeout=min(self.settings.sec_timeout,
+                    with self.client.stream('GET', url, headers={'Accept': 'text/html' if document else 'application/json'}, timeout=min(self.settings.sec_timeout,
                             max(.01, self.deadline - time.monotonic()))) as response:
                         body = bytearray()
                         for part in response.iter_bytes():
@@ -120,6 +124,18 @@ class SECClient:
                             raise SECError('retryable_http', f'SEC returned HTTP {status}.')
                         if status != 200:
                             raise SECError(f'http_{status}', f'SEC returned HTTP {status}.')
+                        if document:
+                            from profitlab.documents.parser import parse_source
+
+                            if 'html' not in response.headers.get('content-type', '').lower():
+                                raise SECError('unsupported_content', 'Expected HTML annual filing.')
+                            if not re.search(br'</html\s*>', body, re.IGNORECASE):
+                                raise SECError('incomplete_document', 'HTML document is empty or incomplete.')
+                            try:
+                                parse_source(bytes(body), 'validation')
+                            except ValueError:
+                                raise SECError('invalid_document', 'HTML has no usable visible content.') from None
+                            return bytes(body), response.headers.get('content-type')
                         try:
                             value = adapter.validate_json(body)
                             raw = json.loads(body)

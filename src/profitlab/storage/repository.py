@@ -211,11 +211,12 @@ class Repository:
                 'SELECT * FROM artifacts WHERE run_id=? ORDER BY artifact_id', (run_id,))]
 
     def manifest(self, run_id):
-        # Discovery publishes a new immutable snapshot; the original is preserved.
-        try:
-            return RunManifest.model_validate_json(self.read(run_id, 'manifest-discovery'))
-        except FileNotFoundError:
-            pass
+        # Stage snapshots preserve the original immutable manifest.
+        for stage in ('parse', 'download', 'discovery'):
+            try:
+                return RunManifest.model_validate_json(self.read(run_id, 'manifest-' + stage))
+            except FileNotFoundError:
+                pass
         return RunManifest.model_validate_json(self.read(run_id, 'manifest'))
 
     def recent(self):

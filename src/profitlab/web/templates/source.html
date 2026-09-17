@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% block content %}
+<p><a href="/runs/{{ run.run_id }}/sources">← Sources</a> · <a href="/runs/{{ run.run_id }}/trace">Trace</a></p>
+<section><h2>{{ run.company.name }} · {{ item.filing.form }} · {{ item.filing.report_date }}</h2>
+<p>Accession {{ item.filing.accession }} · Filed {{ item.filing.filing_date }}</p>
+<p>SHA-256 {{ item.metadata.sha256 }} · Parser {{ item.index.parser_version }}</p>
+{% if run.mode == 'demo' %}<span class="badge">Synthetic source; no SEC original</span>{% else %}<a href="{{ item.filing.primary_document_url }}" rel="noopener" target="_blank">SEC original</a>{% endif %}
+<p>Section / source block locations. Click a table cell to highlight that exact cell.</p></section>
+{% for block in item.blocks %}<section id="block-{{ block.block_id }}" class="source-block">
+<p class="muted">{{ block.heading_path | join(' / ') }} · {{ block.block_id }}{% if block.page_label %} · Printed page {{ block.page_label }}{% endif %}
+{% if block.original_anchor %} · Original anchor: {{ block.original_anchor }}{% if run.mode != 'demo' %} <a href="{{ item.filing.primary_document_url }}#{{ block.original_anchor | urlencode }}" target="_blank" rel="noopener">Open SEC anchor</a>{% endif %}{% endif %}</p>
+{% if block.kind == 'table' %}{% set table = item.index.tables[block.table_id] %}<div class="source-table"><table><caption>{{ table.caption }}</caption>
+{% for rendered_row in table.rows %}<tr>{% for coordinate in rendered_row %}{% set c = item.cells[coordinate.cell_id] %}
+{% set tag = 'th' if coordinate.header else 'td' %}
+<{{ tag }} id="{{ c.cell_id }}" rowspan="{{ c.row_span }}" colspan="{{ c.column_span }}" class="{% if cell == c.cell_id %}selected-cell{% endif %}{% if c.cell_id in row_cells %} selected-row{% endif %}{% if c.cell_id in column_cells %} selected-column{% endif %}"><a href="?cell={{ c.cell_id }}#block-{{ block.block_id }}">{{ c.raw_text }}</a><small><a href="?row={{ c.row_id }}&amp;column={{ c.column_id }}#block-{{ block.block_id }}">Row + column</a></small></{{ tag }}>
+{% endfor %}</tr>{% endfor %}</table></div>
+{% elif block.kind == 'heading' %}<h3>{{ block.text }}</h3>{% else %}<p>{{ block.text }}</p>{% endif %}
+</section>{% endfor %}{% endblock %}

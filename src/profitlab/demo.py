@@ -23,12 +23,20 @@ class DemoService:
 
     def create(self, run_id: str, through: str, scenario: str = 'normal') -> RunManifest:
         validate_run_id(run_id)
-        if through == 'T04':
+        if through in ('T04', 'T05'):
             from profitlab.sec.service import DiscoveryService
             from profitlab.settings import Settings
 
-            return DiscoveryService(Settings(PROFITLAB_DATA_DIR=self.data_dir)).create(
+            settings = Settings(PROFITLAB_DATA_DIR=self.data_dir)
+            run = DiscoveryService(settings).create(
                 'DEMO', mode='demo', run_id=run_id, scenario=scenario)
+            if through == 'T05':
+                from profitlab.documents.service import SourceService
+
+                sources = SourceService(settings)
+                sources.progress(run_id, 'download')
+                sources.progress(run_id, 'parse')
+            return run
         if through not in ('T01', 'T02', 'T03'):
             raise ValueError('Only --through T01, T02, T03 and T04 are implemented.')
         if scenario not in ('normal', 'two-years'):

@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T04 complete; typed SEC client, ticker resolution, annual filing discovery, cache, bounded retries and discovery UI.
-- Next task: **T05 — Download reports and build the anchored source viewer.**
-- Latest verified task: T04 local acceptance and live SEC discovery.
-- Last runnable demos: `demo-t04` (four periods plus amendment) and `two-years-t04` (two periods). Earlier demos remain readable.
+- Implementation status: T05 complete; immutable filing downloads, versioned source blocks/table cells, and sanitized anchored source viewer.
+- Next task: **T06 — Table-aware chunking and chunk inspector.**
+- Latest verified task: T05 local acceptance; real SEC download/parse passed, visual citation inspection pending.
+- Last runnable demo: `demo-t05-v2` (four periods plus amendment, parser html-2). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. SEC contact is configured and live discovery succeeded. Model integrations remain unverified until T07.
@@ -21,7 +21,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T02 | Pydantic contracts, fixtures, persistent run storage | DONE | Not applicable |
 | T03 | Trace recording, conversation/tool viewer, export | DONE | Not applicable |
 | T04 | SEC ticker lookup and filing discovery | DONE | SEC discovery passed; visual inspection pending |
-| T05 | Filing downloads and anchored source viewer | TODO | Not run |
+| T05 | Filing downloads and anchored source viewer | DONE | SEC download/parse passed; visual citation inspection pending |
 | T06 | Table-aware chunking and chunk inspector | TODO | Not applicable |
 | T07 | Jev and OpenAI-compatible provider adapters | TODO | Not run |
 | T08 | Jev relevance screening and coverage recovery | TODO | Not run |
@@ -46,6 +46,63 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T05 — Filing downloads and anchored source viewer.
+Implemented: controlled `stage <run-id> download|parse` with optional `--filing-id`,
+shared SEC limiter and retry owner, one active in-process live SEC operation,
+HTML/content/closing-document validation, byte/time limits, and immutable raw
+source bytes. Typed source metadata stores hash, bytes, status, URL, content type
+and retrieval time. Cache reuse checks metadata/source hashes; failures persist
+with exact stage/error and remain visible in Sources and Trace. Initial discovery
+filing contracts are preserved; fetch metadata is authoritative in `source-*`
+artifacts. Successful stages publish immutable manifest snapshots.
+
+Parser `html-2` preserves visible headings, paragraphs, div-based SEC prose,
+captions, footnotes, merged table spans and inline-XBRL IDs. Blocks/cells have
+repeatable IDs, DOM locators, header/year/unit associations and original anchors
+only when an explicit DOM ID/name exists. Table expansion is bounded. Quotes use
+Unicode-whitespace collapse, preserving case/punctuation and raw stored text.
+Versioned parsed indexes retain previous derivatives. The viewer uses escaped
+text and reconstructed tables, with exact-cell or span-aware row/column
+highlighting; no raw HTML is marked safe. Printed page labels remain unknown
+rather than inferred. Source pages are run-index scoped, with accession/date/hash,
+section paths, local anchors and genuine SEC links; demos have synthetic badges.
+
+Commands/results:
+- `uv run pytest tests/task_gates/test_t05.py`: gate passed; final gate has seven
+  tests covering full offline service/UI, stable IDs, spans/header IDs, exact
+  highlights, quote normalization, scripts, traversal, raw preservation, malformed
+  HTML/PDF/403, disconnect retry, byte limits, persistence/cache reuse and errors.
+- Final `uv run pytest`: 38 passed; existing upstream Starlette/AnyIO warning.
+- Final `uv run ruff check .` and `git diff --check`: passed.
+- `uv run profitlab demo --through T05 --run-id demo-t05`: passed initial parser.
+- Final versioned demo: `uv run profitlab demo --through T05 --run-id demo-t05-v2`.
+- `uv run profitlab stage live-sec-t04 download --filing-id filing-000032019325000079`:
+  passed using configured SEC contact; raw Apple 2025 10-K and provenance saved.
+- `uv run profitlab stage live-sec-t04 parse --filing-id filing-000032019325000079`:
+  passed. Real div-based prose prompted necessary parser support; final result
+  has 698 visible blocks, 6,379 cells, 105 original block anchors. All 105 anchors
+  were checked against raw DOM IDs/names. EPS tables include original anchors
+  `f-72` and `f-410`; this is DOM verification, not a browser scroll check.
+- Local server started/restarted with `uv run profitlab serve`, localhost:8000.
+
+Open http://127.0.0.1:8000/runs/demo-t05-v2/sources. Choose the annual income table,
+then click its EPS value for one-cell highlight; Row + column includes the label
+and year. The edge-case table has merged headers and neighboring years. Open
+http://127.0.0.1:8000/runs/live-sec-t04/sources for the saved real 2025 filing;
+other discovered live filings remain pending download.
+
+Visual inspection remains unrun: CUA inventory had no browser connector; native
+Safari returned “Computer Use permissions are not granted.” Original SEC anchor
+existence is verified in saved bytes, but navigation/scrolling on the SEC original
+is pending. Parser verification is a one-filing smoke check, not a general accuracy
+claim. Hidden facts are excluded from this visible-source parser; extraction of
+structured contexts/transformations belongs to T09. Download cache reuse currently
+uses per-run immutable artifacts; cross-run archive deduplication is deferred.
+Dependencies/uv.lock unchanged. uv commands required existing-cache escalation.
+Next task: T06.
+
+## T04 task handoff
 
 Task: T04 — SEC ticker lookup and annual filing discovery.
 Implemented: typed httpx SEC client, shared disk rate limiter across local threads
@@ -166,3 +223,8 @@ Add date, provider, actual model ID, command, run ID, outcome, and unresolved is
   passed using the validated live-response cache. Report dates: 2025-09-27,
   2024-09-28, 2023-09-30, 2022-09-24. No filing downloads or original-anchor
   verification claimed; those are T05. No Jev or LLM calls made.
+
+- 2026-09-17, SEC archive HTML (no model): T05 controlled download/parse on
+  `live-sec-t04`, Apple 2025 10-K accession 0000320193-25-000079, passed. Exact raw
+  bytes/provenance and html-2 block/cell artifacts saved. All 105 mapped DOM anchors
+  exist; visual original-anchor scrolling remains pending due to CUA permissions.

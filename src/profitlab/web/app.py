@@ -150,4 +150,45 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except (FileNotFoundError, ValueError):
             raise HTTPException(404, 'Trace payload not found or damaged') from None
 
+    @app.get('/runs/{run_id}/sources')
+    def sources(request: Request, run_id: str):
+        from profitlab.documents.service import SourceService
+
+        try:
+            run, items = SourceService(settings).sources(run_id)
+        except (ValueError, FileNotFoundError):
+            raise HTTPException(404, 'Sources not found or damaged') from None
+        return templates.TemplateResponse(request=request, name='sources.html',
+            context={'run': run, 'items': items})
+
+    @app.get('/runs/{run_id}/sources/{filing_id}')
+    def source(request: Request, run_id: str, filing_id: str,
+               cell: str = '', row: str = '', column: str = ''):
+        from profitlab.documents.service import SourceService
+
+        try:
+            run, item = SourceService(settings).document(run_id, filing_id)
+        except (ValueError, FileNotFoundError):
+            raise HTTPException(404, 'Source not found or damaged') from None
+        cells = item['cells']
+        if (cell and cell not in cells or row and row not in {c.row_id for c in cells.values()}
+                or column and column not in {c.column_id for c in cells.values()}):
+            raise HTTPException(400, 'Unknown highlight coordinate')
+        row_cells, column_cells = set(), set()
+        for table_id, table in item['index']['tables'].items():
+            for rendered_row in table['rows']:
+                for coordinate in rendered_row:
+                    c = cells[coordinate['cell_id']]
+                    if row and row.startswith(table_id + '-r'):
+                        target = int(row.rsplit('-r', 1)[1])
+                        if coordinate['row'] <= target < coordinate['row'] + c.row_span:
+                            row_cells.add(c.cell_id)
+                    if column and column.startswith(table_id + '-c'):
+                        target = int(column.rsplit('-c', 1)[1])
+                        if coordinate['column'] <= target < coordinate['column'] + c.column_span:
+                            column_cells.add(c.cell_id)
+        return templates.TemplateResponse(request=request, name='source.html',
+            context={'run': run, 'item': item, 'cell': cell,
+                     'row_cells': row_cells, 'column_cells': column_cells})
+
     return app

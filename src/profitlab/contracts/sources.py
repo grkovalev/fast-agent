@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import AwareDatetime, Field, model_validator
 
 from .base import Contract, StableID
 
@@ -81,3 +81,13 @@ class EvidenceRef(Contract):
     normalized_offsets: list[tuple[int, int]] = Field(default_factory=list)
     page_label: str | None = None
     source_hash: str = Field(pattern=r'^[a-f0-9]{64}$')
+
+
+class SourceDownload(Contract):
+    filing_id: StableID
+    status: Literal['saved'] = 'saved'
+    url: str
+    content_type: str
+    retrieved_at: AwareDatetime
+    sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
+    bytes: int = Field(gt=0)
