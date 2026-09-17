@@ -2,14 +2,14 @@
 
 Local, inspectable earnings growth research. Company earnings per share; stock-price returns are not included.
 
-T10 is implemented: ordered candidate reconciliation, source-preserving alternatives and unresolved conflicts, annual metric coverage and complementary explanations; source-validated numeric candidates, exact-cell source drawers, separate narrative quotes and inspectable rejected extraction proposals; inspectable relevance probabilities, structural table safeguards, bounded coverage recovery and cached screening; separate Jev and OpenAI-compatible adapters with inspectable compatibility probes, table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Calculations and report writing start in later tasks.
+T11 is implemented: deterministic Decimal annual changes, eligibility statuses, CAGR and linked preliminary metrics tables; ordered candidate reconciliation, source-preserving alternatives and unresolved conflicts, annual metric coverage and complementary explanations; source-validated numeric candidates, exact-cell source drawers, separate narrative quotes and inspectable rejected extraction proposals; inspectable relevance probabilities, structural table safeguards, bounded coverage recovery and cached screening; separate Jev and OpenAI-compatible adapters with inspectable compatibility probes, table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Narrative report writing starts in T12.
 
 Requires Python 3.12 and uv. From the repository root:
 
 ```sh
 uv sync --locked
 uv run profitlab doctor
-uv run profitlab demo --through T10 --run-id demo-t10-new
+uv run profitlab demo --through T11 --run-id demo-t11-new
 uv run profitlab serve
 ```
 
@@ -31,7 +31,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T11: deterministic annual-growth calculations. Discovered filing coverage is separate from selected metric coverage; calculations and reporting remain unavailable. Earlier runs stay readable.
+Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T12: report writing and citation validation. Discovered filing coverage is separate from selected metric coverage; narrative reporting remains unavailable. Earlier runs stay readable.
 
 ```sh
 uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04
@@ -248,3 +248,26 @@ is shown once per year/topic with all its evidence references. This is determini
 evidence selection, not a generated narrative. Selection trace events expose the
 complete rule results. Reconciliation snapshots are immutable; rerunning selection
 preserves earlier artifacts and the latest index is used by the UI.
+
+Deterministic calculations (T11):
+
+```sh
+uv run profitlab demo --through T11 --run-id demo-t11
+uv run profitlab demo --through T11 --scenario losses --run-id losses-t11
+uv run profitlab stage <reconciled-run-id> calculate
+uv run pytest tests/task_gates/test_t11.py
+```
+
+Open `/runs/demo-t11/report` for the preliminary annual metrics table labeled
+**Data table; narrative not generated.** Click the 2025 EPS percentage to inspect
+1.60 and 2.00 USD/share, the exact formula and unrounded 25% result. Input links
+open selected candidates; **View source** highlights the exact cell, row and year.
+`/runs/losses-t11/calculations` shows absolute changes and loss/zero-base labels
+with conventional growth percentages suppressed. Four annual observations produce
+three annual comparisons and a three-interval CAGR per metric when eligible.
+Missing or conflicting inputs, gaps, fiscal transitions, changed fiscal lengths,
+currencies/classes or unresolved per-share bases suppress comparisons. CAGR also
+requires every annual value to be positive. Ordinary leap-year and 52/53-week
+variation is allowed. Calculations use Decimal precision 60; two-decimal half-up
+rounding applies only to display. Re-extraction or reconciliation hides stale
+calculations until those stages are rerun. No financial model calls are used.

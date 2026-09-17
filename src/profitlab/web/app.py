@@ -251,4 +251,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                'net_income_parent': 'Net income · parent',
                                'net_income_consolidated': 'Net income · consolidated'}})
 
+    @app.get('/runs/{run_id}/calculations')
+    @app.get('/runs/{run_id}/report')
+    def calculations(request: Request, run_id: str):
+        from profitlab.analysis.calculations import CalculationService, display
+
+        try:
+            run = service.get(run_id)
+            index, items, observations, facts = CalculationService(settings).latest(run_id)
+        except (ValueError, FileNotFoundError):
+            raise HTTPException(404, 'Run not found or damaged') from None
+        return templates.TemplateResponse(request=request, name='calculations.html', context={
+            'run': run, 'index': index, 'items': items, 'observations': observations,
+            'facts': facts, 'display': display, 'report': request.url.path.endswith('/report')})
+
     return app

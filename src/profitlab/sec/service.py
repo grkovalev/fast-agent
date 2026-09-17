@@ -68,8 +68,8 @@ class DiscoveryService:
         ticker = normalize_ticker(ticker)
         if years not in range(1, 5) or mode not in ('demo', 'live'):
             raise ValueError('Use 1–4 years and mode demo or live.')
-        if scenario not in ('normal', 'two-years', 'conflict', 'restatement', 'split-adjusted'):
-            raise ValueError('Supported scenarios: normal, two-years, conflict, restatement, split-adjusted.')
+        if scenario not in ('normal', 'two-years', 'conflict', 'restatement', 'split-adjusted', 'losses'):
+            raise ValueError('Supported scenarios: normal, two-years, conflict, restatement, split-adjusted, losses.')
         if mode == 'live' and not self.settings.sec_contact_ready():
             raise ValueError('Configure SEC_USER_AGENT with a real contact email before live discovery.')
         if mode == 'live' and not _live_lock.acquire(blocking=False):

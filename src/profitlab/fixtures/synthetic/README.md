@@ -12,3 +12,8 @@ labels. The conflict scenario changes only the amendment's main 2025 EPS from
 2.00 to 2.25 without an adjustment label. These are synthetic source inputs, not
 gold numbers passed to selection. Split-adjusted GAAP remains distinct from
 non-GAAP adjusted earnings.
+
+T11 `losses` transforms saved synthetic common income/EPS rows before parsing:
+2022 -100/-1.00, 2023 -50/-0.50, 2024 0/0.00, 2025 180/2.00
+(income USD millions, EPS USD/share). This exercises loss narrowing and
+zero-to-profit transitions without network calls or runtime gold answers.

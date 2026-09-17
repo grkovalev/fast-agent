@@ -76,6 +76,15 @@ class SourceService:
                                         # Explicit comparative intervals and labels belong to
                                         # the saved fixture itself, before parse/extraction.
                                         raw = (FIXTURES / f'{scenario}.html').read_bytes()
+                                    if scenario == 'losses':
+                                        from lxml import html
+
+                                        doc = html.fromstring(raw)
+                                        income, eps = {2022: ('-100', '-1.00'), 2023: ('-50', '-0.50'),
+                                                       2024: ('0', '0.00'), 2025: ('180', '2.00')}[filing.report_date.year]
+                                        doc.xpath("//tr[@id='common']/td")[0].text = income
+                                        doc.xpath("//tr[@id='eps']/td")[0].text = eps
+                                        raw = html.tostring(doc)
                                     content_type = 'text/html'
                                 else:
                                     raw, content_type = client.get(filing.primary_document_url, bytes,

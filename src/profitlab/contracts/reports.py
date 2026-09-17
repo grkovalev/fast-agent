@@ -13,6 +13,12 @@ class Calculation(Contract):
     input_ids: list[StableID]
     results: dict[str, Decimal] = Field(default_factory=dict)
     status: Literal['applicable', 'missing', 'not_applicable', 'unsupported', 'conflicting']
+    metric: str = ''
+    years: list[int] = Field(default_factory=list)
+    reason: str = ''
+    label: str = ''
+    evidence_ids: list[StableID] = Field(default_factory=list)
+    input_values: list[Decimal] = Field(default_factory=list)
     rounding_policy: str
     display_policy: str
 

@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T10 complete locally; ordered candidate reconciliation, source-preserving alternatives, unresolved conflicts, annual metric coverage and complementary explanations.
-- Next task: **T11 — Deterministic annual-growth calculations.**
-- Latest verified task: T10 local acceptance; earlier SEC-original visual verification remains pending.
-- Last runnable demos: `demo-t10` and `conflict-t10` (latest immutable reconciliation snapshots, selected metric coverage and an unresolved EPS conflict). Earlier demos remain readable.
+- Implementation status: T11 complete locally; deterministic annual changes/CAGR, explicit eligibility reasons and linked preliminary data tables.
+- Next task: **T12 — Report-writing agent, actual conversation, and citations.**
+- Latest verified task: T11 local acceptance; earlier SEC-original visual verification remains pending.
+- Last runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
@@ -27,7 +27,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T08 | Jev relevance screening and coverage recovery | DONE | Bounded Jev spot check passed; visual inspection pending |
 | T09 | Candidate extraction with source validation | DONE | Saved Apple table extraction passed; original/visual inspection pending |
 | T10 | Candidate reconciliation and coverage selection | DONE | Not applicable |
-| T11 | Deterministic annual-growth calculations | TODO | Not applicable |
+| T11 | Deterministic annual-growth calculations | DONE | Not applicable |
 | T12 | Pydantic AI report agent and citation validation | TODO | Not run |
 | T13 | Complete ticker-to-report workflow and run controls | TODO | Not run |
 | T14 | Measured chunk-size and screening evaluation | TODO | Not run |
@@ -46,6 +46,68 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T11 — Deterministic annual-growth calculations.
+Implemented: Decimal-based absolute changes and eligible annual percentages,
+plus optional continuous-positive-series CAGR. Exact selected candidate IDs,
+source input values/precision, evidence references, formula/version, years,
+rounding policy, unrounded results, status/reason and loss-transition labels are
+persisted in immutable calculation contracts. Arithmetic uses a local 60-digit
+Decimal context; half-up two-decimal rounding applies only to display. Four years
+have three annual comparisons and a three-interval CAGR for each main metric.
+Missing fiscal years are expanded as unavailable intervals, never bridged.
+Conflicts, missing inputs, currency/unit and share-class changes, incompatible
+annual contexts, fiscal transitions, material fiscal-length changes and mixed
+per-share bases suppress comparisons. Leap-year and 52/53-week variation is
+allowed. Zero and negative bases retain absolute changes with labels; transitions
+into losses suppress conventional percentages. CAGR requires all annual values
+positive and comparable. No model computes arithmetic.
+
+CLI adds `stage <run-id> calculate`, T11 demo progression and a losses scenario
+whose changed values are saved in synthetic source HTML before parsing/extraction.
+Report and Calculations pages show **Data table; narrative not generated**, exact
+annual values, linked percentages/transition labels, formulas, unrounded results,
+inputs and complete artifacts. Fact links target stable candidate anchors, then
+View source highlights the cell/row/year. Changed extraction or reconciliation
+hides stale calculation output until rerun; older artifacts remain inspectable.
+Overview tabs and README reflect the implemented stage. Dependencies/lock unchanged.
+
+Commands/results:
+- `uv run profitlab demo --through T11 --run-id demo-t11`: passed.
+- `uv run profitlab demo --through T11 --scenario losses --run-id losses-t11`: passed.
+- `uv run profitlab stage demo-t11 calculate` and the same for `losses-t11`:
+  passed, creating finalized immutable calculation snapshots. Normal EPS 2025 is
+  (2.00 - 1.60) / 1.60 × 100 = 25%; losses show narrowed losses, a zero base and
+  turned profitable, with conventional percentages suppressed.
+- Final `uv run pytest tests/task_gates/test_t11.py`: 14 passed, including
+  the supplementary fiscal-length/per-share-basis check. Offline pipeline runs cover
+  normal, losses, conflict, two-years and split-adjusted scenarios with sockets
+  forbidden; checks include persistence, immutable repeat calculations, exact
+  candidate anchors, preliminary report markup and stale selection invalidation.
+- Final arithmetic subset `uv run pytest tests/task_gates/test_t11.py -k
+  'not offline_pipeline'`: nine passed (including added fiscal-length and mixed
+  per-share-basis check).
+- `uv run pytest`: 78 passed (suite collected before the supplementary T11
+  test was added); existing Starlette/AnyIO deprecation warning only.
+- `uv run ruff check .` and `git diff --check`: passed.
+- Localhost HTTP checks: `/health`, `/runs/demo-t11/report`,
+  `/runs/demo-t11/calculations`, `/runs/losses-t11/calculations` all HTTP 200;
+  data-table labels and three-interval CAGR details verified in response markup.
+- `PROFITLAB_PORT=8001 uv run profitlab serve`: updated interface launched on
+  localhost:8001, leaving the existing port-8000 server untouched.
+
+Open http://127.0.0.1:8001/runs/demo-t11/report. Click **25.00%** in EPS 2025
+and inspect 1.60, 2.00, the formula and unrounded result; follow an input to
+**View source**. Open http://127.0.0.1:8001/runs/losses-t11/calculations to
+see absolute changes and suppressed percentages. Trace → stage=calculate has
+the full deterministic inputs/results. Next task: T12.
+
+Visual verification remains unrun: CUA inventory has no browser connectors and
+Safari returned “Computer Use was not approved to use Safari.” HTTP/TestClient
+checks do not constitute visual inspection. No live SEC/Jev/LLM requests made.
+Narrative report generation is still unavailable.
+
+## T10 task handoff
 
 Task: T10 — Candidate reconciliation and evidence coverage.
 Implemented: deterministic ordered selection with comparable keys for exact period,
