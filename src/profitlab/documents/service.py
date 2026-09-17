@@ -14,8 +14,9 @@ from profitlab.trace import TraceRecorder
 
 
 class SourceService:
-    def __init__(self, settings, *, transport=None, limiter=None):
+    def __init__(self, settings, *, transport=None, limiter=None, chunk_fixture=False):
         self.settings, self.transport, self.limiter = settings, transport, limiter
+        self.chunk_fixture = chunk_fixture
         self.repo = Repository(settings.data_dir)
 
     def progress(self, run_id, stage, filing_id=None):
@@ -65,6 +66,9 @@ class SourceService:
                             except FileNotFoundError:
                                 if run.mode == 'demo':
                                     raw = (FIXTURES / f'annual-{filing.report_date.year}.html').read_bytes()
+                                    if self.chunk_fixture and filing.report_date.year == 2025:
+                                        extra = (FIXTURES / 'chunk-context.html').read_bytes()
+                                        raw = raw.replace(b'</body>', extra + b'</body>')
                                     content_type = 'text/html'
                                 else:
                                     raw, content_type = client.get(filing.primary_document_url, bytes,

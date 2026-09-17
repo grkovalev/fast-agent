@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T05 complete; immutable filing downloads, versioned source blocks/table cells, and sanitized anchored source viewer.
-- Next task: **T06 — Table-aware chunking and chunk inspector.**
-- Latest verified task: T05 local acceptance; real SEC download/parse passed, visual citation inspection pending.
-- Last runnable demo: `demo-t05-v2` (four periods plus amendment, parser html-2). Earlier demos remain readable.
+- Implementation status: T06 complete; deterministic table-aware chunks and source-linked chunk inspector.
+- Next task: **T07 — Jev and OpenAI-compatible provider adapters.**
+- Latest verified task: T06 local acceptance; visual inspection remains pending.
+- Last runnable demo: `demo-t06` (four periods plus amendment, parser html-2, chunker blocks-1). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. SEC contact is configured and live discovery succeeded. Model integrations remain unverified until T07.
@@ -22,7 +22,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T03 | Trace recording, conversation/tool viewer, export | DONE | Not applicable |
 | T04 | SEC ticker lookup and filing discovery | DONE | SEC discovery passed; visual inspection pending |
 | T05 | Filing downloads and anchored source viewer | DONE | SEC download/parse passed; visual citation inspection pending |
-| T06 | Table-aware chunking and chunk inspector | TODO | Not applicable |
+| T06 | Table-aware chunking and chunk inspector | DONE | Not applicable |
 | T07 | Jev and OpenAI-compatible provider adapters | TODO | Not run |
 | T08 | Jev relevance screening and coverage recovery | TODO | Not run |
 | T09 | Candidate extraction with source validation | TODO | Not run |
@@ -46,6 +46,46 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T06 — Table-aware chunking and chunk inspector.
+Implemented: deterministic filing-scoped blocks-1 chunker, configurable 1500/180
+prose target/whole-block overlap, table context, intact tables beyond target,
+row-group splitting under a separate safe request budget, repeated multi-level
+headers/units/captions, rowspan-connected row groups, explicit oversized errors.
+Chunks persist content hashes, primary/overlap/context blocks, cell identities,
+source anchors, estimator identity and full request estimates. Versioned immutable
+indexes include source hash and parser version. CLI `stage <run-id> chunk` and
+T06 demo use the same service; traces preserve requests/results and failures.
+The inspector filters filing/heading/size and links preceding/following chunks
+and saved source blocks. No fabricated screening scores or provider usage.
+
+Commands/results:
+- `uv run pytest`: 40 passed, one existing Starlette/AnyIO deprecation warning.
+- T06 gate: two acceptance tests covering complete block/cell coverage, repeated
+  hashes, source scope, intact/split tables, header/unit context, overlap, request
+  limits, unsupported rows, idempotent progression, persistence and HTTP filters.
+- `uv run ruff check .`: passed.
+- `uv run profitlab demo --through T06 --run-id demo-t06`: passed.
+- `uv run profitlab serve`: local server on localhost:8000.
+- `git diff --check`: passed.
+
+Open http://127.0.0.1:8000/runs/demo-t06/chunks. Filter heading to
+“Chunk boundary examples”, inspect prose overlap, the intact 160-row table, and
+pieces of the 1,800-row table. Follow Primary blocks to the saved original table;
+Following chunk advances with repeated annual year/unit headers. Synthetic values
+are illustrative, not extraction expectations.
+
+Visual inspection unrun: CUA inventory had no browser connector; native Safari
+returned “Computer Use permissions are not granted.” HTTP checks do not constitute
+visual verification. No live services or paid calls used. UTF-8 bytes/3 estimates
+and 24,000-token budget with 2,000 reserved overhead are conservative provisional
+proxies, not a verified Jev tokenizer or provider ceiling. Full oversized prose
+blocks fail explicitly; header layouts without usable context also fail visibly.
+Whole-block overlap may be smaller than 180. Multiple immutable configurations
+remain visible in the inspector; future pipeline selection belongs to T13.
+Dependencies and uv.lock unchanged. Next task: T07.
+
+## T05 task handoff
 
 Task: T05 — Filing downloads and anchored source viewer.
 Implemented: controlled `stage <run-id> download|parse` with optional `--filing-id`,

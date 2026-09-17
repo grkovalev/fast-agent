@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block content %}
+<p><a href="/runs/{{ run.run_id }}">← Overview</a> · <a href="/runs/{{ run.run_id }}/sources">Evidence</a> · <a href="/runs/{{ run.run_id }}/trace">Trace</a></p>
+<h2>Chunks · {{ run.run_id }}</h2><span class="badge">{{ 'Synthetic demo' if run.mode == 'demo' else 'Live run' }}</span>
+<p>Size is a conservative UTF-8 byte proxy, not Jev-reported usage. Request estimates include filing/heading metadata and reserved question overhead. Tables may exceed the prose target. Screening: Not implemented yet.</p>
+<form method="get"><label>Filing <select name="filing"><option value="">All</option>{% for f in filings %}<option {% if filing == f %}selected{% endif %}>{{ f }}</option>{% endfor %}</select></label><label>Heading <input name="heading" value="{{ heading }}"></label><label>Minimum estimated tokens <input type="number" name="min_tokens" value="{{ min_tokens }}" min="0"></label><label>Maximum <input type="number" name="max_tokens" {% if max_tokens != none %}value="{{ max_tokens }}"{% endif %}></label><button>Filter</button></form>
+{% for item in items %}{% set c = item.chunk %}<section id="{{ c.chunk_id }}"><h3>{{ c.chunk_id }}</h3><p>{{ c.filing_id }} · {{ c.heading_path | join(' / ') }}{% if c.table_id %} · Table piece {{ c.piece }}{% endif %}</p>
+<p>Excerpt estimate {{ c.token_estimate }} · Request estimate {{ c.request_token_estimate }} · {{ c.estimator_version }}</p><p>Content SHA-256 {{ c.content_hash }}</p>
+{% if item.previous %}<a href="?filing={{ c.filing_id }}#{{ item.previous.chunk_id }}">Preceding chunk</a>{% endif %} {% if item.following %}<a href="?filing={{ c.filing_id }}#{{ item.following.chunk_id }}">Following chunk</a>{% endif %}
+<p>Primary blocks: {% for b in c.primary_block_ids %}<a href="/runs/{{ run.run_id }}/sources/{{ c.filing_id }}#block-{{ b }}">{{ b }}</a> {% endfor %}</p>
+<p>Prose overlap: {{ c.overlap_block_ids | join(', ') or 'None' }} · Table context: {{ c.context_block_ids | join(', ') or 'None' }}</p>
+<p>Primary cells: {{ c.primary_cell_ids | length }} · Included cells (with repeated headers): {{ c.cell_ids | length }}. Deduplicate by source IDs for coverage.</p><details><summary>Cell IDs</summary><pre>{{ c.cell_ids | join('\n') }}</pre></details><pre>{{ c.text }}</pre></section>
+{% else %}<p>No saved chunks match. Run the chunk stage after parsing.</p>{% endfor %}{% endblock %}

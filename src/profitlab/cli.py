@@ -34,7 +34,7 @@ def doctor(live: str | None = typer.Option(None, help='Explicit live probe: sec.
 
 @app.command()
 def demo(
-    through: str = typer.Option("T05", help="Latest implemented task: T05."),
+    through: str = typer.Option("T06", help="Latest implemented task: T06."),
     run_id: str = typer.Option(..., help="Unique run ID; existing runs are preserved."),
     scenario: str = typer.Option("normal", help="normal or two-years synthetic fixtures."),
 ):
@@ -119,13 +119,19 @@ def export(run_id: str, output: str = typer.Option(..., help="New trace export d
 
 @app.command()
 def stage(run_id: str, stage: str, filing_id: str | None = typer.Option(None)):
-    """Download or parse saved discovered filings; optionally select one filing."""
+    """Download, parse or chunk saved discovered filings; optionally select one filing."""
     from profitlab.documents.service import SourceService
 
     settings = Settings()
     try:
-        SourceService(settings).progress(run_id, stage, filing_id)
+        if stage == 'chunk':
+            from profitlab.documents.chunk_service import ChunkService
+
+            ChunkService(settings).progress(run_id, filing_id)
+        else:
+            SourceService(settings).progress(run_id, stage, filing_id)
     except (ValueError, FileNotFoundError) as error:
         console.print(f"Error: {settings.redactor().text(str(error))}", markup=False)
         raise typer.Exit(2) from None
-    console.print(f"{stage} complete · http://{settings.host}:{settings.port}/runs/{run_id}/sources")
+    page = 'chunks' if stage == 'chunk' else 'sources'
+    console.print(f"{stage} complete · http://{settings.host}:{settings.port}/runs/{run_id}/{page}")

@@ -23,22 +23,26 @@ class DemoService:
 
     def create(self, run_id: str, through: str, scenario: str = 'normal') -> RunManifest:
         validate_run_id(run_id)
-        if through in ('T04', 'T05'):
+        if through in ('T04', 'T05', 'T06'):
             from profitlab.sec.service import DiscoveryService
             from profitlab.settings import Settings
 
             settings = Settings(PROFITLAB_DATA_DIR=self.data_dir)
             run = DiscoveryService(settings).create(
                 'DEMO', mode='demo', run_id=run_id, scenario=scenario)
-            if through == 'T05':
+            if through in ('T05', 'T06'):
                 from profitlab.documents.service import SourceService
 
-                sources = SourceService(settings)
+                sources = SourceService(settings, chunk_fixture=through == 'T06')
                 sources.progress(run_id, 'download')
                 sources.progress(run_id, 'parse')
+            if through == 'T06':
+                from profitlab.documents.chunk_service import ChunkService
+
+                run = ChunkService(settings).progress(run_id)
             return run
         if through not in ('T01', 'T02', 'T03'):
-            raise ValueError('Only --through T01, T02, T03 and T04 are implemented.')
+            raise ValueError('Only --through T01, T02, T03, T04, T05 and T06 are implemented.')
         if scenario not in ('normal', 'two-years'):
             raise ValueError('Supported scenarios: normal, two-years.')
         now = datetime.now(UTC)

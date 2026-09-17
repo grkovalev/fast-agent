@@ -212,7 +212,7 @@ class Repository:
 
     def manifest(self, run_id):
         # Stage snapshots preserve the original immutable manifest.
-        for stage in ('parse', 'download', 'discovery'):
+        for stage in ('chunk', 'parse', 'download', 'discovery'):
             try:
                 return RunManifest.model_validate_json(self.read(run_id, 'manifest-' + stage))
             except FileNotFoundError:

@@ -66,6 +66,14 @@ class Chunk(Contract):
     token_estimate: int = Field(ge=0)
     estimator_version: str
     source_anchors: list[str]
+    content_hash: str | None = Field(default=None, pattern=r'^[a-f0-9]{64}$')
+    request_token_estimate: int = Field(default=0, ge=0)
+    heading_path: list[str] = Field(default_factory=list)
+    cell_ids: list[StableID] = Field(default_factory=list)
+    primary_cell_ids: list[StableID] = Field(default_factory=list)
+    context_block_ids: list[StableID] = Field(default_factory=list)
+    table_id: StableID | None = None
+    piece: int = Field(default=1, ge=1)
 
 
 class EvidenceRef(Contract):

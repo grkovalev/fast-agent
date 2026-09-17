@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     data_dir: Path = Field(Path("data"), validation_alias="PROFITLAB_DATA_DIR")
     host: str = Field("127.0.0.1", validation_alias="PROFITLAB_HOST")
     port: int = Field(8000, ge=1, le=65535, validation_alias="PROFITLAB_PORT")
+    chunk_target_tokens: int = Field(1500, ge=100)
+    chunk_overlap_tokens: int = Field(180, ge=0)
+    chunk_request_budget: int = Field(24000, ge=1000, le=28000)
+    chunk_question_overhead: int = Field(2000, ge=500)
+    chunk_max_count: int = Field(10000, ge=1)
     sec_user_agent: str = ""
     sec_requests_per_second: float = Field(2, gt=0, le=10)
     sec_timeout: float = Field(15, gt=0, le=60)

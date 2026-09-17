@@ -191,4 +191,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             context={'run': run, 'item': item, 'cell': cell,
                      'row_cells': row_cells, 'column_cells': column_cells})
 
+    @app.get('/runs/{run_id}/chunks')
+    def chunks(request: Request, run_id: str, filing: str = '', heading: str = '',
+               min_tokens: int = 0, max_tokens: int | None = None):
+        from profitlab.documents.chunk_service import ChunkService
+
+        try:
+            run, all_chunks = ChunkService(settings).list(run_id)
+        except (ValueError, FileNotFoundError):
+            raise HTTPException(404, 'Chunks not found or damaged') from None
+        items = []
+        for i, chunk in enumerate(all_chunks):
+            if (filing and chunk.filing_id != filing or
+                    heading.lower() not in ' / '.join(chunk.heading_path).lower() or
+                    chunk.token_estimate < min_tokens or
+                    max_tokens is not None and chunk.token_estimate > max_tokens):
+                continue
+            previous = all_chunks[i-1] if i and all_chunks[i-1].filing_id == chunk.filing_id else None
+            following = all_chunks[i+1] if i+1 < len(all_chunks) and all_chunks[i+1].filing_id == chunk.filing_id else None
+            items.append({'chunk': chunk, 'previous': previous, 'following': following})
+        return templates.TemplateResponse(request=request, name='chunks.html', context={
+            'run': run, 'items': items, 'filings': sorted({c.filing_id for c in all_chunks}),
+            'filing': filing, 'heading': heading, 'min_tokens': min_tokens,
+            'max_tokens': max_tokens})
+
     return app

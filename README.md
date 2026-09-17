@@ -2,7 +2,7 @@
 
 Local, inspectable earnings growth research. Company earnings per share; stock-price returns are not included.
 
-T05 is implemented: SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Financial processing starts in later tasks.
+T06 is implemented: table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Financial processing starts in later tasks.
 
 Requires Python 3.12 and uv. From the repository root:
 
@@ -32,7 +32,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T06: table-aware chunking and chunk inspector. Discovered filing coverage is separate from extracted financial coverage; financial stages remain unavailable. Earlier runs stay readable.
+Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T07: Jev and OpenAI-compatible provider adapters. Discovered filing coverage is separate from extracted financial coverage; financial stages remain unavailable. Earlier runs stay readable.
 
 ```sh
 uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04
@@ -90,3 +90,24 @@ Live progression accepts `--filing-id` to process one discovered filing. Existin
 saved downloads and parsed artifacts are reused; failed operations remain in Trace.
 Sources without an original anchor use a stable local source block, with no invented
 page number. Synthetic sources have no SEC-original link.
+
+Chunk inspection (T06):
+
+```sh
+uv run profitlab demo --through T06 --run-id demo-t06
+uv run profitlab stage <parsed-run-id> chunk
+```
+
+Open `/runs/demo-t06/chunks`. Inspect **Prose overlap**, follow a primary block
+link to its saved source, and use **Following chunk** to traverse table pieces.
+The synthetic 2025 filing includes an intact table exceeding the target and a
+large table split with repeated year/unit headers. Filter by filing, heading,
+or estimated size. No screening decisions exist yet.
+
+`CHUNK_TARGET_TOKENS=1500` and `CHUNK_OVERLAP_TOKENS=180` configure block-based
+prose chunking. Tables can exceed the target. `CHUNK_REQUEST_BUDGET=24000`
+includes `CHUNK_QUESTION_OVERHEAD=2000` reserved tokens and metadata, using a
+conservative UTF-8 bytes/3 proxy; these are estimates, not measured Jev usage.
+Oversized blocks or inseparable row groups fail explicitly without truncation.
+Changed configurations save additional immutable chunk versions; earlier
+versions remain inspectable. The safe budget is provisional until T07/T14.
