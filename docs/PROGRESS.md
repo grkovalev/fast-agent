@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: not started; repository contains planning documents only.
-- Next task: **T01 — Bootstrap the application and runnable inspection interface.**
-- Latest verified task: none.
-- Last runnable demo: none; commands in the plan are future acceptance contracts.
+- Implementation status: T01 complete; runnable CLI and local setup inspection interface.
+- Next task: **T02 — Pydantic contracts, fixtures, and persistent run storage.**
+- Latest verified task: T01 local acceptance.
+- Last runnable demo: `demo-t01`, setup only.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
 - Current external blockers: none for starting T01. Live stages later need SEC contact identification, a TypeSafe API key, and an OpenAI-compatible provider/model configuration.
@@ -17,7 +17,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 
 | Task | Deliverable | Local status | Live verification |
 | --- | --- | --- | --- |
-| T01 | uv project, CLI, local UI, offline demo skeleton | TODO | Not applicable |
+| T01 | uv project, CLI, local UI, offline demo skeleton | DONE | Not applicable |
 | T02 | Pydantic contracts, fixtures, persistent run storage | TODO | Not applicable |
 | T03 | Trace recording, conversation/tool viewer, export | TODO | Not applicable |
 | T04 | SEC ticker lookup and filing discovery | TODO | Not run |
@@ -47,25 +47,44 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 
 ## Latest task handoff
 
-Replace this section after each task:
-
-```text
-Task:
-Implemented:
+Task: T01 — Bootstrap application and runnable inspection interface.
+Implemented: uv/Python 3.12 src package, locked dependencies, typed settings,
+CLI serve/doctor/demo, FastAPI/Jinja home and overview, local CSS, health endpoint,
+synthetic setup summary service, unavailable future stages, configuration guidance.
 Commands executed and results:
-Demo run ID:
-Server command:
-Browser URL and click path:
-Expected visible result:
-Automated checks:
-Browser checks:
-Live checks:
-Known limitations / blockers:
-Files changed:
-Next task:
-```
+- `uv sync` and `uv sync --locked`: passed, Python 3.12.11.
+- `uv run profitlab doctor`: passed without keys; external configuration absent.
+- `uv run profitlab demo --through T01 --run-id demo-t01`: passed.
+- `uv run pytest tests/task_gates/test_t01.py`: 6 passed; one upstream
+  Starlette/AnyIO deprecation warning.
+- `uv run ruff check .`: passed after UTC alias correction.
+- `uv run profitlab serve`: started successfully on localhost.
+Demo run ID: demo-t01.
+Server command: `uv run profitlab serve`.
+Browser URL and click path: http://127.0.0.1:8000/runs/demo-t01;
+“All runs” → home → demo-t01.
+Expected visible result: DEMO, Synthetic demo badge, Setup complete, disabled
+future tabs and stages marked Not implemented yet.
+Automated checks: credential-free startup, health, navigation/static routes,
+no demo network (socket guard), duplicate preservation, invalid input and help.
+Browser checks: attempted CUA browser selection; tooling returned “No browser is
+available.” Visual inspection remains unrun; HTTP tests are not visual checks.
+Live checks: not applicable to T01; no external services called.
+Known limitations / blockers: setup only; T02 introduces full contracts and
+SQLite/immutable artifacts. uv cache access failed in sandbox and alternate cache
+triggered an uv system-configuration panic; required uv commands ran successfully
+with approved escalation. No browser available.
+Files changed: pyproject.toml, uv.lock, .python-version, .gitignore, .env.example,
+README.md, docs/PROGRESS.md, docs/VERSIONS.md, src/profitlab and T01 task gate.
+Next task: T02.
 
 ## Durable decisions / deviations
+
+- User preference: default generative provider is OpenAI API at `https://api.openai.com/v1`,
+  model `gpt-5.6-luna` for low cost. Set `LLM_API_KEY` locally. Base URL/model
+  remain overrideable. Official model docs verified 2026-09-17; live quality and
+  account access remain untested until T07. Settings, example, specification and
+  README updated; T01 gate and Ruff rerun successfully.
 
 - Planning baseline dated 2026-09-17. Dependency versions must be selected, recorded, and locked in T01; no untested version numbers are prescribed.
 - Chunk default: approximately 1,500 tokens with 180-token prose overlap, subject to T14 evaluation.

@@ -1,0 +1,25 @@
+[project]
+name = "profitlab"
+version = "0.1.0"
+description = "Local, inspectable earnings growth research"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi", "uvicorn", "jinja2", "pydantic>=2", "pydantic-settings",
+  "pydantic-ai-slim[openai]", "httpx", "lxml", "typer", "rich",
+]
+
+[project.scripts]
+profitlab = "profitlab.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest", "pytest-asyncio", "ruff"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100

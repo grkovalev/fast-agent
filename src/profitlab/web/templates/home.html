@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block content %}
+<section><h2>Research a company</h2><label for="ticker">Ticker</label><input id="ticker" placeholder="e.g. AAPL" disabled><button disabled>Start research</button><p>Ticker analysis: Not implemented yet. Create a synthetic setup run with <code>uv run profitlab demo --through T01 --run-id demo-t01</code>.</p></section>
+<section><h2>Recent runs</h2>{% for run in runs %}<p><a href="/runs/{{ run.run_id }}">{{ run.run_id }} · {{ run.ticker }}</a> <span class="badge">Synthetic demo</span> · Setup {{ run.status }}</p>{% else %}<p>No runs yet.</p>{% endfor %}</section>
+<section><h2>Configuration readiness</h2><p>Local presence checks only; live access has not been tested.</p>{% for name, ready in readiness.items() %}<p>{{ name }}: {{ 'Ready' if ready else 'Not configured (optional for demo)' }}</p>{% endfor %}</section>
+{% endblock %}

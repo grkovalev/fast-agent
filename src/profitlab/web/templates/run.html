@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block content %}
+<p><a href="/">← All runs</a></p><section><span class="badge">Synthetic demo</span><h2>{{ run.ticker }} · {{ run.run_id }}</h2><p>Setup complete</p><p>{{ run.limitation }}</p><p class="muted">Created {{ run.created_at.isoformat() }}</p></section>
+<nav aria-label="Run tabs"><span aria-current="page">Overview</span>{% for tab in ['Report', 'Evidence', 'Chunks', 'Candidates', 'Calculations', 'Trace', 'Checks'] %}<button disabled title="Not implemented yet">{{ tab }}</button>{% endfor %}</nav>
+<section><h2>Pipeline progress</h2><p>Setup: Completed</p>{% for stage in ['Lookup', 'Discover', 'Download', 'Parse', 'Chunk', 'Screen', 'Extract', 'Reconcile', 'Calculate', 'Write', 'Validate'] %}<p>{{ stage }}: <span class="muted">Not implemented yet</span></p>{% endfor %}</section>
+{% endblock %}
