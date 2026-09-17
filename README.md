@@ -2,14 +2,14 @@
 
 Local, inspectable earnings growth research. Company earnings per share; stock-price returns are not included.
 
-T08 is implemented: inspectable relevance probabilities, structural table safeguards, bounded coverage recovery and cached screening; separate Jev and OpenAI-compatible adapters with inspectable compatibility probes, table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Financial processing starts in later tasks.
+T09 is implemented: source-validated numeric candidates, exact-cell source drawers, separate narrative quotes and inspectable rejected extraction proposals; inspectable relevance probabilities, structural table safeguards, bounded coverage recovery and cached screening; separate Jev and OpenAI-compatible adapters with inspectable compatibility probes, table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Candidate selection and report calculations start in later tasks.
 
 Requires Python 3.12 and uv. From the repository root:
 
 ```sh
 uv sync --locked
 uv run profitlab doctor
-uv run profitlab demo --through T08 --run-id demo-t08
+uv run profitlab demo --through T09 --run-id demo-t09-v2
 uv run profitlab serve
 ```
 
@@ -31,7 +31,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T09: candidate extraction with source validation. Discovered filing coverage is separate from extracted financial coverage; financial stages remain unavailable. Earlier runs stay readable.
+Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T10: candidate reconciliation and coverage selection. Discovered filing coverage is separate from extracted financial coverage; selection, calculations and reporting remain unavailable. Earlier runs stay readable.
 
 ```sh
 uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04
@@ -180,3 +180,37 @@ their returned model and historical usage; new-request usage is separate. Changi
 source/chunk/prompt/model/endpoint/policy invalidates cached judgments. Alias model
 reuse cannot prove that today's alias points to the same model. Prior immutable
 artifacts remain inspectable; the chunk page shows the latest screening selection.
+
+Candidate extraction (T09):
+
+```sh
+uv run profitlab demo --through T09 --run-id demo-t09-new
+uv run profitlab stage <screened-run-id> extract
+uv run profitlab stage <screened-run-id> extract --filing-id <filing-id> --chunk-id <chunk-id>
+uv run profitlab stage <screened-run-id> extract --max-chunks 3
+# Optional supplied SEC Company Facts JSON; never replaces a cited filing value:
+uv run profitlab stage <screened-run-id> extract --company-facts-file companyfacts.json
+uv run pytest tests/task_gates/test_t09.py
+```
+
+Open `/runs/<run-id>/candidates`. Click **View source** on a diluted-EPS
+candidate to highlight its raw cell, row and year column. The drawer shows saved
+source text; **Evidence and exact quote** includes the original URL and source hash.
+Expand rejected fixture proposals to see fabricated IDs and rejection reasons.
+Trace → stage=extract shows actual Pydantic AI structured-output conversations,
+with the synthetic provider clearly labeled. Narrative passages are separate quotes.
+Values use base units: `180` USD millions becomes Decimal `180000000`; EPS `2.00`
+remains `2.00` USD/share. These are candidates, not reconciled selections.
+
+Supported inline-XBRL concepts are explicitly mapped in
+`documents/extraction.py`; only visible cell-anchored, non-dimensional annual
+contexts with USD/share units and simple dot-decimal transforms are accepted.
+Supported tables require metric rows, year columns, units and exact fiscal intervals
+in saved text. Missing dates are flagged rather than inferred from a report-end year.
+Quarterly, adjusted and segment presentations cannot enter accepted candidates.
+Unresolved retained chunks use a bounded extraction agent (up to eight chunks,
+three model requests each, configured stage timeout). Unverifiable proposals stay
+ambiguous; malformed citations/value/year/scale mismatches are rejected. Partial
+coverage and unsupported layouts remain visible. No gold answers enter extraction.
+Company Facts cross-checks compare the same accession/concept/interval/unit and
+label conflicts; they are another presentation of the same filing data.

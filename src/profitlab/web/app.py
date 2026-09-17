@@ -219,4 +219,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             'filing': filing, 'heading': heading, 'min_tokens': min_tokens,
             'max_tokens': max_tokens, 'screening': screening})
 
+    @app.get('/runs/{run_id}/candidates')
+    def candidates(request: Request, run_id: str):
+        from profitlab.providers.extraction import ExtractionService
+
+        try:
+            run = service.get(run_id)
+            index, attempts = ExtractionService(settings).latest(run_id)
+        except (ValueError, FileNotFoundError):
+            raise HTTPException(404, 'Candidates not found or damaged') from None
+        import json
+
+        evidence = {a.evidence_id: json.loads(Repository(settings.data_dir).read(run_id, a.evidence_id))
+                    for a in attempts if a.evidence_id}
+        cells = {a.proposal['cell_id']: json.loads(Repository(settings.data_dir).read(run_id, a.proposal['cell_id']))
+                 for a in attempts if a.candidate}
+        return templates.TemplateResponse(request=request, name='candidates.html',
+            context={'run': run, 'index': index, 'attempts': attempts, 'evidence': evidence, 'cells': cells})
+
     return app

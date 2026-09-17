@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T08 complete locally; inspectable relevance screening, structural safeguards, bounded coverage recovery and immutable cached judgments.
-- Next task: **T09 — Candidate extraction with source validation.**
-- Latest verified task: T08 local acceptance and bounded live Jev spot check; visual inspection remains pending.
-- Last runnable demo: `demo-t08-v2` (sources/chunks, fixture-backed probes and screening decisions). Earlier demos remain readable.
+- Implementation status: T09 complete locally; source-validated extraction candidates, narrative evidence and inspectable rejected/ambiguous proposals.
+- Next task: **T10 — Candidate reconciliation and coverage selection.**
+- Latest verified task: T09 local acceptance and bounded extraction from saved Apple source; SEC-original visual verification remains pending.
+- Last runnable demo: `demo-t09-v2` (source-validated numeric candidates and narrative passages, fixture agent rejections). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
@@ -25,7 +25,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T06 | Table-aware chunking and chunk inspector | DONE | Not applicable |
 | T07 | Jev and OpenAI-compatible provider adapters | DONE | Jev and LLM passed; visual inspection pending |
 | T08 | Jev relevance screening and coverage recovery | DONE | Bounded Jev spot check passed; visual inspection pending |
-| T09 | Candidate extraction with source validation | TODO | Not run |
+| T09 | Candidate extraction with source validation | DONE | Saved Apple table extraction passed; original/visual inspection pending |
 | T10 | Candidate reconciliation and coverage selection | TODO | Not applicable |
 | T11 | Deterministic annual-growth calculations | TODO | Not applicable |
 | T12 | Pydantic AI report agent and citation validation | TODO | Not run |
@@ -46,6 +46,88 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T09 — Candidate extraction with source validation.
+Implemented: typed untrusted figure/passage proposals and extraction attempts;
+visible cell-anchored inline-XBRL duration facts for five explicit us-gaap concepts,
+USD/share units, scale/sign and simple dot-decimal transformations; conservative
+annual table rows with merged year headers, exact fiscal intervals and unit scales.
+Base-unit Decimal values retain raw source text and reported scale. Narrative
+passages have separate quote-validated evidence. Every accepted candidate has a
+run-owned EvidenceRef with exact quote, source hash and saved/original anchors.
+Repository evidence validation now accepts the immutable download provenance hash
+when the discovery record predates download and has no source_hash.
+
+Actual Pydantic AI structured extraction fallback runs over unresolved retained
+chunks with supplied IDs, versioned instructions, native incremental conversations,
+output schemas, configured repairs, transport traces and bounded requests. Fixture
+providers are explicit; invented citations remain visible and rejected. Source ID,
+block/table ownership, raw text, year, metric, Decimal normalization, scale and
+fiscal interval checks guard proposals. Unverifiable contexts remain ambiguous;
+unsupported taxonomy/transforms/dimensions/hidden-only facts stay diagnostic.
+Fallback budget: eight chunks, three requests per chunk, configured total timeout.
+No model inference fills missing fiscal dates; no gold file enters production.
+
+CLI adds `stage <run-id> extract`, filing/chunk/subset controls and optional supplied
+SEC Company Facts JSON cross-check. That comparison uses exact concept, unit,
+interval and accession; conflicts are disclosed without replacing filing values or
+claiming independent corroboration. Candidate UI has raw values, Decimal units,
+periods, methods, reasons, proposal diagnostics, evidence JSON, source drawer and
+cell/row/year highlight links. Candidates remain unselected; reconciliation is T10.
+README documents the commands and limitations. Updated the T01 future-task invalid
+CLI example from newly supported T09 to T10.
+
+Commands/results:
+- `uv run profitlab demo --through T09 --run-id demo-t09`: initial demo passed;
+  preserved as an initial artifact set. Its share-note scale issue was found/fixed
+  using the independent gold acceptance gate. Use the corrected v2 demo below.
+- `uv run profitlab demo --through T09 --run-id demo-t09-v2`: passed. 17 numeric
+  candidates (including comparative/repeated amendment presentations), five exact
+  narrative passages, five rejected fixture citations, two ambiguous comparative
+  periods and two unsupported inline-XBRL contexts. Repeated presentations are
+  intentionally retained until T10; this is not independent corroboration.
+- `uv run pytest tests/task_gates/test_t09.py`: five passed. Gate exercises offline
+  real service/storage/UI with network forbidden, independent gold expectations,
+  negative parentheses, Decimal scale/per-share units, merged headers, wrong years,
+  quarterly/adjusted/segment distractors, hidden facts, missing contexts,
+  unsupported transforms, malformed grouping, fabricated IDs, wrong raw values,
+  wrong block/table ownership, scale mismatch, restart persistence, highlight
+  links and non-replacing Company Facts conflicts.
+- `uv run pytest`: 56 passed after updating the obsolete T01 future-task input.
+  Earlier run was 53 passed/one obsolete-input failure, now fixed.
+- `uv run pytest tests/task_gates/test_t09.py tests/task_gates/test_t01.py`:
+  11 passed. Final T09 gate rerun after comma-grouping/sign hardening: five passed.
+- `uv run ruff check .` and `git diff --check`: passed. Existing upstream
+  Starlette/AnyIO deprecation warning only. Dependencies/lockfile unchanged.
+- `uv run profitlab stage live-sec-t04 extract --filing-id filing-000032019325000079 --chunk-id chunk-b3adc82acbe89d50f942a5fe`:
+  passed as a partial subset. Nine inline-XBRL income/EPS/share candidates across
+  2023–2025; no new provider request needed. Unsupported concepts/layouts and
+  unavailable table-only intervals remain visible diagnostics.
+- Saved original download's raw HTML facts and stored cells agree for 2025 net
+  income `112,010` USD millions → `112010000000`, diluted EPS `7.46` USD/share,
+  and diluted shares `15,004,697` thousands → `15004697000`. Exact fiscal interval:
+  2024-09-29 through 2025-09-27. NetIncomeLoss stays consolidated income; it is
+  not silently relabeled common-shareholder earnings. This is a saved-source
+  spot check, not a general extraction accuracy benchmark.
+- `uv run profitlab serve`: running at http://127.0.0.1:8000. `/health` and
+  `/runs/demo-t09-v2/candidates` returned successful HTTP responses.
+
+Open http://127.0.0.1:8000/runs/demo-t09-v2/candidates. Click an accepted diluted
+EPS candidate's **Open source drawer** to inspect raw text and the highlighted
+row/year/cell. Expand a rejected proposal to inspect its invented citation. Open
+Trace with stage=extract for actual fixture-backed framework messages.
+Real saved table: http://127.0.0.1:8000/runs/live-sec-t04/candidates.
+
+Visual verification unrun: CUA inventory has no browser connectors; Safari returned
+“Computer Use was not approved to use Safari.” HTTP checks do not count as visual
+inspection. Independent SEC-original browser confirmation of three cells remains
+pending; raw original downloaded bytes were inspected locally. No new live LLM
+extraction or Company Facts request is claimed. Tables lacking exact intervals,
+non-USD units, unsupported transformations/dimensions and ambiguous scope stay
+unsupported/ambiguous. Model proposals lacking mechanically provable source context
+cannot become accepted selections. Next task: T10.
+
+## T08 task handoff
 
 Task: T08 — Jev relevance screening and coverage recovery.
 Implemented: five complete, versioned Noul questions sent together per chunk,
@@ -467,3 +549,31 @@ financial extraction/quality benchmark. No dependencies or lockfile changes.
   seven new requests total, 6,037 input/623 output tokens, actual model jev-1.13.0.
   Typed responses validated; relevant table/note retained, cover dropped. Subset
   remains partial; visual inspection pending. No screening-accuracy claim.
+
+## UI follow-up — Easier figure verification
+
+User requested a clearer interface after inspecting Apple candidates. Candidate
+pages now show compact year tables with readable metric names, reported-scale
+values/units and one View source action per figure. Raw Decimals, parser method,
+validation and evidence JSON remain inside Details. Narrative passages and
+extraction issues are collapsed separately; unrequested Company Facts detail is
+hidden. No candidate selection or reconciliation was added.
+
+Source links show only the cited table with its existing row/year/cell highlights,
+a Back to figures link and an optional View full filing link. Source hashes and
+block identifiers are collapsed, and coordinate controls appear on hover/focus.
+Overview pipeline details and potentially huge artifact lists are collapsed.
+Removed the repeated report heading from every page. Synthetic/partial disclosures
+remain visible. These are presentation changes; stored evidence remains intact.
+
+Verification: existing candidate, source and bootstrap gates run for this follow-up;
+results: initial run had 17 passes and one full-filing anchor compatibility failure;
+fixed by making table focus an explicit query option on candidate links. Final
+`uv run pytest tests/task_gates/test_t05.py tests/task_gates/test_t09.py`: 12 passed;
+bootstrap gate also passed in the initial run. `uv run ruff check .` and
+`git diff --check`: passed. Running server returned the simplified Apple page;
+HTML verification confirmed three year tables, nine figure rows and nine source
+links with diagnostics collapsed. A real persisted Apple source link was checked
+through TestClient: one highlighted table and Back to figures, HTTP 200.
+Browser visual inspection remains unavailable because
+Computer Use access to Safari was not approved. Next numbered task remains T10.

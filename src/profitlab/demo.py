@@ -23,36 +23,40 @@ class DemoService:
 
     def create(self, run_id: str, through: str, scenario: str = 'normal') -> RunManifest:
         validate_run_id(run_id)
-        if through in ('T04', 'T05', 'T06', 'T07', 'T08'):
+        if through in ('T04', 'T05', 'T06', 'T07', 'T08', 'T09'):
             from profitlab.sec.service import DiscoveryService
             from profitlab.settings import Settings
 
             settings = Settings(PROFITLAB_DATA_DIR=self.data_dir)
             run = DiscoveryService(settings).create(
                 'DEMO', mode='demo', run_id=run_id, scenario=scenario)
-            if through in ('T05', 'T06', 'T07', 'T08'):
+            if through in ('T05', 'T06', 'T07', 'T08', 'T09'):
                 from profitlab.documents.service import SourceService
 
-                sources = SourceService(settings, chunk_fixture=through in ('T06', 'T07', 'T08'))
+                sources = SourceService(settings, chunk_fixture=through in ('T06', 'T07', 'T08', 'T09'))
                 sources.progress(run_id, 'download')
                 sources.progress(run_id, 'parse')
-            if through in ('T06', 'T07', 'T08'):
+            if through in ('T06', 'T07', 'T08', 'T09'):
                 from profitlab.documents.chunk_service import ChunkService
 
                 run = ChunkService(settings).progress(run_id)
-            if through in ('T07', 'T08'):
+            if through in ('T07', 'T08', 'T09'):
                 from profitlab.providers.service import ProbeService
 
                 run = ProbeService(settings).progress(run_id, fake=True)
                 if run.status == 'failed':
                     raise ValueError(run.limitation)
-            if through == 'T08':
+            if through in ('T08', 'T09'):
                 from profitlab.providers.screening import ScreeningService
 
                 run = ScreeningService(settings).progress(run_id)
+            if through == 'T09':
+                from profitlab.providers.extraction import ExtractionService
+
+                run = ExtractionService(settings).progress(run_id)
             return run
         if through not in ('T01', 'T02', 'T03'):
-            raise ValueError('Only --through T01, T02, T03, T04, T05, T06 T07 and T08 are implemented.')
+            raise ValueError('Only --through T01, T02, T03, T04, T05, T06 T07 T08 and T09 are implemented.')
         if scenario not in ('normal', 'two-years'):
             raise ValueError('Supported scenarios: normal, two-years.')
         now = datetime.now(UTC)

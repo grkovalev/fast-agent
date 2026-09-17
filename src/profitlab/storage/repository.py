@@ -165,7 +165,7 @@ class Repository:
             filing = fetch(model.filing_id, 'FilingRecord')
             if (block['filing_id'] != model.filing_id or
                     model.local_anchor != f'#block-{model.block_id}' or
-                    filing['source_hash'] != model.source_hash or
+                    (filing['source_hash'] or fetch('source-' + model.filing_id)['sha256']) != model.source_hash or
                     block['table_id'] != model.table_id):
                 raise ValueError('Evidence source identity, hash or anchor mismatch')
             if any(segment not in block['text'] for segment in model.exact_segments):
@@ -212,7 +212,7 @@ class Repository:
 
     def manifest(self, run_id):
         snapshots = [a for a in self.artifacts(run_id)
-                     if a['artifact_id'].startswith('manifest-screen-')]
+                     if a['artifact_id'].startswith(('manifest-screen-', 'manifest-extract-'))]
         if snapshots:
             return max((RunManifest.model_validate_json(self.read(run_id, a['artifact_id']))
                         for a in snapshots), key=lambda m: m.updated_at)
