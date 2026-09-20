@@ -27,9 +27,12 @@ class PipelineService:
         self.settings = settings
         self.repo = Repository(settings.data_dir)
         with self.repo.connect() as db:
-            db.execute('CREATE TABLE IF NOT EXISTS workflows '
-                       '(run_id TEXT PRIMARY KEY REFERENCES runs(run_id), '
-                       'state TEXT NOT NULL, cancel INTEGER NOT NULL DEFAULT 0)')
+            exists = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                                "AND name='workflows'").fetchone()
+            if not exists:
+                db.execute('CREATE TABLE workflows '
+                           '(run_id TEXT PRIMARY KEY REFERENCES runs(run_id), '
+                           'state TEXT NOT NULL, cancel INTEGER NOT NULL DEFAULT 0)')
 
     def state(self, run_id):
         self.repo.manifest(run_id)

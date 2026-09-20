@@ -51,6 +51,17 @@ def test_pipeline_persistence_resume_and_real_report(settings):
         service.create('DEMO', mode='demo', run_id='workflow')
 
 
+def test_existing_schema_startup_is_read_only_under_shared_lock(settings):
+    service = PipelineService(settings)
+    with service.repo.connect() as reader:
+        reader.execute('BEGIN')
+        reader.execute('SELECT * FROM workflows').fetchall()
+        # Server construction must not request an exclusive schema lock merely
+        # because the already-current repository is opened again.
+        app_instance = create_app(settings)
+    assert app_instance.title == 'ProfitLab'
+
+
 def test_chunk_settings_invalidate_downstream(settings):
     service = complete(settings)
     before = service.state('workflow')

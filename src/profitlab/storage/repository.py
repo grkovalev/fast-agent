@@ -24,16 +24,20 @@ class Repository:
             version = db.execute('PRAGMA user_version').fetchone()[0]
             if version not in (0, 1):
                 raise ValueError(f'Unsupported storage schema version: {version}')
-            db.executescript('''
-                CREATE TABLE IF NOT EXISTS runs (
-                    run_id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS artifacts (
-                    run_id TEXT NOT NULL REFERENCES runs(run_id),
-                    artifact_id TEXT NOT NULL, path TEXT NOT NULL, hash TEXT NOT NULL,
-                    media_type TEXT NOT NULL, contract TEXT,
-                    PRIMARY KEY(run_id, artifact_id));
-                PRAGMA user_version=1;
-            ''')
+            # Schema version 1 is already initialized. Avoid even idempotent DDL
+            # here: Repository is constructed by read-only web requests, and DDL
+            # unnecessarily requires SQLite's exclusive schema lock.
+            if version == 0:
+                db.executescript('''
+                    CREATE TABLE IF NOT EXISTS runs (
+                        run_id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
+                    CREATE TABLE IF NOT EXISTS artifacts (
+                        run_id TEXT NOT NULL REFERENCES runs(run_id),
+                        artifact_id TEXT NOT NULL, path TEXT NOT NULL, hash TEXT NOT NULL,
+                        media_type TEXT NOT NULL, contract TEXT,
+                        PRIMARY KEY(run_id, artifact_id));
+                    PRAGMA user_version=1;
+                ''')
 
     @contextmanager
     def connect(self):
