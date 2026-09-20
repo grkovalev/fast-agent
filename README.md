@@ -2,18 +2,18 @@
 
 Local, inspectable earnings growth research. Company earnings per share; stock-price returns are not included.
 
-T12 is implemented: a Pydantic AI report writer with run-scoped evidence tools, quantitative placeholders, bounded validation repairs, incremental native conversations and cited explanations; deterministic Decimal annual changes, eligibility statuses, CAGR and linked preliminary metrics tables; ordered candidate reconciliation, source-preserving alternatives and unresolved conflicts, annual metric coverage and complementary explanations; source-validated numeric candidates, exact-cell source drawers, separate narrative quotes and inspectable rejected extraction proposals; inspectable relevance probabilities, structural table safeguards, bounded coverage recovery and cached screening; separate Jev and OpenAI-compatible adapters with inspectable compatibility probes, table-aware chunks and a filterable chunk inspector, SEC discovery and filing downloads, a sanitized anchored source viewer with table highlighting, persistent service tracing, immutable storage, and synthetic fixtures. Failed writer output produces a clearly marked data-only partial report.
+T13 is implemented: a persistent ticker-to-report workflow shared by the CLI and local UI, with live progress, restart recovery, cancellation, bounded stages, cache provenance and dependency-aware invalidation. It includes the T12 Pydantic AI report writer with run-scoped evidence tools, quantitative placeholders, bounded validation repairs, incremental native conversations and cited explanations; deterministic Decimal annual changes, eligibility statuses, CAGR and linked metrics tables; ordered candidate reconciliation, source-preserving alternatives and unresolved conflicts; source-validated numeric candidates; inspectable relevance screening; provider adapters; table-aware chunks; SEC discovery and downloads; an anchored source viewer; persistent tracing; immutable storage; and synthetic fixtures. Failed writer output produces a clearly marked data-only partial report.
 
 Requires Python 3.12 and uv. From the repository root:
 
 ```sh
 uv sync --locked
 uv run profitlab doctor
-uv run profitlab demo --through T12 --run-id demo-t12-new
+uv run profitlab demo --through T13 --run-id demo-t13-new
 uv run profitlab serve
 ```
 
-Open http://127.0.0.1:8000/runs/demo-t10-new/candidates. Expand **Why / compare sources** for one annual metric, follow **Compare candidate group**, and inspect the selected value, alternatives, rule codes and filing dates. **View competing source** highlights the exact cell, row and year column. The run retains discovery, sources, chunks and traces. Home accepts ticker discovery in demo or live mode. Use a fresh run ID each time; existing runs cannot be overwritten. Runtime summaries are stored under `data/runs/`.
+Open http://127.0.0.1:8000/, select **Synthetic demo**, enter **DEMO**, and click **Analyze ticker**. The run page shows all stages progressing to a cited report. Choose the slow demo scenario to exercise cancel and resume. The run retains discovery, sources, chunks and traces. Use a fresh run ID each time; existing runs cannot be overwritten. Runtime summaries are stored under `data/runs/`.
 
 The interface binds to `127.0.0.1:8000` by default. Demo and UI need no credentials or network after installation. Optionally copy `.env.example` to `.env`; configuration checks report presence only and do not probe external services. Never commit credentials.
 
@@ -31,7 +31,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T13: complete workflow and run controls. Discovered filing coverage is separate from selected metric coverage; narrative reports require current calculations and a successful validated writer output. Earlier runs stay readable.
+Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T14: measure chunk size and relevance quality. Discovered filing coverage is separate from selected metric coverage; narrative reports require current calculations and a successful validated writer output. Earlier runs stay readable.
 
 ```sh
 uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04
@@ -172,8 +172,10 @@ neighbor recovery pass retains up to `SCREEN_RECOVERY_MAX_CHUNKS=12` dropped chu
 without changing their reported scores. Coverage counts unique primary source IDs;
 it indicates candidate labels per filing/report-end year, not validated facts.
 
-`SCREEN_MAX_REQUESTS=100` bounds evaluation calls; existing HTTP retry limits apply
-within each call. `PROVIDER_TOTAL_TIMEOUT=120` bounds new screening requests.
+`SCREEN_MAX_REQUESTS=2000` bounds evaluation calls; existing HTTP retry limits apply
+within each call. `SCREEN_TOTAL_TIMEOUT=1800` gives full-filing screening a separate
+deadline from the shorter provider conversation budget. These defaults cover the
+observed 935-chunk four-filing MSFT workload with headroom; they remain configurable.
 Subset selection, failed answers, missing label coverage or exhausted limits produce
 a partial run. Unscreened chunks remain explicitly unknown. Cached results preserve
 their returned model and historical usage; new-request usage is separate. Changing
@@ -300,3 +302,34 @@ artifacts remain inspectable. `writer_max_requests` (6) and
 `writer_max_tool_calls` (8), provider timeout and configured structured-output
 repairs bound writing. Tools return explicit missing results for unknown IDs and
 never search another run. No tools execute code or fetch arbitrary URLs.
+
+
+T13 adds the complete managed workflow. Start the updated interface with
+`uv run profitlab serve`, open http://127.0.0.1:8000/, select **Synthetic demo**,
+enter **DEMO** and click **Analyze ticker**. Progress updates every second; open
+**Report** when finished. Choose **Slow (try cancellation)** to exercise Cancel
+run, inspect Trace, then Resume run. Refresh preserves progress. A server restart
+marks abandoned workers interrupted and offers resume.
+
+```sh
+uv run profitlab demo --through T13 --run-id demo-t13-new
+uv run profitlab analyze DEMO --years 4 --mode demo
+uv run profitlab analyze AAPL --years 4 --mode live
+uv run profitlab resume <run-id>
+uv run profitlab cancel <run-id>
+uv run pytest tests/task_gates/test_t13.py
+```
+
+Live requires `SEC_USER_AGENT`, `TYPESAFE_API_KEY` and `LLM_API_KEY`; missing keys
+stop before paid screening. Failed live calls never switch to synthetic providers.
+Only one live workflow runs at a time; provider requests run sequentially.
+`STAGE_TIMEOUT` defaults to 600 seconds and `RUN_TOTAL_TIMEOUT` to 1800 seconds.
+Source/network/request budgets from earlier stages still apply. Cancellation
+interrupts async provider work; synchronous downloads finish their bounded writes
+before releasing the run. Remote completion and billing may remain unknown.
+The CLI cancel command signals an active CLI worker as well as the web worker.
+Completed stages are reused only when settings, code/prompt hashes and artifact
+hashes match. Changed chunk settings invalidate screening onward; writer settings
+or wording invalidate writing onward. Previous immutable artifacts remain readable.
+A failed ticker-discovery response is retained; start a fresh run to retry that
+lookup. Earlier stage-only runs continue to use the `stage` command.

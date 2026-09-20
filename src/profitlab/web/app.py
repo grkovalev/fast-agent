@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from profitlab.demo import DemoService
+from profitlab.pipeline import JobManager, PipelineService
 from profitlab.settings import Settings
 from profitlab.storage import Repository
 from profitlab.trace import TraceRecorder
@@ -19,13 +20,17 @@ WEB_DIR = Path(__file__).parent
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings()
     service = DemoService(settings.data_dir)
+    pipeline = PipelineService(settings)
+    jobs = JobManager(pipeline)
     @asynccontextmanager
     async def lifespan(app):
-        # Single-process startup: no application workers exist yet (jobs arrive in T13).
+        pipeline.recover()
         repo = Repository(settings.data_dir)
         for run in repo.recent():
-            TraceRecorder(repo, run.run_id, settings.redactor()).recover_interrupted()
+            if not pipeline.state(run.run_id):
+                TraceRecorder(repo, run.run_id, settings.redactor()).recover_interrupted()
         yield
+        await jobs.close()
 
     app = FastAPI(title="ProfitLab", lifespan=lifespan)
     templates = Jinja2Templates(directory=WEB_DIR / "templates")
@@ -58,9 +63,63 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return templates.TemplateResponse(
             request=request, name="run.html", context={
                 "run": run, "artifacts": Repository(settings.data_dir).artifacts(run_id),
-                'discovery': discovery,
+                'discovery': discovery, 'workflow': pipeline.state(run_id),
             },
         )
+
+    @app.post('/analyze')
+    async def analyze(request: Request):
+        from urllib.parse import parse_qs
+
+        fields = parse_qs((await request.body()).decode())
+        try:
+            run = pipeline.create(fields.get('ticker', [''])[0],
+                int(fields.get('years', ['4'])[0]), fields.get('mode', ['demo'])[0],
+                scenario=fields.get('scenario', ['normal'])[0])
+            jobs.start(run.run_id)
+        except ValueError as error:
+            return templates.TemplateResponse(request=request, name='home.html', status_code=400,
+                context={'runs': service.recent(), 'readiness': settings.readiness(),
+                         'error': settings.redactor().text(str(error))})
+        return RedirectResponse(f'/runs/{run.run_id}', status_code=303)
+
+    @app.get('/runs/{run_id}/progress')
+    def progress(run_id: str, detail: bool = False):
+        try:
+            state = pipeline.state(run_id)
+            if not state:
+                raise ValueError('No workflow')
+            if state.run.status == 'running' and state.started_at:
+                from datetime import UTC, datetime
+
+                state = state.model_copy(update={'elapsed_seconds': state.elapsed_seconds +
+                    (datetime.now(UTC) - state.started_at).total_seconds()})
+            data = settings.redactor()(state)
+            if not detail:
+                for stage in data['stages']:
+                    stage['output_count'] = len(stage.pop('output_ids'))
+            return data
+        except (ValueError, FileNotFoundError):
+            raise HTTPException(404, 'Managed workflow not found') from None
+
+    @app.post('/runs/{run_id}/cancel')
+    async def cancel(run_id: str):
+        try:
+            jobs.cancel(run_id)
+        except (ValueError, FileNotFoundError) as error:
+            raise HTTPException(400, settings.redactor().text(str(error))) from None
+        return RedirectResponse(f'/runs/{run_id}', status_code=303)
+
+    @app.post('/runs/{run_id}/resume')
+    async def resume(run_id: str):
+        try:
+            state = pipeline.state(run_id)
+            if not state or state.run.status in ('queued', 'running'):
+                raise ValueError('Workflow is unavailable or already active.')
+            jobs.start(run_id)
+        except (ValueError, FileNotFoundError) as error:
+            raise HTTPException(400, settings.redactor().text(str(error))) from None
+        return RedirectResponse(f'/runs/{run_id}', status_code=303)
 
     @app.post('/discover')
     async def discover(request: Request):

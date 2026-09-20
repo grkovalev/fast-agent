@@ -80,7 +80,7 @@ class DiscoveryService:
             if mode == 'live':
                 _live_lock.release()
 
-    def _create(self, ticker, years, mode, run_id, scenario):
+    def _create(self, ticker, years, mode, run_id, scenario, initialize=True):
         now = datetime.now(UTC)
         run_id = run_id or 'discover-' + uuid4().hex[:12]
         initial = RunManifest(run_id=run_id, ticker=ticker, mode=mode, created_at=now,
@@ -88,8 +88,11 @@ class DiscoveryService:
                               status='running', configuration={'through': 'T04',
                               'scenario': scenario}, limitation='Discovery only; no financial extraction.')
         repo = Repository(self.settings.data_dir)
-        repo.create_run(initial)
-        repo.put(run_id, 'summary', initial.model_dump_json().encode())
+        if initialize:
+            repo.create_run(initial)
+            repo.put(run_id, 'summary', initial.model_dump_json().encode())
+        else:
+            initial = repo.manifest(run_id)
         trace = TraceRecorder(repo, run_id, self.settings.redactor())
         client = SECClient(self.settings, trace, transport=self.transport or (
             fixture_transport(scenario, ticker) if mode == 'demo' else None),

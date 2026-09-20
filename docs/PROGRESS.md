@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T12 complete locally; validated report writer, bounded evidence tools, cited narrative and incremental framework conversations; failed live drafts remain data-only partial reports.
-- Next task: **T13 — Complete ticker-to-report workflow and run controls.**
-- Latest verified task: T12 local acceptance; earlier SEC-original visual verification remains pending.
-- Last runnable T12 demo: `demo-t12` (final writer snapshot and mechanical checks).
+- Implementation status: T13 complete locally; the CLI and UI share a persistent ticker-to-report workflow with progress, cancellation, resume, restart recovery, budgets and dependency-aware cache invalidation.
+- Next task: **T14 — Measured chunk-size and screening evaluation.**
+- Latest verified task: T13 local acceptance; browser and live end-to-end verification remain pending.
+- Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
@@ -30,7 +30,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T10 | Candidate reconciliation and coverage selection | DONE | Not applicable |
 | T11 | Deterministic annual-growth calculations | DONE | Not applicable |
 | T12 | Pydantic AI report agent and citation validation | DONE | Configured model called twice; actual get_coverage observed; narrative validation failed, honest partial fallback verified |
-| T13 | Complete ticker-to-report workflow and run controls | TODO | Not run |
+| T13 | Complete ticker-to-report workflow and run controls | DONE | Browser unavailable; live end-to-end not run |
 | T14 | Measured chunk-size and screening evaluation | TODO | Not run |
 | T15 | End-to-end verification and failure/recovery cases | TODO | Not run |
 | T16 | Usability handoff, exports, final reproducibility check | TODO | Not run |
@@ -47,6 +47,62 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T13 — Complete ticker-to-report workflow and run controls.
+Implemented: a persisted ten-stage state machine shared by `analyze`/`resume`/`cancel`
+CLI commands and application-managed web jobs. The home form now launches the full
+ticker-to-report flow and the run page polls durable company, coverage, elapsed,
+stage, error and cache-provenance state. Startup marks abandoned work interrupted;
+resume reuses only completed stages whose relevant settings, code/prompt inputs and
+artifact hashes still match. Chunk changes invalidate screening onward, while
+writer-only changes preserve evidence and invalidate writing/validation.
+
+Cancellation propagates to asynchronous provider work and safely drains bounded
+synchronous writes before releasing ownership. Per-stage and total timeouts,
+single-live-run reservation, sequential provider execution, credential preflight
+before paid stages, duplicate-worker locks and honest failed/partial terminal states
+are enforced. Existing evidence, candidates and trace remain inspectable after a
+stop. Rebuilt chunk indexes select the latest current chunk set, and writer prompt
+content is loaded at execution so its hashed input matches the actual instructions.
+
+Commands/results:
+- `uv run pytest tests/task_gates/test_t13.py -q`: **10 passed** in 214.50s.
+  Coverage includes persistence/reuse, scoped invalidation, cancellation/resume,
+  restart recovery, duplicate workers, credential and timeout failures, live-run
+  reservation, two-year partial coverage, unknown tickers, background web progress,
+  CLI parity, and safe synchronous-write draining.
+- `uv run profitlab demo --through T13 --run-id demo-t13-20260920`: passed using
+  actual offline services/frameworks with explicitly synthetic providers; the run
+  reached the complete stage with a validated cited report.
+- `uv run pytest -q`: **104 passed** in 542.50s; existing Starlette/AnyIO
+  deprecation warning only.
+- `uv run ruff check .` and `git diff --check`: passed.
+- `PROFITLAB_PORT=8003 uv run profitlab serve`: server started for visual QA.
+  Computer Use exposed no browser connector, and Safari again returned “Computer
+  Use was not approved to use Safari,” so visual verification remains unrun.
+- No live SEC, Jev or LLM workflow was run. Live end-to-end verification remains
+  pending and is not inferred from the synthetic gate.
+
+Open http://127.0.0.1:8000/, select **Synthetic demo**, enter **DEMO**, and click
+**Analyze ticker**. Watch the ten stages, then open **Report**. Choose **Slow (try
+cancellation)** to cancel, inspect Trace, and resume; completed unchanged stages
+should remain reused. Next: T14.
+
+## T13 screening-budget follow-up
+
+A live four-filing MSFT run produced 935 chunks, exposing that the provisional
+100-request/120-second screening limits were sized for demos and small spot checks.
+The defaults now allow 2,000 Jev calls and 1,800 seconds for screening, with a
+2,400-second stage ceiling and 3,600-second workflow ceiling. Screening retains its
+own timeout instead of expanding the shorter extraction/writer conversation budget.
+The observed workload therefore fits with more than 2x request headroom. These are
+configurable safety ceilings, not an instruction to replace Jev classification with
+the general LLM. Changing them invalidates the screen stage and downstream caches.
+`uv run pytest tests/task_gates/test_t08.py -q`: 4 passed. `uv run pytest
+tests/task_gates/test_t13.py -q`: 10 passed. `uv run ruff check .` and
+`git diff --check`: passed; existing Starlette/AnyIO deprecation warning only.
+
+## T12 task handoff
 
 Task: T12 — Report-writing agent, actual conversation, and citations.
 Implemented: versioned Pydantic AI Report writer with typed run dependencies,

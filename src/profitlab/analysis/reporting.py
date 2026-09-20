@@ -206,6 +206,7 @@ class ReportingService:
 
     async def write(self, run_id, model=None):
         deps = self.inputs(run_id)
+        prompt = (Path(__file__).parents[1] / 'prompts' / 'write-v1.txt').read_text()
         run = self.repo.manifest(run_id)
         if run.mode == 'replay':
             raise ValueError('Replay writing is read-only.')
@@ -217,7 +218,7 @@ class ReportingService:
             try:
                 chosen = model or (fixture_model(deps) if fake else model_factory(self.settings, client))
                 output_type = Report if fake or self.settings.llm_output_mode == 'tool' else NativeOutput(Report, strict=True)
-                agent = Agent(chosen, deps_type=ReportInputs, output_type=output_type, instructions=PROMPT,
+                agent = Agent(chosen, deps_type=ReportInputs, output_type=output_type, instructions=prompt,
                     retries=self.settings.structured_output_repairs, model_settings={'timeout': self.settings.provider_timeout})
 
                 def tool_read(ctx, kind, ids, name):
@@ -262,7 +263,7 @@ class ReportingService:
                     'facts': [f.model_dump(mode='json') for f in deps.facts.values()],
                     'calculations': [c.model_dump(mode='json') for c in deps.calculations.values()],
                     'evidence_index': deps.passages, 'coverage': deps.index['coverage'], 'prompt_version': VERSION,
-                    'instructions': PROMPT}
+                    'instructions': prompt}
                 seen = set()
                 def snapshot(history):
                     messages = history.all_messages()

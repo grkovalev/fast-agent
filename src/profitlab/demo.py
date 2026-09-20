@@ -23,6 +23,15 @@ class DemoService:
 
     def create(self, run_id: str, through: str, scenario: str = 'normal') -> RunManifest:
         validate_run_id(run_id)
+        if through == 'T13':
+            import asyncio
+
+            from profitlab.pipeline import PipelineService
+            from profitlab.settings import Settings
+
+            pipeline = PipelineService(Settings(PROFITLAB_DATA_DIR=self.data_dir))
+            pipeline.create('DEMO', mode='demo', run_id=run_id, scenario=scenario)
+            return asyncio.run(pipeline.run(run_id))
         if through in ('T04', 'T05', 'T06', 'T07', 'T08', 'T09', 'T10', 'T11', 'T12'):
             from profitlab.sec.service import DiscoveryService
             from profitlab.settings import Settings
@@ -69,7 +78,7 @@ class DemoService:
                 ReportingService(settings).verify(run_id)
             return run
         if through not in ('T01', 'T02', 'T03'):
-            raise ValueError('Only --through T01, T02, T03, T04, T05, T06 T07 T08, T09 T10 T11 and T12 are implemented.')
+            raise ValueError('Only --through T01, T02, T03, T04, T05, T06 T07 T08, T09 T10 T11 T12 and T13 are implemented.')
         if scenario not in ('normal', 'two-years'):
             raise ValueError('Supported scenarios: normal, two-years.')
         now = datetime.now(UTC)
@@ -117,7 +126,11 @@ class DemoService:
     def get(self, run_id: str) -> RunManifest:
         validate_run_id(run_id)
         if (self.runs_dir / run_id / 'manifest.json').exists():
-            return Repository(self.data_dir).manifest(run_id)
+            from profitlab.pipeline import PipelineService
+            from profitlab.settings import Settings
+
+            state = PipelineService(Settings(PROFITLAB_DATA_DIR=self.data_dir)).state(run_id)
+            return state.run if state else Repository(self.data_dir).manifest(run_id)
         # Read-only compatibility for existing T01 summaries.
         old = json.loads((self.runs_dir / run_id / 'summary.json').read_text())
         return RunManifest(**old, updated_at=old['created_at'])

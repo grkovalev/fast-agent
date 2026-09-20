@@ -89,7 +89,10 @@ class ScreeningService:
         requested_model = 'fixture-screen-1' if synthetic else settings.typesafe_model
         decisions, requests, cache_hits = [], 0, 0
         fresh_usage = {'input_tokens': 0, 'output_tokens': 0}
-        deadline = asyncio.get_running_loop().time() + settings.provider_total_timeout
+        # Full annual filings routinely contain hundreds of chunks. Screening has
+        # its own run budget so it is not constrained by the much shorter budget
+        # used for individual extraction/writer conversations.
+        deadline = asyncio.get_running_loop().time() + settings.screen_total_timeout
         for chunk in selected:
             doc = documents[chunk.filing_id]
             # Only primary material establishes structural coverage; overlap is context.

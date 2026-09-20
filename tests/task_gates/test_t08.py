@@ -26,6 +26,14 @@ class ControlledClient:
             'usage': {'input_tokens': 13, 'output_tokens': 5}})
 
 
+def test_default_screen_budget_covers_observed_four_filing_volume():
+    fields = Settings.model_fields
+    assert fields['screen_max_requests'].default >= 2000
+    assert fields['screen_total_timeout'].default >= 1800
+    assert fields['stage_timeout'].default > fields['screen_total_timeout'].default
+    assert fields['run_total_timeout'].default > fields['stage_timeout'].default
+
+
 def test_offline_screen_ui_cache_restart_and_unique_coverage(tmp_path, monkeypatch):
     def no_network(*args, **kwargs):
         raise AssertionError('Offline demo attempted network')

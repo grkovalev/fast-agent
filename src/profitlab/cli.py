@@ -46,7 +46,7 @@ def doctor(live: str | None = typer.Option(None, help='Explicit live probe: sec,
 
 @app.command()
 def demo(
-    through: str = typer.Option("T12", help="Latest implemented task: T12."),
+    through: str = typer.Option("T13", help="Latest implemented task: T13."),
     run_id: str = typer.Option(..., help="Unique run ID; existing runs are preserved."),
     scenario: str = typer.Option("normal", help="normal, two-years, conflict, restatement, split-adjusted or losses fixtures."),
 ):
@@ -204,3 +204,61 @@ def verify(run_id: str):
     except (ValueError, FileNotFoundError) as error:
         console.print(settings.redactor().text(str(error)), markup=False)
         raise typer.Exit(2) from None
+
+
+@app.command()
+def analyze(ticker: str, years: int = typer.Option(4, min=1, max=4),
+            mode: str = typer.Option('live'), run_id: str | None = typer.Option(None),
+            scenario: str = typer.Option('normal')):
+    """Run the complete ticker-to-report workflow."""
+    import asyncio
+
+    from profitlab.pipeline import PipelineService
+
+    settings = Settings()
+    try:
+        pipeline = PipelineService(settings)
+        run = pipeline.create(ticker, years, mode, run_id, scenario)
+        console.print(f'Run ID: {run.run_id}', markup=False)
+        result = asyncio.run(pipeline.run(run.run_id))
+    except (ValueError, FileNotFoundError) as error:
+        console.print(settings.redactor().text(str(error)), markup=False)
+        raise typer.Exit(2) from None
+    console.print(f'{result.status}: {result.limitation}', markup=False)
+    console.print(f'http://{settings.host}:{settings.port}/runs/{result.run_id}', markup=False)
+    if result.status in ('failed', 'cancelled'):
+        raise typer.Exit(1)
+
+
+@app.command()
+def resume(run_id: str):
+    """Resume a managed workflow, reusing unchanged completed stages."""
+    import asyncio
+
+    from profitlab.pipeline import PipelineService
+
+    settings = Settings()
+    try:
+        pipeline = PipelineService(settings)
+        pipeline.recover()
+        result = asyncio.run(pipeline.run(run_id))
+    except (ValueError, FileNotFoundError) as error:
+        console.print(settings.redactor().text(str(error)), markup=False)
+        raise typer.Exit(2) from None
+    console.print(f'{result.status} · http://{settings.host}:{settings.port}/runs/{run_id}', markup=False)
+    if result.status in ('failed', 'cancelled'):
+        raise typer.Exit(1)
+
+
+@app.command()
+def cancel(run_id: str):
+    """Request cancellation; another CLI worker observes it between stages."""
+    from profitlab.pipeline import PipelineService
+
+    settings = Settings()
+    try:
+        PipelineService(settings).cancel(run_id)
+    except (ValueError, FileNotFoundError) as error:
+        console.print(settings.redactor().text(str(error)), markup=False)
+        raise typer.Exit(2) from None
+    console.print('Cancellation requested.', markup=False)

@@ -35,7 +35,7 @@ class ChunkService:
                                             document['index']['tables'], self.settings)
                     for chunk in chunks:
                         self.repo.save_contract(run_id, chunk.chunk_id, chunk)
-                    index = {'version': VERSION, 'filing_id': item['filing'].filing_id,
+                    index = {'created_at': datetime.now(UTC).isoformat(), 'version': VERSION, 'filing_id': item['filing'].filing_id,
                              'source_hash': document['index']['source_hash'],
                              'parser_version': document['index']['parser_version'],
                              'chunk_ids': [c.chunk_id for c in chunks]}
@@ -60,6 +60,15 @@ class ChunkService:
         run = self.repo.manifest(run_id)
         chunks = [Chunk.model_validate_json(self.repo.read(run_id, a['artifact_id']))
                   for a in self.repo.artifacts(run_id) if a['contract'] == 'Chunk']
+        indexes = [json.loads(self.repo.read(run_id, a['artifact_id']))
+                   for a in self.repo.artifacts(run_id) if a['artifact_id'].startswith('chunks-')]
+        current = {}
+        for index in indexes:
+            if 'created_at' in index and (index['filing_id'] not in current or
+                    index['created_at'] > current[index['filing_id']]['created_at']):
+                current[index['filing_id']] = index
+        chunks = [c for c in chunks if c.filing_id not in current or
+                  c.chunk_id in current[c.filing_id]['chunk_ids']]
         ordinals = {}
         for c in chunks:
             if c.primary_block_ids[0] not in ordinals:

@@ -1,10 +1,10 @@
 {% extends "base.html" %}{% block content %}
-<section><h2>Discover annual filings</h2>{% if error %}<p role="alert">{{ error }}</p>{% endif %}
-<form action="/discover" method="post"><label for="ticker">Ticker</label><input id="ticker" name="ticker" placeholder="DEMO (synthetic) or MSFT (live)" aria-describedby="ticker-mode-help" required maxlength="20">
+<section><h2>Analyze annual earnings</h2>{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<form action="/analyze" method="post"><label for="ticker">Ticker</label><input id="ticker" name="ticker" placeholder="DEMO (synthetic) or MSFT (live)" aria-describedby="ticker-mode-help" required maxlength="20">
 <p id="ticker-mode-help">Synthetic demo uses the fixture ticker <strong>DEMO</strong>. For <strong>MSFT</strong> or another real company, select <strong>Live SEC</strong>.</p>
-<label for="mode">Mode</label><select id="mode" name="mode"><option value="demo">Synthetic demo</option><option value="live">Live SEC</option></select>
+<label for="mode">Mode</label><select id="mode" name="mode"><option value="demo">Synthetic demo</option><option value="live">Live run</option></select>
 <label for="years">Annual periods</label><select id="years" name="years">{% for year in [4,3,2,1] %}<option>{{ year }}</option>{% endfor %}</select>
-<button type="submit">Discover filings</button></form><p>Stops at discovery. Demo: DEMO; unknown ticker: UNKNOWN; simulated service failure: TIMEOUT. Live requires a configured SEC contact.</p></section>
+<label for="scenario">Demo scenario</label><select id="scenario" name="scenario"><option value="normal">Normal</option><option value="two-years">Two years</option><option value="slow">Slow (try cancellation)</option></select><button type="submit">Analyze ticker</button></form><p>Runs through the cited report. Demo: DEMO; unknown ticker: UNKNOWN; simulated service failure: TIMEOUT. Live requires SEC_USER_AGENT, TYPESAFE_API_KEY and LLM_API_KEY.</p></section>
 <section><h2>Recent runs</h2>{% for run in runs %}<p><a href="/runs/{{ run.run_id }}">{{ run.run_id }} · {{ run.ticker }}</a> <span class="badge">{{ 'Synthetic demo' if run.mode == 'demo' else 'Live SEC' }}</span> · {{ run.stage }} {{ run.status }}</p>{% else %}<p>No runs yet.</p>{% endfor %}</section>
 <section><h2>Configuration readiness</h2><p>Local presence checks only; live access has not been tested.</p>{% for name, ready in readiness.items() %}<p>{{ name }}: {{ 'Ready' if ready else 'Not configured (optional for demo)' }}</p>{% endfor %}</section>
 {% endblock %}

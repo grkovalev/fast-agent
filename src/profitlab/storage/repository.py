@@ -218,16 +218,10 @@ class Repository:
 
     def manifest(self, run_id):
         snapshots = [a for a in self.artifacts(run_id)
-                     if a['artifact_id'].startswith(('manifest-screen-', 'manifest-extract-', 'manifest-reconcile-'))]
+                     if a['artifact_id'].startswith('manifest-')]
         if snapshots:
             return max((RunManifest.model_validate_json(self.read(run_id, a['artifact_id']))
                         for a in snapshots), key=lambda m: m.updated_at)
-        # Stage snapshots preserve the original immutable manifest.
-        for stage in ('probe', 'chunk', 'parse', 'download', 'discovery'):
-            try:
-                return RunManifest.model_validate_json(self.read(run_id, 'manifest-' + stage))
-            except FileNotFoundError:
-                pass
         return RunManifest.model_validate_json(self.read(run_id, 'manifest'))
 
     def recent(self):
