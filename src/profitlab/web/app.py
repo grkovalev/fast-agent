@@ -93,13 +93,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(404, 'V2 run not found') from None
         selected = next(item for item in state['stages'] if item.stage == stage)
         outline_sections = (v2_pipeline.repo.outline_sections(run_id)
-                            if stage in ('outline', 'section_score') else [])
+                            if stage in ('outline', 'section_score', 'chunk') else [])
         return templates.TemplateResponse(request=request, name='v2_workspace.html', context={
             **state, 'selected': selected, 'canonical_refs': v2_pipeline.repo.canonical_refs(run_id),
             'outline_sections': outline_sections,
             'section_lookup': {item.section_id: item for item in outline_sections},
             'section_scores': v2_pipeline.repo.scores(run_id, 'section_score') if stage == 'section_score' else [],
             'section_actions': v2_pipeline.repo.exploration_actions(run_id, 'section_score') if stage == 'section_score' else [],
+            'chunks': v2_pipeline.repo.chunks(run_id) if stage == 'chunk' else [],
+        })
+
+    @app.get('/v2/runs/{run_id}/chunks/{chunk_id}')
+    def v2_chunk_inspector(request: Request, run_id: str, chunk_id: str):
+        try:
+            item = v2_pipeline.repo.chunk(run_id, chunk_id)
+            document = v2_pipeline.repo.canonical_document(run_id, item.core_range.document_id)
+            section = next(section for section in v2_pipeline.repo.outline_sections(run_id)
+                           if section.section_id == item.section_id)
+        except (FileNotFoundError, StopIteration):
+            raise HTTPException(404, 'V2 chunk not found') from None
+        return templates.TemplateResponse(request=request, name='v2_chunk.html', context={
+            'run_id': run_id, 'chunk': item, 'section': section, 'document': document,
+            'core_preview': document.slice(item.core_range)[:3000],
+            'context_previews': [(source_range, document.slice(source_range)[:1200])
+                                 for source_range in item.context_ranges],
         })
 
     @app.get('/v2/runs/{run_id}/state')

@@ -12,6 +12,7 @@ from .contracts import (
     OutlineSection,
     PipelineEvent,
     StageSnapshot,
+    TextChunk,
     V2Run,
 )
 
@@ -23,15 +24,19 @@ class V2Repository:
         self.db_path = self.root / 'profitlab-v2.sqlite3'
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 2, 3, 4):
+            if version not in (0, 2, 3, 4, 5):
                 raise ValueError(f'Unsupported V2 storage schema version: {version}')
             if version == 0:
                 db.executescript(self._schema())
             elif version == 2:
                 db.executescript(self._migrate_2_to_3())
                 db.executescript(self._migrate_3_to_4())
+                db.executescript(self._migrate_4_to_5())
             elif version == 3:
                 db.executescript(self._migrate_3_to_4())
+                db.executescript(self._migrate_4_to_5())
+            elif version == 4:
+                db.executescript(self._migrate_4_to_5())
 
     @staticmethod
     def _schema():
@@ -90,7 +95,7 @@ class V2Repository:
                 PRIMARY KEY(run_id, fact_id));
             CREATE TABLE comparisons (run_id TEXT NOT NULL, comparison_id TEXT NOT NULL,
                 state TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(run_id, comparison_id));
-            PRAGMA user_version=4;
+            PRAGMA user_version=5;
         '''
 
     @staticmethod
@@ -114,6 +119,13 @@ class V2Repository:
                 payload TEXT NOT NULL, created_at TEXT NOT NULL,
                 PRIMARY KEY(source_range_hash, prompt_version, configuration_hash, actual_model));
             PRAGMA user_version=4;
+        '''
+
+    @staticmethod
+    def _migrate_4_to_5():
+        return '''
+            CREATE INDEX chunk_ranges_run_chunk ON chunk_ranges(run_id, chunk_id, range_kind, ordinal);
+            PRAGMA user_version=5;
         '''
 
     @contextmanager
@@ -325,6 +337,40 @@ class V2Repository:
             rows = db.execute('SELECT payload FROM scores WHERE run_id=? AND score_kind=? '
                               'ORDER BY item_id', (run_id, score_kind)).fetchall()
         return [ScoredItem.model_validate_json(row['payload']) for row in rows]
+
+    def save_chunks(self, run_id: str, chunks: list[TextChunk]):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM chunk_ranges WHERE run_id=?', (run_id,))
+            db.execute('DELETE FROM chunks WHERE run_id=?', (run_id,))
+            db.executemany('INSERT INTO chunks (run_id, chunk_id, section_id, payload) VALUES (?, ?, ?, ?)', [
+                (run_id, item.chunk_id, item.section_id, item.model_dump_json()) for item in chunks])
+            ranges = []
+            for item in chunks:
+                ranges.append((run_id, item.chunk_id, 'core', 0,
+                               item.core_range.start_line, item.core_range.end_line))
+                ranges.extend((run_id, item.chunk_id, 'context', ordinal,
+                               source_range.start_line, source_range.end_line)
+                              for ordinal, source_range in enumerate(item.context_ranges))
+            db.executemany('''INSERT INTO chunk_ranges
+                (run_id, chunk_id, range_kind, ordinal, start_line, end_line) VALUES (?, ?, ?, ?, ?, ?)''',
+                           ranges)
+
+    def chunks(self, run_id: str) -> list[TextChunk]:
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM chunks WHERE run_id=? ORDER BY '
+                              'json_extract(payload, "$.core_range.start_line"), chunk_id',
+                              (run_id,)).fetchall()
+        return [TextChunk.model_validate_json(row['payload']) for row in rows]
+
+    def chunk(self, run_id: str, chunk_id: str) -> TextChunk:
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM chunks WHERE run_id=? AND chunk_id=?',
+                             (run_id, chunk_id)).fetchone()
+        if not row:
+            raise FileNotFoundError(chunk_id)
+        return TextChunk.model_validate_json(row['payload'])
 
     def save_exploration_action(self, run_id: str, action_id: str, stage: str,
                                 sequence: int, payload: dict):

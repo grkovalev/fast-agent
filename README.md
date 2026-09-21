@@ -29,7 +29,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md). The next task is T16: build the source-validated filing outline. Earlier V1 runs stay readable in their separate namespace.
+Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md). The next task is T19: rank detailed chunks with Jev and retain diverse evidence. Earlier V1 runs stay readable in their separate namespace.
 
 ```sh
 uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04

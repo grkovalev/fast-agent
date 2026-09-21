@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T17 adds visible-only Jev-ranked outline section discovery,
-  deterministic retention, and an inspectable workspace view.
-- Next task: **T18 — Source-range chunking with bounded overlap.**
-- Latest verified task: T17 focused local acceptance; manual browser inspection and live Jev/SEC retrieval remain pending.
+- Implementation status: T18 adds bounded source-range chunks from selected outline
+  sections, with separate context overlap and an inspectable workspace view.
+- Next task: **T19 — Jev detailed chunk scoring and diverse top-N evidence.**
+- Latest verified task: T18 focused local acceptance; manual browser inspection and live SEC/Jev retrieval remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -36,7 +36,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T15 | Canonical visible source and exact anchors | DONE | Offline source passed; live SEC/browser inspection pending |
 | T16 | LLM outline with source-coverage validation | DONE | Fixture offline acceptance passed; live LLM/SEC and manual UI inspection pending |
 | T17 | Jev section scoring | DONE | Offline fixture acceptance passed; live Jev/manual UI pending |
-| T18 | Source-range chunking with bounded overlap | TODO | Not run |
+| T18 | Source-range chunking with bounded overlap | DONE | Manual browser inspection and live SEC/Jev source pending |
 | T19 | Jev detailed chunk scoring | TODO | Not run |
 | T20 | Quote-backed findings | TODO | Not run |
 | T21 | Post-discovery SEC Company Facts | TODO | Not run |
@@ -59,6 +59,50 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T18 — Source-range chunking with bounded overlap.
+Implemented: selected (not uncertain or skipped) outline sections now split into
+stable `TextChunk` records that store only a core `SourceRange`, separate preceding
+context ranges, an estimated request size, and adjacent chunk IDs. Canonical
+paragraph, list, heading, caption, and table-row lines remain atomic, so a table row
+is never split. Core ranges provide exactly-once primary coverage; overlap is bounded
+context within the same outline section and is not a second evidence owner. The
+chunker rejects a single line that cannot fit the configured request budget instead
+of truncating it. SQLite persists chunk metadata and normalized range rows, never a
+duplicated authoritative text body. The Chunk workspace lists lineage, core/context
+ranges, estimates, and source links; the lazy inspector reconstructs previews only
+through `CanonicalDocument.slice` and shows neighboring chunks.
+
+Commands/results:
+- Inspected and timed the active T17 section-scoring and earlier chunk baseline:
+  `time uv run pytest tests/task_gates/test_t17.py tests/task_gates/test_t06.py -q`:
+  **5 passed** in 16.62s (17.00s wall time), with one existing Starlette/AnyIO
+  deprecation warning. No obsolete tests were removed: T06 is legacy coverage and
+  T17 remains the direct selected-section dependency.
+- Added `tests/task_gates/test_t18.py`: one core-coverage/overlap/budget invariant
+  including an indivisible oversized-line rejection, plus one offline source through
+  chunk-stage workspace and lazy-inspector path.
+- `uv run pytest tests/task_gates/test_t15.py tests/task_gates/test_t16.py
+  tests/task_gates/test_t17.py tests/task_gates/test_t18.py -q`: **10 passed** in
+  1.07s; `uv run ruff check .` and `git diff --check` passed.
+- Final acceptance: `time uv run pytest tests/task_gates/test_t14.py
+  tests/task_gates/test_t15.py tests/task_gates/test_t16.py tests/task_gates/test_t17.py
+  tests/task_gates/test_t18.py -q`: **13 passed** in 2.45s (2.79s wall time), with
+  the same existing warning. Final `uv run ruff check .` and `git diff --check` passed.
+- Browser automation was not run per task policy. No live SEC or Jev request was
+  made because configured credentials/contact were not assumed; the precise remaining
+  gap is visual and live inspection of chunks from a real saved filing.
+
+With the server running, open `http://127.0.0.1:8000/`. In **V2 workspace**, enter
+`DEMO`, select **Offline fixture**, and click **Create fresh V2 run**. Open **Chunk**.
+Confirm every row names a selected outline section, has a core source-range link,
+and shows context separately where present. Open **Preview and lineage** for a
+non-first chunk: its core and context links must open the correct canonical lines,
+and the preview must match those lines exactly. With configured SEC and Jev access,
+create a live run, open a large selected section, and confirm that table rows remain
+whole and that adjacent overlap is bounded; this live verification remains pending.
+
+Next: T19.
 
 Task: T17 — Jev title/topic scoring and section discovery.
 Implemented: validated outline sections now produce a strict `JevVisibleContext` that

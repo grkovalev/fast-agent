@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from profitlab.sec.service import normalize_ticker
 
+from .chunking import SourceRangeChunker
 from .contracts import STAGE_NAMES, V2Run
 from .outline_service import OutlineService
 from .section_scoring import SectionScoringService
@@ -165,6 +166,44 @@ class V2PipelineService:
                 self.repo.update_stage(finished, event_kind='stage_finished',
                                        event_summary=finished.summary)
                 continue
+            if name == 'chunk' and implement_source:
+                try:
+                    document_ref = self.repo.canonical_refs(run_id)[0]
+                    document = self.repo.canonical_document(run_id, document_ref.document_id)
+                    sections = self.repo.outline_sections(run_id)
+                    selected_ids = {item.item_id for item in self.repo.scores(run_id, 'section_score')
+                                    if item.policy_decision == 'selected'}
+                    selected_sections = [item for item in sections if item.section_id in selected_ids]
+                    chunks = SourceRangeChunker(self.settings).build(document, selected_sections)
+                    self.repo.save_chunks(run_id, chunks)
+                except Exception as error:  # noqa: BLE001 - persist invariant failures before ending the run
+                    failed = running.model_copy(update={
+                        'status': 'failed', 'finished_at': datetime.now(UTC),
+                        'elapsed_seconds': monotonic() - tick,
+                        'summary': 'Selected sections could not be split into safe source-range chunks.',
+                        'error': self.settings.redactor().text(str(error)),
+                    })
+                    self.repo.update_stage(failed, event_kind='stage_finished',
+                                           event_summary=failed.summary)
+                    self.repo.update_run(run_id, status='failed', summary=failed.summary,
+                                         kind='run_finished')
+                    return self.repo.get_run(run_id)
+                core_lines = sum(item.core_range.end_line - item.core_range.start_line + 1
+                                 for item in chunks)
+                finished = running.model_copy(update={
+                    'status': 'completed', 'completed_work': len(chunks),
+                    'total_work': len(chunks), 'finished_at': datetime.now(UTC),
+                    'elapsed_seconds': monotonic() - tick,
+                    'summary': (f'Built {len(chunks)} bounded chunks from {len(selected_sections)} '
+                                f'selected sections ({core_lines} primary canonical lines).'),
+                    'limitation': ('Offline fixture source and Jev section scores; live source-range '
+                                   'chunking has not yet been inspected.' if run.mode == 'offline' else None),
+                    'input_hash': document.ref.source_hash,
+                    'output_hash': hashlib.sha256(''.join(item.chunk_id for item in chunks).encode()).hexdigest(),
+                })
+                self.repo.update_stage(finished, event_kind='stage_finished',
+                                       event_summary=finished.summary)
+                continue
             limitation = 'Stage implementation begins in a later task; no domain output was fabricated.'
             finished = running.model_copy(update={
                 'status': 'partial', 'completed_work': 0, 'total_work': 0,
@@ -174,7 +213,7 @@ class V2PipelineService:
             })
             self.repo.update_stage(finished, event_kind='stage_finished',
                                    event_summary=finished.summary)
-        summary = ('V2 source, outline, and section scoring are complete; later domain stages are explicitly unimplemented.'
+        summary = ('V2 source, outline, section scoring, and source-range chunking are complete; later domain stages are explicitly unimplemented.'
                    if implement_source else
                    'V2 shell completed; all domain stages are explicitly unimplemented.')
         self.repo.update_run(run_id, status='partial', summary=summary, kind='run_finished')
