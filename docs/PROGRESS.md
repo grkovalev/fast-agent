@@ -3,9 +3,9 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T13 is complete historical work. The active T14–T27 plan replaces the flat pipeline with source-ranged LLM navigation, two-stage Jev scoring, quote-backed findings, post-discovery Company Facts validation, and a real-time pipeline workspace.
-- Next task: **T14 — V2 contracts, storage, and live pipeline shell.**
-- Latest verified task: T13 local acceptance; browser and live end-to-end verification remain pending.
+- Implementation status: T14 established the isolated V2 contracts, storage, eight-stage shell, live updates, cancellation, and workspace. T15 begins the real source pipeline.
+- Next task: **T15 — Canonical visible source and exact anchors.**
+- Latest verified task: T14 focused local acceptance; manual browser inspection remains pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -31,7 +31,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T11 | Deterministic annual-growth calculations | DONE | Not applicable |
 | T12 | Pydantic AI report agent and citation validation | DONE | Configured model called twice; actual get_coverage observed; narrative validation failed, honest partial fallback verified |
 | T13 | Complete ticker-to-report workflow and run controls | DONE | Browser unavailable; live end-to-end not run |
-| T14 | V2 contracts, storage, and live pipeline shell | IN_PROGRESS | Not run |
+| T14 | V2 contracts, storage, and live pipeline shell | DONE | Offline shell passed; manual browser inspection pending |
 | T15 | Canonical visible source and exact anchors | TODO | Not run |
 | T16 | LLM outline with source-coverage validation | TODO | Not run |
 | T17 | Jev section scoring | TODO | Not run |
@@ -58,6 +58,37 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T14 — V2 contracts, storage, and live pipeline shell.
+Implemented: an isolated `data/v2/profitlab-v2.sqlite3` namespace with normalized
+run, stage, event, and future stage-owned tables; the eight ordered V2 stages;
+shared source-range, scoring, finding, structured-fact, and comparison contracts;
+durable cancellation and restart interruption; persisted-before-published stage
+events; bounded SSE updates with a polling fallback; and a responsive selected-stage
+workspace. The controlled offline shell advances through all eight stages and marks
+each future domain stage partial/unimplemented without fabricating output. V1 runs
+remain separately readable and no V1 artifact inventory appears in the V2 workspace.
+
+Commands/results:
+- `uv run pytest tests/task_gates/test_t14.py tests/task_gates/test_t01.py tests/task_gates/test_t02.py -q`:
+  **13 passed** in 0.91s (1.20s wall time); T14 itself contributes three focused tests.
+- `PROFITLAB_DATA_DIR=/tmp/profitlab-t14-demo-20260921 uv run profitlab demo --through T14 --run-id demo-t14-20260921`:
+  passed and created the offline V2 shell.
+- `uv run ruff check .` and `git diff --check`: passed.
+- The full historical suite was started and showed no failure before being stopped;
+  it was intentionally not used as a T14 completion gate because it exercises V1
+  execution paths scheduled for removal. No live SEC/provider call was applicable.
+- Browser automation was not run per active task policy; manual visual verification
+  remains pending.
+
+Run `uv run profitlab demo --through T14 --run-id demo-t14`, then
+`uv run profitlab serve`. Open `http://127.0.0.1:8000/v2/runs/demo-t14`, select all
+eight stages, refresh the selected stage, and confirm persisted partial statuses,
+clear unimplemented limitations, and no V1 artifact list. From the home page, create
+a fresh V2 run and cancel it while active; refresh and confirm cancellation persists.
+Next: T15.
+
+## T13 task handoff
 
 Task: T13 — Complete ticker-to-report workflow and run controls.
 Implemented: a persisted ten-stage state machine shared by `analyze`/`resume`/`cancel`

@@ -2,7 +2,7 @@
 
 Local, inspectable earnings growth research. Company earnings per share; stock-price returns are not included.
 
-T13 is implemented: a persistent ticker-to-report workflow shared by the CLI and local UI, with live progress, restart recovery, cancellation, bounded stages, cache provenance and dependency-aware invalidation. It includes the T12 Pydantic AI report writer with run-scoped evidence tools, quantitative placeholders, bounded validation repairs, incremental native conversations and cited explanations; deterministic Decimal annual changes, eligibility statuses, CAGR and linked metrics tables; ordered candidate reconciliation, source-preserving alternatives and unresolved conflicts; source-validated numeric candidates; inspectable relevance screening; provider adapters; table-aware chunks; SEC discovery and downloads; an anchored source viewer; persistent tracing; immutable storage; and synthetic fixtures. Failed writer output produces a clearly marked data-only partial report.
+T14 is implemented: the isolated V2 namespace now provides source-range contracts, normalized SQLite storage, durable cancellation, persisted stage events, an eight-stage pipeline shell, bounded live updates, and a responsive selected-stage workspace. Domain processing begins in T15; the offline shell clearly labels those stages unimplemented and does not fabricate output. Historical V1 runs remain separately readable.
 
 Requires Python 3.12 and uv. From the repository root:
 
@@ -31,7 +31,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [implementation specification](docs/IMPLEMENTATION_PLAN.md). The next task is T14: measure chunk size and relevance quality. Discovered filing coverage is separate from selected metric coverage; narrative reports require current calculations and a successful validated writer output. Earlier runs stay readable.
+Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md). The next task is T15: build the canonical visible filing source and exact HTML anchors. Earlier V1 runs stay readable in their separate namespace.
 
 ```sh
 uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04
