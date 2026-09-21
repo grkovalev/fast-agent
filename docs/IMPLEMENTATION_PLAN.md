@@ -1,5 +1,7 @@
 # ProfitLab: implementation specification
 
+> **Historical specification:** this document records the completed first implementation through T13. Active work begins at T14 and is governed by [V2_IMPLEMENTATION_PLAN.md](V2_IMPLEMENTATION_PLAN.md) and [TASKS.md](TASKS.md). New work does not preserve old run-data compatibility.
+
 Planning baseline: 2026-09-17. Audience: GPT-5.6 implementing one task per turn. This document specifies intended behavior; it does not claim the application or integrations have been built or tested. The execution order and checks are in [TASKS.md](TASKS.md). Resume instructions are in [PROGRESS.md](PROGRESS.md).
 
 ## 1. Product and boundaries

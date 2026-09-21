@@ -3,12 +3,12 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T13 complete locally; the CLI and UI share a persistent ticker-to-report workflow with progress, cancellation, resume, restart recovery, budgets and dependency-aware cache invalidation.
-- Next task: **T14 — Measured chunk-size and screening evaluation.**
+- Implementation status: T13 is complete historical work. The active T14–T27 plan replaces the flat pipeline with source-ranged LLM navigation, two-stage Jev scoring, quote-backed findings, post-discovery Company Facts validation, and a real-time pipeline workspace.
+- Next task: **T14 — V2 contracts, storage, and live pipeline shell.**
 - Latest verified task: T13 local acceptance; browser and live end-to-end verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
-- Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; local artifacts and SQLite.
+- Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
 
@@ -31,9 +31,20 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T11 | Deterministic annual-growth calculations | DONE | Not applicable |
 | T12 | Pydantic AI report agent and citation validation | DONE | Configured model called twice; actual get_coverage observed; narrative validation failed, honest partial fallback verified |
 | T13 | Complete ticker-to-report workflow and run controls | DONE | Browser unavailable; live end-to-end not run |
-| T14 | Measured chunk-size and screening evaluation | TODO | Not run |
-| T15 | End-to-end verification and failure/recovery cases | TODO | Not run |
-| T16 | Usability handoff, exports, final reproducibility check | TODO | Not run |
+| T14 | V2 contracts, storage, and live pipeline shell | TODO | Not run |
+| T15 | Canonical visible source and exact anchors | TODO | Not run |
+| T16 | LLM outline with source-coverage validation | TODO | Not run |
+| T17 | Jev section scoring | TODO | Not run |
+| T18 | Source-range chunking with bounded overlap | TODO | Not run |
+| T19 | Jev detailed chunk scoring | TODO | Not run |
+| T20 | Quote-backed findings | TODO | Not run |
+| T21 | Post-discovery SEC Company Facts | TODO | Not run |
+| T22 | Independent fact comparison | TODO | Not run |
+| T23 | Consolidated modern pipeline UI | TODO | Not run |
+| T24 | Provider, persistence, and resume optimization | TODO | Not run |
+| T25 | Remove obsolete execution paths and tests | TODO | Not run |
+| T26 | Retrieval benchmark and baselines | TODO | Not run |
+| T27 | Final real-data demonstration | TODO | Not run |
 
 ## Instruction for the implementing agent
 
