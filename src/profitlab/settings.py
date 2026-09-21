@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.openai.com/v1"
     llm_api_key: SecretStr = SecretStr("")
     llm_model: str = "gpt-5.6-luna"
+    outline_window_lines: int = Field(180, ge=20, le=1000)
+    outline_overlap_lines: int = Field(20, ge=0, le=200)
+    outline_prompt_version: str = 'outline-v1'
 
     def redactor(self):
         from profitlab.trace import Redactor

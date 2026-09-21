@@ -90,6 +90,7 @@ class OutlineSection(V2Contract):
     section_id: StableID
     generated_topic: str = Field(min_length=1)
     exact_source_title: str | None = None
+    exact_representative_quote: str | None = None
     primary_range: SourceRange
     parent_topic_hint: str | None = None
     section_type: str | None = None

@@ -94,6 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         selected = next(item for item in state['stages'] if item.stage == stage)
         return templates.TemplateResponse(request=request, name='v2_workspace.html', context={
             **state, 'selected': selected, 'canonical_refs': v2_pipeline.repo.canonical_refs(run_id),
+            'outline_sections': v2_pipeline.repo.outline_sections(run_id) if stage == 'outline' else [],
         })
 
     @app.get('/v2/runs/{run_id}/state')

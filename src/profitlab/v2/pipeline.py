@@ -1,5 +1,6 @@
 """Functional T14 shell around the eight ordered V2 stages."""
 import asyncio
+import hashlib
 from datetime import UTC, datetime
 from time import monotonic
 from uuid import uuid4
@@ -7,6 +8,7 @@ from uuid import uuid4
 from profitlab.sec.service import normalize_ticker
 
 from .contracts import STAGE_NAMES, V2Run
+from .outline_service import OutlineService
 from .source_service import V2SourceService
 from .storage import V2Repository
 
@@ -81,6 +83,42 @@ class V2PipelineService:
                 self.repo.update_stage(finished, event_kind='stage_finished',
                                        event_summary=finished.summary)
                 continue
+            if name == 'outline' and implement_source:
+                try:
+                    document = self.repo.canonical_refs(run_id)[0]
+                    canonical = self.repo.canonical_document(run_id, document.document_id)
+                    sections, warnings, models, cached_count = await OutlineService(
+                        self.settings, self.repo).build(canonical, offline=run.mode == 'offline')
+                    self.repo.save_outline_sections(run_id, sections)
+                except Exception as error:  # noqa: BLE001 - persist provider failures before ending the run
+                    failed = running.model_copy(update={
+                        'status': 'failed', 'finished_at': datetime.now(UTC),
+                        'elapsed_seconds': monotonic() - tick,
+                        'summary': 'Source-validated outline could not be prepared.',
+                        'error': self.settings.redactor().text(str(error)),
+                    })
+                    self.repo.update_stage(failed, event_kind='stage_finished',
+                                           event_summary=failed.summary)
+                    self.repo.update_run(run_id, status='failed', summary=failed.summary,
+                                         kind='run_finished')
+                    return self.repo.get_run(run_id)
+                summary = f'Validated {len(sections)} primary outline ranges using {", ".join(models)}.'
+                if cached_count:
+                    summary += f' {cached_count} cached window batch(es) reused.'
+                if warnings:
+                    summary += f' {len(warnings)} proposal(s) rejected.'
+                finished = running.model_copy(update={
+                    'status': 'completed', 'completed_work': len(sections),
+                    'total_work': len(sections), 'finished_at': datetime.now(UTC),
+                    'elapsed_seconds': monotonic() - tick, 'summary': summary,
+                    'limitation': ('Offline fixture outline generator; configure LLM_API_KEY for live '
+                                   'model inference.' if run.mode == 'offline' else None),
+                    'input_hash': canonical.ref.source_hash,
+                    'output_hash': hashlib.sha256(''.join(item.section_id for item in sections).encode()).hexdigest(),
+                })
+                self.repo.update_stage(finished, event_kind='stage_finished',
+                                       event_summary=finished.summary)
+                continue
             limitation = 'Stage implementation begins in a later task; no domain output was fabricated.'
             finished = running.model_copy(update={
                 'status': 'partial', 'completed_work': 0, 'total_work': 0,
@@ -90,7 +128,7 @@ class V2PipelineService:
             })
             self.repo.update_stage(finished, event_kind='stage_finished',
                                    event_summary=finished.summary)
-        summary = ('V2 source is complete; later domain stages are explicitly unimplemented.'
+        summary = ('V2 source and outline are complete; later domain stages are explicitly unimplemented.'
                    if implement_source else
                    'V2 shell completed; all domain stages are explicitly unimplemented.')
         self.repo.update_run(run_id, status='partial', summary=summary, kind='run_finished')

@@ -3,9 +3,9 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T15 added the isolated canonical visible-source pipeline, source ranges, and anchor viewer. T16 begins the outline pipeline.
-- Next task: **T16 — Cheap LLM outline with source-coverage validation.**
-- Latest verified task: T15 focused local acceptance; manual browser inspection and live SEC retrieval remain pending.
+- Implementation status: T16 adds the source-validated outline pipeline, cache, and workspace view.
+- Next task: **T17 — Jev title/topic scoring and section discovery.**
+- Latest verified task: T16 focused local acceptance; manual browser inspection and live LLM/SEC retrieval remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -33,7 +33,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T13 | Complete ticker-to-report workflow and run controls | DONE | Browser unavailable; live end-to-end not run |
 | T14 | V2 contracts, storage, and live pipeline shell | DONE | Offline shell passed; manual browser inspection pending |
 | T15 | Canonical visible source and exact anchors | DONE | Offline source passed; live SEC/browser inspection pending |
-| T16 | LLM outline with source-coverage validation | TODO | Not run |
+| T16 | LLM outline with source-coverage validation | DONE | Fixture offline acceptance passed; live LLM/SEC and manual UI inspection pending |
 | T17 | Jev section scoring | TODO | Not run |
 | T18 | Source-range chunking with bounded overlap | TODO | Not run |
 | T19 | Jev detailed chunk scoring | TODO | Not run |
@@ -58,6 +58,51 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T16 — Cheap LLM outline with source-coverage validation.
+Implemented: bounded, overlapping canonical-line windows now feed a configurable
+Chat Completions outline request in live mode. The strict response accepts only
+generated topic, exact source title, range, optional exact quote, section type,
+and parent hint. Ranges must stay within the supplied window, while titles and
+quotes must occur exactly in the referenced canonical lines. Invalid proposals are
+rejected and their diagnostics remain visible as boundary warnings. Deterministic
+heading precedence reconciles valid proposals into a contiguous primary partition:
+every nonblank canonical line has one owner, with no duplicate ownership. Generated
+topics are visually distinct from exact filing-derived titles and quotes.
+
+The offline path deliberately uses the saved fixture outline generator rather than
+claiming a live LLM call. Source-window batches cache in V2 SQLite by source-range
+hash, prompt version, configuration hash, and model identity; stage summaries state
+when cached batches were reused. The source and outline stages are complete in new
+V2 runs; later stages remain explicitly unimplemented.
+
+Commands/results:
+- Inspected and timed the T15 source and T07 provider baseline before implementation:
+  `time uv run pytest tests/task_gates/test_t15.py tests/task_gates/test_t07.py -q`:
+  **10 passed** in 10.22s (10.81s wall time).
+- Added `tests/task_gates/test_t16.py`: one focused malformed-boundary/quote and
+  full-coverage invariant, plus one offline source-to-outline-to-workspace path.
+  It also proves cache reuse in a fresh run with the same saved source.
+- `time uv run pytest tests/task_gates/test_t14.py tests/task_gates/test_t15.py
+  tests/task_gates/test_t16.py -q`: **7 passed** in 1.07s (1.38s wall time), with
+  one existing Starlette/AnyIO deprecation warning.
+- `uv run ruff check .` and `git diff --check`: passed. No obsolete tests were
+  removed: the inspected focused V2 source/provider tests still cover their active
+  contracts. The offline integration test is the task's offline run; no V2 CLI
+  stage command is required.
+- Browser automation was not run per task policy. No live SEC or LLM request was
+  made because valid configured SEC contact and LLM credentials were not assumed.
+
+With the server running, open `http://127.0.0.1:8000/`. In **V2 workspace**,
+enter `DEMO`, select **Offline fixture**, and click **Create fresh V2 run**. Open
+its **Outline** stage. Confirm each generated topic is separate from its exact
+filing title/quote, each line-range link opens the matching source page, and any
+boundary warning is visible instead of a fabricated title. Create a second offline
+run with the same fixture and confirm the outline summary says cached window batches
+were reused. With configured SEC contact and LLM credentials, create a live run and
+repeat several source jumps; live model output remains pending verification.
+
+Next: T17.
 
 Task: T15 — Canonical visible source and exact anchors.
 Implemented: a V2-only source service that uses the saved 2025 fixture offline and

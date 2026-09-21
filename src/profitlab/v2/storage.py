@@ -6,7 +6,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .canonical import CanonicalDocument
-from .contracts import STAGE_NAMES, CanonicalDocumentRef, PipelineEvent, StageSnapshot, V2Run
+from .contracts import (
+    STAGE_NAMES,
+    CanonicalDocumentRef,
+    OutlineSection,
+    PipelineEvent,
+    StageSnapshot,
+    V2Run,
+)
 
 
 class V2Repository:
@@ -16,12 +23,15 @@ class V2Repository:
         self.db_path = self.root / 'profitlab-v2.sqlite3'
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 2, 3):
+            if version not in (0, 2, 3, 4):
                 raise ValueError(f'Unsupported V2 storage schema version: {version}')
             if version == 0:
                 db.executescript(self._schema())
             elif version == 2:
                 db.executescript(self._migrate_2_to_3())
+                db.executescript(self._migrate_3_to_4())
+            elif version == 3:
+                db.executescript(self._migrate_3_to_4())
 
     @staticmethod
     def _schema():
@@ -57,6 +67,11 @@ class V2Repository:
             CREATE TABLE outline_sections (run_id TEXT NOT NULL, section_id TEXT NOT NULL,
                 filing_id TEXT, start_line INTEGER, end_line INTEGER, payload TEXT NOT NULL,
                 PRIMARY KEY(run_id, section_id));
+            CREATE TABLE outline_batches (
+                source_range_hash TEXT NOT NULL, prompt_version TEXT NOT NULL,
+                configuration_hash TEXT NOT NULL, actual_model TEXT NOT NULL,
+                payload TEXT NOT NULL, created_at TEXT NOT NULL,
+                PRIMARY KEY(source_range_hash, prompt_version, configuration_hash, actual_model));
             CREATE TABLE scores (run_id TEXT NOT NULL, score_kind TEXT NOT NULL,
                 item_id TEXT NOT NULL, payload TEXT NOT NULL,
                 PRIMARY KEY(run_id, score_kind, item_id));
@@ -75,7 +90,7 @@ class V2Repository:
                 PRIMARY KEY(run_id, fact_id));
             CREATE TABLE comparisons (run_id TEXT NOT NULL, comparison_id TEXT NOT NULL,
                 state TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(run_id, comparison_id));
-            PRAGMA user_version=3;
+            PRAGMA user_version=4;
         '''
 
     @staticmethod
@@ -88,6 +103,17 @@ class V2Repository:
                 PRIMARY KEY(run_id, document_id), UNIQUE(run_id, filing_id));
             CREATE INDEX canonical_documents_run_filing ON canonical_documents(run_id, filing_id);
             PRAGMA user_version=3;
+        '''
+
+    @staticmethod
+    def _migrate_3_to_4():
+        return '''
+            CREATE TABLE outline_batches (
+                source_range_hash TEXT NOT NULL, prompt_version TEXT NOT NULL,
+                configuration_hash TEXT NOT NULL, actual_model TEXT NOT NULL,
+                payload TEXT NOT NULL, created_at TEXT NOT NULL,
+                PRIMARY KEY(source_range_hash, prompt_version, configuration_hash, actual_model));
+            PRAGMA user_version=4;
         '''
 
     @contextmanager
@@ -265,3 +291,40 @@ class V2Repository:
         if not row:
             raise FileNotFoundError(document_id)
         return bytes(row['visible_html'])
+
+    def save_outline_sections(self, run_id: str, sections: list[OutlineSection]):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM outline_sections WHERE run_id=?', (run_id,))
+            db.executemany('''INSERT INTO outline_sections
+                (run_id, section_id, filing_id, start_line, end_line, payload)
+                VALUES (?, ?, ?, ?, ?, ?)''', [
+                    (run_id, item.section_id, item.primary_range.document_id,
+                     item.primary_range.start_line, item.primary_range.end_line,
+                     item.model_dump_json()) for item in sections])
+
+    def outline_sections(self, run_id: str) -> list[OutlineSection]:
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM outline_sections WHERE run_id=? '
+                              'ORDER BY start_line, end_line, section_id', (run_id,)).fetchall()
+        return [OutlineSection.model_validate_json(row['payload']) for row in rows]
+
+    def outline_batch(self, source_range_hash: str, prompt_version: str,
+                      configuration_hash: str, actual_model: str):
+        with self.connect() as db:
+            row = db.execute('''SELECT payload FROM outline_batches WHERE source_range_hash=?
+                AND prompt_version=? AND configuration_hash=? AND actual_model=?''',
+                             (source_range_hash, prompt_version, configuration_hash,
+                              actual_model)).fetchone()
+        return json.loads(row['payload']) if row else None
+
+    def save_outline_batch(self, source_range_hash: str, prompt_version: str,
+                           configuration_hash: str, actual_model: str, payload: dict):
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('''INSERT OR REPLACE INTO outline_batches
+                (source_range_hash, prompt_version, configuration_hash, actual_model, payload, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)''', (source_range_hash, prompt_version,
+                configuration_hash, actual_model, json.dumps(payload, sort_keys=True),
+                datetime.now(UTC).isoformat()))
