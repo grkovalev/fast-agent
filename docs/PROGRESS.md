@@ -3,9 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T16 adds the source-validated outline pipeline, cache, and workspace view.
-- Next task: **T17 — Jev title/topic scoring and section discovery.**
-- Latest verified task: T16 focused local acceptance; manual browser inspection and live LLM/SEC retrieval remain pending.
+- Implementation status: T17 adds visible-only Jev-ranked outline section discovery,
+  deterministic retention, and an inspectable workspace view.
+- Next task: **T18 — Source-range chunking with bounded overlap.**
+- Latest verified task: T17 focused local acceptance; manual browser inspection and live Jev/SEC retrieval remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -34,7 +35,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T14 | V2 contracts, storage, and live pipeline shell | DONE | Offline shell passed; manual browser inspection pending |
 | T15 | Canonical visible source and exact anchors | DONE | Offline source passed; live SEC/browser inspection pending |
 | T16 | LLM outline with source-coverage validation | DONE | Fixture offline acceptance passed; live LLM/SEC and manual UI inspection pending |
-| T17 | Jev section scoring | TODO | Not run |
+| T17 | Jev section scoring | DONE | Offline fixture acceptance passed; live Jev/manual UI pending |
 | T18 | Source-range chunking with bounded overlap | TODO | Not run |
 | T19 | Jev detailed chunk scoring | TODO | Not run |
 | T20 | Quote-backed findings | TODO | Not run |
@@ -58,6 +59,59 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T17 — Jev title/topic scoring and section discovery.
+Implemented: validated outline sections now produce a strict `JevVisibleContext` that
+contains only section ID, generated topic, exact visible heading, line size, a 600-character
+exact preview, and filing metadata. A recursive payload guard rejects XBRL namespaces,
+Company Facts/structured-fact data, evaluation fields, and similar forbidden material before
+the typed Jev request is sent. Sections and all five versioned target questions are batched
+within configurable descriptor count and request-size bounds. Scores are persisted separately
+from the deterministic policy: it greedily retains high-score sections that cover previously
+uncovered targets, then applies score, smaller-section, and source-order ties, and retains a
+bounded uncertain band. The Section Score workspace shows each score vector, selected/
+uncertain/skipped decision and reason, exact source-range link, and redacted persisted request/
+response inspection. The offline path is explicitly fixture Jev scoring; it does not claim live
+inference. The next chunk stage remains visibly unimplemented.
+
+Commands/results:
+- Inspected and timed the active T16 outline and T07 provider tests before implementation:
+  `time uv run pytest tests/task_gates/test_t16.py tests/task_gates/test_t07.py -q`:
+  **11 passed** in 9.57s (10.11s wall time).
+- Added `tests/task_gates/test_t17.py`: one visible-context/payload-guard and deterministic
+  policy contract, plus one source-to-outline-to-offline-section-score workspace path. No tests
+  were removed: the inspected T16 and T07 tests still cover active source and typed-provider
+  contracts.
+- `time uv run pytest tests/task_gates/test_t07.py tests/task_gates/test_t14.py
+  tests/task_gates/test_t15.py tests/task_gates/test_t16.py tests/task_gates/test_t17.py -q`:
+  **18 passed** in 11.07s (11.56s wall time), with one existing Starlette/AnyIO deprecation
+  warning. `uv run ruff check .` and `git diff --check` passed.
+- After adding persisted per-batch progress events, `uv run pytest tests/task_gates/test_t17.py
+  tests/task_gates/test_t16.py -q` passed: **5 passed** in 1.93s; final `uv run ruff check .`
+  and `git diff --check` passed.
+- Follow-up live-run regression: a legitimate filing use of “evaluation” previously triggered
+  the broad text guard. The guard now rejects XBRL markers in any source string but rejects
+  Company Facts/evaluation material only as payload field names. `uv run pytest
+  tests/task_gates/test_t17.py tests/task_gates/test_t16.py -q`: **5 passed** in 0.93s;
+  `uv run ruff check .` and `git diff --check` passed.
+- Follow-up live-run regression: a real filing can make the configured eight-section batch
+  exceed its visible-context budget. Batch packing now splits it into the largest compliant
+  sub-batches, failing only when one already-bounded descriptor cannot fit. `uv run pytest
+  tests/task_gates/test_t17.py tests/task_gates/test_t16.py -q`: **6 passed** in 1.97s;
+  final `uv run ruff check .` and `git diff --check` passed.
+- Browser automation was not run per task policy. No live SEC or Jev request was made because
+  configured credentials/contact were not assumed; the precise remaining gap is a live scoring
+  request inspection against a real saved SEC filing.
+
+With the server running, open `http://127.0.0.1:8000/`. In **V2 workspace**, enter `DEMO`,
+select **Offline fixture**, and click **Create fresh V2 run**. Open **Section Score** after the
+run advances. Confirm every row has five target scores, a policy decision and reason, and a
+source-range link. Open **Inspect sanitized Jev requests and responses** and verify the stored
+request contains only visible descriptor fields; it must contain no `contextRef`, `unitRef`,
+`us-gaap:`, Company Facts, or evaluation values. With configured SEC and Jev credentials,
+create a live run and inspect a selected and skipped row; live verification remains pending.
+
+Next: T18.
 
 Task: T16 — Cheap LLM outline with source-coverage validation.
 Implemented: bounded, overlapping canonical-line windows now feed a configurable,

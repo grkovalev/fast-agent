@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     outline_window_lines: int = Field(900, ge=100, le=3000)
     outline_overlap_lines: int = Field(60, ge=0, le=400)
     outline_prompt_version: str = 'outline-hierarchy-v2'
+    # Jev receives only short, sanitized outline descriptors.  These bounds keep
+    # section discovery cheap and make its exploration policy inspectable.
+    section_score_prompt_version: str = 'section-score-v1'
+    section_score_batch_size: int = Field(8, ge=1, le=25)
+    section_score_request_char_budget: int = Field(8000, ge=1000, le=30000)
+    section_score_keep_threshold: float = Field(.65, ge=0, le=1)
+    section_score_uncertain_threshold: float = Field(.20, ge=0, le=1)
+    section_score_max_selected: int = Field(12, ge=1, le=100)
+    section_score_max_uncertain: int = Field(4, ge=0, le=100)
 
     def redactor(self):
         from profitlab.trace import Redactor

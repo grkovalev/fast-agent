@@ -310,6 +310,37 @@ class V2Repository:
                               'ORDER BY start_line, end_line, section_id', (run_id,)).fetchall()
         return [OutlineSection.model_validate_json(row['payload']) for row in rows]
 
+    def save_scores(self, run_id: str, score_kind: str, scores):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM scores WHERE run_id=? AND score_kind=?', (run_id, score_kind))
+            db.executemany('INSERT INTO scores (run_id, score_kind, item_id, payload) VALUES (?, ?, ?, ?)', [
+                (run_id, score_kind, item.item_id, item.model_dump_json()) for item in scores])
+
+    def scores(self, run_id: str, score_kind: str):
+        from .contracts import ScoredItem
+
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM scores WHERE run_id=? AND score_kind=? '
+                              'ORDER BY item_id', (run_id, score_kind)).fetchall()
+        return [ScoredItem.model_validate_json(row['payload']) for row in rows]
+
+    def save_exploration_action(self, run_id: str, action_id: str, stage: str,
+                                sequence: int, payload: dict):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('INSERT OR REPLACE INTO exploration_actions '
+                       '(run_id, action_id, stage, sequence, payload) VALUES (?, ?, ?, ?, ?)',
+                       (run_id, action_id, stage, sequence, json.dumps(payload, sort_keys=True)))
+
+    def exploration_actions(self, run_id: str, stage: str):
+        with self.connect() as db:
+            rows = db.execute('SELECT action_id, payload FROM exploration_actions WHERE run_id=? '
+                              'AND stage=? ORDER BY sequence, action_id', (run_id, stage)).fetchall()
+        return [{'action_id': row['action_id'], **json.loads(row['payload'])} for row in rows]
+
     def outline_batch(self, source_range_hash: str, prompt_version: str,
                       configuration_hash: str, actual_model: str):
         with self.connect() as db:

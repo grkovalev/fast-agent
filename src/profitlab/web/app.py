@@ -92,9 +92,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except (FileNotFoundError, ValueError):
             raise HTTPException(404, 'V2 run not found') from None
         selected = next(item for item in state['stages'] if item.stage == stage)
+        outline_sections = (v2_pipeline.repo.outline_sections(run_id)
+                            if stage in ('outline', 'section_score') else [])
         return templates.TemplateResponse(request=request, name='v2_workspace.html', context={
             **state, 'selected': selected, 'canonical_refs': v2_pipeline.repo.canonical_refs(run_id),
-            'outline_sections': v2_pipeline.repo.outline_sections(run_id) if stage == 'outline' else [],
+            'outline_sections': outline_sections,
+            'section_lookup': {item.section_id: item for item in outline_sections},
+            'section_scores': v2_pipeline.repo.scores(run_id, 'section_score') if stage == 'section_score' else [],
+            'section_actions': v2_pipeline.repo.exploration_actions(run_id, 'section_score') if stage == 'section_score' else [],
         })
 
     @app.get('/v2/runs/{run_id}/state')
