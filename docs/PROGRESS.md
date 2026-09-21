@@ -60,15 +60,20 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 ## Latest task handoff
 
 Task: T16 — Cheap LLM outline with source-coverage validation.
-Implemented: bounded, overlapping canonical-line windows now feed a configurable
-Chat Completions outline request in live mode. The strict response accepts only
-generated topic, exact source title, range, optional exact quote, section type,
-and parent hint. Ranges must stay within the supplied window, while titles and
-quotes must occur exactly in the referenced canonical lines. Invalid proposals are
-rejected and their diagnostics remain visible as boundary warnings. Deterministic
-heading precedence reconciles valid proposals into a contiguous primary partition:
-every nonblank canonical line has one owner, with no duplicate ownership. Generated
-topics are visually distinct from exact filing-derived titles and quotes.
+Implemented: bounded, overlapping canonical-line windows now feed a configurable,
+separate cheap outline model in live mode. The default 900-line windows with a
+60-line overlap reduce a 2,000-line filing to three calls. The strict response
+accepts only generated topic, exact source title, range, optional exact quote,
+section type, parent hint, and an explicit continuation marker. It requests exactly
+two navigation levels: generated parent topic and generated child topic. Every later
+window receives the preceding validated navigation context, so the model can mark a
+continued section and merge it rather than make a duplicate at the window boundary.
+Ranges must stay within the supplied window, while titles and quotes must occur
+exactly in the referenced canonical lines. Invalid proposals are rejected and their
+diagnostics remain visible as boundary warnings. Valid model boundaries, rather than
+every HTML heading, form a contiguous primary partition: every nonblank canonical
+line has one owner, with no duplicate ownership. Generated topics are visually
+distinct from exact filing-derived titles and quotes.
 
 The offline path deliberately uses the saved fixture outline generator rather than
 claiming a live LLM call. Source-window batches cache in V2 SQLite by source-range
@@ -80,13 +85,18 @@ Commands/results:
 - Inspected and timed the T15 source and T07 provider baseline before implementation:
   `time uv run pytest tests/task_gates/test_t15.py tests/task_gates/test_t07.py -q`:
   **10 passed** in 10.22s (10.81s wall time).
-- Added `tests/task_gates/test_t16.py`: one focused malformed-boundary/quote and
-  full-coverage invariant, plus one offline source-to-outline-to-workspace path.
-  It also proves cache reuse in a fresh run with the same saved source.
+- Added `tests/task_gates/test_t16.py`: malformed-boundary/quote and full-coverage
+  invariants, a multi-window continuity-context test, plus an offline
+  source-to-outline-to-workspace path. It also proves cache reuse in a fresh run
+  with the same saved source.
 - `time uv run pytest tests/task_gates/test_t14.py tests/task_gates/test_t15.py
   tests/task_gates/test_t16.py -q`: **7 passed** in 1.07s (1.38s wall time), with
   one existing Starlette/AnyIO deprecation warning.
-- `uv run ruff check .` and `git diff --check`: passed. No obsolete tests were
+- Follow-up hierarchy check: `time uv run pytest tests/task_gates/test_t14.py
+  tests/task_gates/test_t15.py tests/task_gates/test_t16.py tests/task_gates/test_t07.py -q`:
+  **16 passed** in 11.15s (11.67s wall time), with one existing Starlette/AnyIO
+  deprecation warning. `uv run ruff check .` and `git diff --check` passed.
+  No obsolete tests were
   removed: the inspected focused V2 source/provider tests still cover their active
   contracts. The offline integration test is the task's offline run; no V2 CLI
   stage command is required.
@@ -95,12 +105,12 @@ Commands/results:
 
 With the server running, open `http://127.0.0.1:8000/`. In **V2 workspace**,
 enter `DEMO`, select **Offline fixture**, and click **Create fresh V2 run**. Open
-its **Outline** stage. Confirm each generated topic is separate from its exact
-filing title/quote, each line-range link opens the matching source page, and any
-boundary warning is visible instead of a fabricated title. Create a second offline
-run with the same fixture and confirm the outline summary says cached window batches
-were reused. With configured SEC contact and LLM credentials, create a live run and
-repeat several source jumps; live model output remains pending verification.
+its **Outline** stage. Confirm generated parent topics group generated child topics,
+each child line-range link opens the matching source page, and any boundary warning
+is visible instead of a fabricated title. Create a second offline run with the same
+fixture and confirm the outline summary says cached window batches were reused. With
+configured SEC contact and LLM credentials, create a live run and repeat several
+source jumps; live model output remains pending verification.
 
 Next: T17.
 

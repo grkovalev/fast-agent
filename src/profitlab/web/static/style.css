@@ -3,6 +3,7 @@
 .source-table { overflow-x:auto; }
 .source-block { scroll-margin-top: 1rem; }
 .source-block:target { outline:2px solid #477cbd; }
+.outline-group{border-left:3px solid #bdd3da;padding-left:1rem;margin:1.2rem 0}.outline-group h4{margin:.15rem 0 .7rem}
 .selected-cell { background:#ffe18a; outline:3px solid #815600; }
 .selected-row { background:#fff3c9; }
 .selected-column { box-shadow:inset 0 0 0 3px #447bb8; }

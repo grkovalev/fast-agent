@@ -46,9 +46,12 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.openai.com/v1"
     llm_api_key: SecretStr = SecretStr("")
     llm_model: str = "gpt-5.6-luna"
-    outline_window_lines: int = Field(180, ge=20, le=1000)
-    outline_overlap_lines: int = Field(20, ge=0, le=200)
-    outline_prompt_version: str = 'outline-v1'
+    # Outline navigation deliberately uses a cheap, fast model independently of the
+    # later findings model.  Large windows keep a 2,000-line filing to a few calls.
+    outline_model: str = 'gpt-5.6-luna'
+    outline_window_lines: int = Field(900, ge=100, le=3000)
+    outline_overlap_lines: int = Field(60, ge=0, le=400)
+    outline_prompt_version: str = 'outline-hierarchy-v2'
 
     def redactor(self):
         from profitlab.trace import Redactor
