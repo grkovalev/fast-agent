@@ -7,6 +7,7 @@ from uuid import uuid4
 from profitlab.sec.service import normalize_ticker
 
 from .contracts import STAGE_NAMES, V2Run
+from .source_service import V2SourceService
 from .storage import V2Repository
 
 
@@ -26,7 +27,7 @@ class V2PipelineService:
         self.repo.create_run(run)
         return run
 
-    async def run(self, run_id: str, delay: float = 0):
+    async def run(self, run_id: str, delay: float = 0, *, implement_source: bool = False):
         run = self.repo.get_run(run_id)
         if run.status == 'running':
             raise ValueError('V2 run is already active.')
@@ -50,6 +51,36 @@ class V2PipelineService:
                 await asyncio.sleep(delay)
             if self.repo.cancellation_requested(run_id):
                 return self._cancel(run_id, name, running)
+            if name == 'source' and implement_source:
+                try:
+                    document, filing = await asyncio.to_thread(
+                        V2SourceService(self.settings, self.repo).acquire, run)
+                except ValueError as error:
+                    failed = running.model_copy(update={
+                        'status': 'failed', 'finished_at': datetime.now(UTC),
+                        'elapsed_seconds': monotonic() - tick,
+                        'summary': 'Visible filing source could not be prepared.',
+                        'error': self.settings.redactor().text(str(error)),
+                    })
+                    self.repo.update_stage(failed, event_kind='stage_finished',
+                                           event_summary=failed.summary)
+                    self.repo.update_run(run_id, status='failed', summary=failed.summary,
+                                         kind='run_finished')
+                    return self.repo.get_run(run_id)
+                self.repo.update_stage(running.model_copy(update={
+                    'completed_work': 1, 'total_work': 1,
+                    'summary': f"Canonicalized {document.ref.line_count} visible lines.",
+                }), event_kind='stage_started', event_summary='Canonical visible source persisted.')
+                finished = self.repo.stage(run_id, name).model_copy(update={
+                    'status': 'completed', 'finished_at': datetime.now(UTC),
+                    'elapsed_seconds': monotonic() - tick,
+                    'summary': (f"{filing['form']} {filing['report_date']}: "
+                                f"{document.ref.line_count} visible lines."),
+                    'limitation': None, 'output_hash': document.ref.source_hash,
+                })
+                self.repo.update_stage(finished, event_kind='stage_finished',
+                                       event_summary=finished.summary)
+                continue
             limitation = 'Stage implementation begins in a later task; no domain output was fabricated.'
             finished = running.model_copy(update={
                 'status': 'partial', 'completed_work': 0, 'total_work': 0,
@@ -59,7 +90,9 @@ class V2PipelineService:
             })
             self.repo.update_stage(finished, event_kind='stage_finished',
                                    event_summary=finished.summary)
-        summary = 'V2 shell completed; all domain stages are explicitly unimplemented.'
+        summary = ('V2 source is complete; later domain stages are explicitly unimplemented.'
+                   if implement_source else
+                   'V2 shell completed; all domain stages are explicitly unimplemented.')
         self.repo.update_run(run_id, status='partial', summary=summary, kind='run_finished')
         return self.repo.get_run(run_id)
 

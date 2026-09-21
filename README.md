@@ -2,18 +2,16 @@
 
 Local, inspectable earnings growth research. Company earnings per share; stock-price returns are not included.
 
-T14 is implemented: the isolated V2 namespace now provides source-range contracts, normalized SQLite storage, durable cancellation, persisted stage events, an eight-stage pipeline shell, bounded live updates, and a responsive selected-stage workspace. Domain processing begins in T15; the offline shell clearly labels those stages unimplemented and does not fabricate output. Historical V1 runs remain separately readable.
+T15 is implemented: the isolated V2 workspace now creates a canonical visible filing source with normalized line numbers and exact sanitized HTML anchors. The UI runs the implemented source stage directly; later stages remain visibly partial until implemented. Historical V1 runs remain separately readable.
 
 Requires Python 3.12 and uv. From the repository root:
 
 ```sh
 uv sync --locked
-uv run profitlab doctor
-uv run profitlab demo --through T13 --run-id demo-t13-new
 uv run profitlab serve
 ```
 
-Open http://127.0.0.1:8000/, select **Synthetic demo**, enter **DEMO**, and click **Analyze ticker**. The run page shows all stages progressing to a cited report. Choose the slow demo scenario to exercise cancel and resume. The run retains discovery, sources, chunks and traces. Use a fresh run ID each time; existing runs cannot be overwritten. Runtime summaries are stored under `data/runs/`.
+Open http://127.0.0.1:8000/. In **V2 workspace**, enter **DEMO**, select **Offline fixture**, and click **Create fresh V2 run**. The source stage runs immediately; open its canonical document to inspect numbered visible lines and exact HTML anchors. For a real filing, select **Live SEC filing** and enter a ticker after configuring `SEC_USER_AGENT`. Runtime summaries are stored locally.
 
 The interface binds to `127.0.0.1:8000` by default. Demo and UI need no credentials or network after installation. Optionally copy `.env.example` to `.env`; configuration checks report presence only and do not probe external services. Never commit credentials.
 
@@ -31,7 +29,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md). The next task is T15: build the canonical visible filing source and exact HTML anchors. Earlier V1 runs stay readable in their separate namespace.
+Continue with [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the [V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md). The next task is T16: build the source-validated filing outline. Earlier V1 runs stay readable in their separate namespace.
 
 ```sh
 uv run profitlab demo --through T04 --scenario two-years --run-id two-years-t04

@@ -1,10 +1,12 @@
 """Fresh SQLite namespace for V2 runs; V1 storage is never opened here."""
+import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-from .contracts import STAGE_NAMES, PipelineEvent, StageSnapshot, V2Run
+from .canonical import CanonicalDocument
+from .contracts import STAGE_NAMES, CanonicalDocumentRef, PipelineEvent, StageSnapshot, V2Run
 
 
 class V2Repository:
@@ -14,10 +16,12 @@ class V2Repository:
         self.db_path = self.root / 'profitlab-v2.sqlite3'
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 2):
+            if version not in (0, 2, 3):
                 raise ValueError(f'Unsupported V2 storage schema version: {version}')
             if version == 0:
                 db.executescript(self._schema())
+            elif version == 2:
+                db.executescript(self._migrate_2_to_3())
 
     @staticmethod
     def _schema():
@@ -44,6 +48,12 @@ class V2Repository:
 
             CREATE TABLE filings (run_id TEXT NOT NULL, filing_id TEXT NOT NULL,
                 source_hash TEXT, payload TEXT NOT NULL, PRIMARY KEY(run_id, filing_id));
+            CREATE TABLE canonical_documents (
+                run_id TEXT NOT NULL, document_id TEXT NOT NULL, filing_id TEXT NOT NULL,
+                source_hash TEXT NOT NULL, line_count INTEGER NOT NULL, raw_html BLOB NOT NULL,
+                visible_html BLOB NOT NULL, canonical_json TEXT NOT NULL,
+                PRIMARY KEY(run_id, document_id), UNIQUE(run_id, filing_id));
+            CREATE INDEX canonical_documents_run_filing ON canonical_documents(run_id, filing_id);
             CREATE TABLE outline_sections (run_id TEXT NOT NULL, section_id TEXT NOT NULL,
                 filing_id TEXT, start_line INTEGER, end_line INTEGER, payload TEXT NOT NULL,
                 PRIMARY KEY(run_id, section_id));
@@ -65,7 +75,19 @@ class V2Repository:
                 PRIMARY KEY(run_id, fact_id));
             CREATE TABLE comparisons (run_id TEXT NOT NULL, comparison_id TEXT NOT NULL,
                 state TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(run_id, comparison_id));
-            PRAGMA user_version=2;
+            PRAGMA user_version=3;
+        '''
+
+    @staticmethod
+    def _migrate_2_to_3():
+        return '''
+            CREATE TABLE canonical_documents (
+                run_id TEXT NOT NULL, document_id TEXT NOT NULL, filing_id TEXT NOT NULL,
+                source_hash TEXT NOT NULL, line_count INTEGER NOT NULL, raw_html BLOB NOT NULL,
+                visible_html BLOB NOT NULL, canonical_json TEXT NOT NULL,
+                PRIMARY KEY(run_id, document_id), UNIQUE(run_id, filing_id));
+            CREATE INDEX canonical_documents_run_filing ON canonical_documents(run_id, filing_id);
+            PRAGMA user_version=3;
         '''
 
     @contextmanager
@@ -192,3 +214,54 @@ class V2Repository:
 
     def state(self, run_id: str):
         return {'run': self.get_run(run_id), 'stages': self.stages(run_id)}
+
+    def save_canonical_document(self, run_id: str, document: CanonicalDocument,
+                                raw_html: bytes, visible_html: bytes):
+        self.get_run(run_id)
+        ref = document.ref
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('''INSERT OR REPLACE INTO canonical_documents
+                (run_id, document_id, filing_id, source_hash, line_count, raw_html, visible_html,
+                 canonical_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', (
+                    run_id, ref.document_id, ref.filing_id, ref.source_hash, ref.line_count,
+                    raw_html, visible_html, document.model_dump_json()))
+
+    def save_filing(self, run_id: str, filing_id: str, source_hash: str, payload: dict):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('INSERT OR REPLACE INTO filings (run_id, filing_id, source_hash, payload) '
+                       'VALUES (?, ?, ?, ?)', (run_id, filing_id, source_hash,
+                                                json.dumps(payload, sort_keys=True)))
+
+    def canonical_document(self, run_id: str, document_id: str) -> CanonicalDocument:
+        with self.connect() as db:
+            row = db.execute('SELECT canonical_json FROM canonical_documents WHERE run_id=? '
+                             'AND document_id=?', (run_id, document_id)).fetchone()
+        if not row:
+            raise FileNotFoundError(document_id)
+        return CanonicalDocument.model_validate_json(row['canonical_json'])
+
+    def canonical_by_filing(self, run_id: str, filing_id: str) -> CanonicalDocument:
+        with self.connect() as db:
+            row = db.execute('SELECT canonical_json FROM canonical_documents WHERE run_id=? '
+                             'AND filing_id=?', (run_id, filing_id)).fetchone()
+        if not row:
+            raise FileNotFoundError(filing_id)
+        return CanonicalDocument.model_validate_json(row['canonical_json'])
+
+    def canonical_refs(self, run_id: str) -> list[CanonicalDocumentRef]:
+        with self.connect() as db:
+            rows = db.execute('SELECT document_id, filing_id, source_hash, line_count FROM '
+                              'canonical_documents WHERE run_id=? ORDER BY filing_id',
+                              (run_id,)).fetchall()
+        return [CanonicalDocumentRef.model_validate(dict(row)) for row in rows]
+
+    def visible_html(self, run_id: str, document_id: str) -> bytes:
+        with self.connect() as db:
+            row = db.execute('SELECT visible_html FROM canonical_documents WHERE run_id=? '
+                             'AND document_id=?', (run_id, document_id)).fetchone()
+        if not row:
+            raise FileNotFoundError(document_id)
+        return bytes(row['visible_html'])

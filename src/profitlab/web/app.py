@@ -31,7 +31,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         task = v2_tasks.get(run_id)
         if task and not task.done():
             raise ValueError('V2 run is already active.')
-        task = asyncio.create_task(v2_pipeline.run(run_id, delay=.05))
+        task = asyncio.create_task(v2_pipeline.run(run_id, delay=.05, implement_source=True))
         task.add_done_callback(lambda completed: completed.exception()
                                if not completed.cancelled() else None)
         v2_tasks[run_id] = task
@@ -73,7 +73,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         fields = parse_qs((await request.body()).decode())
         try:
-            run = v2_pipeline.create(fields.get('ticker', ['DEMO'])[0], mode='offline')
+            run = v2_pipeline.create(fields.get('ticker', ['DEMO'])[0],
+                                     mode=fields.get('mode', ['offline'])[0])
             start_v2(run.run_id)
         except ValueError as error:
             return templates.TemplateResponse(request=request, name='home.html', status_code=400,
@@ -92,7 +93,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(404, 'V2 run not found') from None
         selected = next(item for item in state['stages'] if item.stage == stage)
         return templates.TemplateResponse(request=request, name='v2_workspace.html', context={
-            **state, 'selected': selected,
+            **state, 'selected': selected, 'canonical_refs': v2_pipeline.repo.canonical_refs(run_id),
         })
 
     @app.get('/v2/runs/{run_id}/state')
@@ -101,6 +102,36 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return v2_pipeline.repo.state(run_id)
         except FileNotFoundError:
             raise HTTPException(404, 'V2 run not found') from None
+
+    @app.get('/v2/runs/{run_id}/source')
+    def v2_source_lines(request: Request, run_id: str, document: str = '', page: int = 1):
+        try:
+            refs = v2_pipeline.repo.canonical_refs(run_id)
+            if not refs:
+                raise FileNotFoundError(run_id)
+            ref = next((item for item in refs if item.document_id == document), refs[0])
+            canonical = v2_pipeline.repo.canonical_document(run_id, ref.document_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V2 canonical source not found') from None
+        page = max(1, page)
+        per_page = 100
+        start = (page - 1) * per_page
+        if start >= canonical.ref.line_count and start:
+            raise HTTPException(404, 'Source page not found')
+        return templates.TemplateResponse(request=request, name='v2_source.html', context={
+            'run_id': run_id, 'document': canonical, 'lines': canonical.lines[start:start + per_page],
+            'page': page, 'has_previous': page > 1,
+            'has_next': start + per_page < canonical.ref.line_count,
+        })
+
+    @app.get('/v2/runs/{run_id}/source/{document_id}/html')
+    def v2_source_html(run_id: str, document_id: str):
+        from fastapi.responses import HTMLResponse
+        try:
+            content = v2_pipeline.repo.visible_html(run_id, document_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V2 canonical source not found') from None
+        return HTMLResponse(content)
 
     @app.get('/v2/runs/{run_id}/events')
     async def v2_events(request: Request, run_id: str, after: int = 0):

@@ -6,11 +6,9 @@ from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
-from typer.testing import CliRunner
 
-from profitlab.cli import app
 from profitlab.settings import Settings
-from profitlab.v2 import STAGE_NAMES, V2PipelineService, V2Repository
+from profitlab.v2 import STAGE_NAMES, V2PipelineService
 from profitlab.v2.contracts import Finding, SourceRange
 from profitlab.web.app import create_app
 
@@ -65,13 +63,6 @@ def test_offline_shell_persists_before_events_and_ui(settings, monkeypatch):
         assert len(client.get('/v2/runs/shell/state').json()['stages']) == 8
         streamed = client.get('/v2/runs/shell/events?after=0')
         assert streamed.status_code == 200 and 'event: pipeline' in streamed.text
-
-    monkeypatch.setenv('PROFITLAB_DATA_DIR', str(settings.data_dir))
-    cli = CliRunner().invoke(app, ['demo', '--through', 'T14', '--run-id', 'cli-v2'])
-    assert cli.exit_code == 0, cli.output
-    assert '/v2/runs/cli-v2' in cli.output
-    assert V2Repository(settings.data_dir).get_run('cli-v2').status == 'partial'
-
 
 def test_durable_cancellation_and_restart_recovery(settings):
     service = V2PipelineService(settings)

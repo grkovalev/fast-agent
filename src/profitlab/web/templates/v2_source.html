@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block page_title %}Canonical source{% endblock %}{% block content %}
+<p><a href="/v2/runs/{{ run_id }}?stage=source">← Pipeline</a></p>
+<section><p class="eyebrow">Canonical visible source</p><h2>{{ document.ref.filing_id }}</h2>
+<p class="muted">{{ document.ref.line_count }} normalized visible lines · source hash {{ document.ref.source_hash }}</p>
+<p><a href="/v2/runs/{{ run_id }}/source/{{ document.ref.document_id }}/html" target="_blank">Open sanitized filing HTML</a></p>
+<ol class="source-lines" start="{{ (page - 1) * 100 + 1 }}">{% for line in lines %}
+<li id="line-{{ line.line_number }}"><a href="/v2/runs/{{ run_id }}/source/{{ document.ref.document_id }}/html#{{ line.html_anchor }}" target="_blank">{{ line.line_number }}</a> <span class="badge">{{ line.element_type | replace('_', ' ') }}</span> {{ line.text }}</li>
+{% endfor %}</ol>
+<nav aria-label="Source pages">{% if has_previous %}<a href="?document={{ document.ref.document_id }}&page={{ page - 1 }}">Previous</a>{% endif %}{% if has_next %} <a href="?document={{ document.ref.document_id }}&page={{ page + 1 }}">Next</a>{% endif %}</nav></section>
+{% endblock %}

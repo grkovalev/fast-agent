@@ -3,9 +3,9 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T14 established the isolated V2 contracts, storage, eight-stage shell, live updates, cancellation, and workspace. T15 begins the real source pipeline.
-- Next task: **T15 — Canonical visible source and exact anchors.**
-- Latest verified task: T14 focused local acceptance; manual browser inspection remains pending.
+- Implementation status: T15 added the isolated canonical visible-source pipeline, source ranges, and anchor viewer. T16 begins the outline pipeline.
+- Next task: **T16 — Cheap LLM outline with source-coverage validation.**
+- Latest verified task: T15 focused local acceptance; manual browser inspection and live SEC retrieval remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -32,7 +32,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T12 | Pydantic AI report agent and citation validation | DONE | Configured model called twice; actual get_coverage observed; narrative validation failed, honest partial fallback verified |
 | T13 | Complete ticker-to-report workflow and run controls | DONE | Browser unavailable; live end-to-end not run |
 | T14 | V2 contracts, storage, and live pipeline shell | DONE | Offline shell passed; manual browser inspection pending |
-| T15 | Canonical visible source and exact anchors | TODO | Not run |
+| T15 | Canonical visible source and exact anchors | DONE | Offline source passed; live SEC/browser inspection pending |
 | T16 | LLM outline with source-coverage validation | TODO | Not run |
 | T17 | Jev section scoring | TODO | Not run |
 | T18 | Source-range chunking with bounded overlap | TODO | Not run |
@@ -58,6 +58,44 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T15 — Canonical visible source and exact anchors.
+Implemented: a V2-only source service that uses the saved 2025 fixture offline and
+the existing bounded SEC discovery/download policy for live primary filing HTML.
+It stores raw HTML separately from anchor-bearing sanitized HTML and canonical
+line JSON. Canonical lines are contiguous, nonblank normalized visible text with
+their element type, stable DOM-derived anchor, and raw-source hash. Inline XBRL
+display elements are unwrapped; hidden facts, XBRL-only attributes and metadata
+are removed before downstream persistence. `CanonicalDocument.slice(SourceRange)`
+validates document/hash ownership and reconstructs only tracked lines. The V2
+source view pages 100 lines at a time and each line links directly to its sanitized
+HTML anchor. The home page now offers offline fixture or configured live-SEC V2
+source runs; V1 storage is never read or created by this path.
+
+Commands/results:
+- Inspected the existing T05 source/download and T14 V2 shell coverage before
+  implementation. Added one focused canonical invariant test and one offline
+  source/viewer integration test in `tests/task_gates/test_t15.py`.
+- `time uv run pytest tests/task_gates/test_t05.py tests/task_gates/test_t14.py tests/task_gates/test_t15.py -q`:
+  **12 passed** in 1.52s (1.89s wall time); one existing Starlette/AnyIO
+  deprecation warning.
+- `uv run ruff check .` and `git diff --check`: passed.
+- The V2 UI creates and starts a fresh offline source run directly; no V2
+  `demo --through` command is required or supported.
+- Browser automation was not run per task policy. No live SEC request was made:
+  a valid `SEC_USER_AGENT` was not assumed, so the saved fixture is not presented
+  as real filing validation.
+
+With the server running, open `http://127.0.0.1:8000/`. In **V2 workspace**,
+enter `DEMO`, select **Offline fixture**, and click **Create fresh V2 run**. Open
+its **Source** stage, click the canonical document, and click several line
+numbers. Each should open the matching sanitized HTML anchor; inspect a table row
+and confirm it is one normalized line. For a configured SEC contact, select
+**Live SEC filing**, create an MSFT run, and repeat the checks against the saved
+primary 10-K; confirm the displayed source contains no hidden facts, `contextRef`,
+`unitRef`, `scale`, or `us-gaap:` metadata.
+
+Next: T16.
 
 Task: T14 — V2 contracts, storage, and live pipeline shell.
 Implemented: an isolated `data/v2/profitlab-v2.sqlite3` namespace with normalized
