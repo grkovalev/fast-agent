@@ -1,9 +1,10 @@
+import asyncio
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
@@ -13,6 +14,7 @@ from profitlab.pipeline import JobManager, PipelineService
 from profitlab.settings import Settings
 from profitlab.storage import Repository
 from profitlab.trace import TraceRecorder
+from profitlab.v2 import STAGE_NAMES, V2PipelineService
 
 WEB_DIR = Path(__file__).parent
 
@@ -22,15 +24,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     service = DemoService(settings.data_dir)
     pipeline = PipelineService(settings)
     jobs = JobManager(pipeline)
+    v2_pipeline = V2PipelineService(settings)
+    v2_tasks = {}
+
+    def start_v2(run_id):
+        task = v2_tasks.get(run_id)
+        if task and not task.done():
+            raise ValueError('V2 run is already active.')
+        task = asyncio.create_task(v2_pipeline.run(run_id, delay=.05))
+        task.add_done_callback(lambda completed: completed.exception()
+                               if not completed.cancelled() else None)
+        v2_tasks[run_id] = task
+
     @asynccontextmanager
     async def lifespan(app):
         pipeline.recover()
+        v2_pipeline.recover()
         repo = Repository(settings.data_dir)
         for run in repo.recent():
             if not pipeline.state(run.run_id):
                 TraceRecorder(repo, run.run_id, settings.redactor()).recover_interrupted()
         yield
         await jobs.close()
+        for task in v2_tasks.values():
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*v2_tasks.values(), return_exceptions=True)
 
     app = FastAPI(title="ProfitLab", lifespan=lifespan)
     templates = Jinja2Templates(directory=WEB_DIR / "templates")
@@ -44,8 +63,78 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def home(request: Request):
         return templates.TemplateResponse(
             request=request, name="home.html",
-            context={"runs": service.recent(), "readiness": settings.readiness()},
+            context={"runs": service.recent(), "v2_runs": v2_pipeline.repo.recent(),
+                     "readiness": settings.readiness()},
         )
+
+    @app.post('/v2/runs')
+    async def create_v2(request: Request):
+        from urllib.parse import parse_qs
+
+        fields = parse_qs((await request.body()).decode())
+        try:
+            run = v2_pipeline.create(fields.get('ticker', ['DEMO'])[0], mode='offline')
+            start_v2(run.run_id)
+        except ValueError as error:
+            return templates.TemplateResponse(request=request, name='home.html', status_code=400,
+                context={'runs': service.recent(), 'v2_runs': v2_pipeline.repo.recent(),
+                         'readiness': settings.readiness(),
+                         'error': settings.redactor().text(str(error))})
+        return RedirectResponse(f'/v2/runs/{run.run_id}', status_code=303)
+
+    @app.get('/v2/runs/{run_id}')
+    def v2_workspace(request: Request, run_id: str, stage: str = 'source'):
+        try:
+            if stage not in STAGE_NAMES:
+                raise ValueError('Unknown V2 stage')
+            state = v2_pipeline.repo.state(run_id)
+        except (FileNotFoundError, ValueError):
+            raise HTTPException(404, 'V2 run not found') from None
+        selected = next(item for item in state['stages'] if item.stage == stage)
+        return templates.TemplateResponse(request=request, name='v2_workspace.html', context={
+            **state, 'selected': selected,
+        })
+
+    @app.get('/v2/runs/{run_id}/state')
+    def v2_state(run_id: str):
+        try:
+            return v2_pipeline.repo.state(run_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V2 run not found') from None
+
+    @app.get('/v2/runs/{run_id}/events')
+    async def v2_events(request: Request, run_id: str, after: int = 0):
+        try:
+            v2_pipeline.repo.get_run(run_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V2 run not found') from None
+
+        async def stream():
+            cursor = max(after, 0)
+            for _ in range(40):
+                if await request.is_disconnected():
+                    break
+                events = v2_pipeline.repo.events(run_id, cursor)
+                for event in events:
+                    cursor = event.sequence
+                    yield f'id: {cursor}\nevent: pipeline\ndata: {event.model_dump_json()}\n\n'
+                run = v2_pipeline.repo.get_run(run_id)
+                if run.status not in ('queued', 'running') and not events:
+                    break
+                if not events:
+                    yield ': keepalive\n\n'
+                await asyncio.sleep(.25)
+        return StreamingResponse(stream(), media_type='text/event-stream', headers={
+            'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no',
+        })
+
+    @app.post('/v2/runs/{run_id}/cancel')
+    def cancel_v2(run_id: str):
+        try:
+            v2_pipeline.cancel(run_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V2 run not found') from None
+        return RedirectResponse(f'/v2/runs/{run_id}', status_code=303)
 
     @app.get("/runs/{run_id}")
     def overview(request: Request, run_id: str):
@@ -79,7 +168,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             jobs.start(run.run_id)
         except ValueError as error:
             return templates.TemplateResponse(request=request, name='home.html', status_code=400,
-                context={'runs': service.recent(), 'readiness': settings.readiness(),
+                context={'runs': service.recent(), 'v2_runs': v2_pipeline.repo.recent(),
+                         'readiness': settings.readiness(),
                          'error': settings.redactor().text(str(error))})
         return RedirectResponse(f'/runs/{run.run_id}', status_code=303)
 
@@ -134,7 +224,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 fields.get('mode', ['demo'])[0])
         except ValueError as error:
             return templates.TemplateResponse(request=request, name='home.html', status_code=400,
-                context={'runs': service.recent(), 'readiness': settings.readiness(),
+                context={'runs': service.recent(), 'v2_runs': v2_pipeline.repo.recent(),
+                         'readiness': settings.readiness(),
                          'error': settings.redactor().text(str(error))})
         return RedirectResponse(f'/runs/{run.run_id}', status_code=303)
 

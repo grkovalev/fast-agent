@@ -46,13 +46,25 @@ def doctor(live: str | None = typer.Option(None, help='Explicit live probe: sec,
 
 @app.command()
 def demo(
-    through: str = typer.Option("T13", help="Latest implemented task: T13."),
+    through: str = typer.Option("T13", help="Use T14 for the latest V2 pipeline shell."),
     run_id: str = typer.Option(..., help="Unique run ID; existing runs are preserved."),
     scenario: str = typer.Option("normal", help="normal, two-years, conflict, restatement, split-adjusted or losses fixtures."),
 ):
     """Create an offline, synthetic setup run."""
     settings = Settings()
     try:
+        if through == 'T14':
+            import asyncio
+
+            from profitlab.v2 import V2PipelineService
+
+            pipeline = V2PipelineService(settings)
+            pipeline.create('DEMO', mode='offline', run_id=run_id)
+            run = asyncio.run(pipeline.run(run_id))
+            console.print(f'Offline V2 shell · Run ID: {run.run_id}', markup=False)
+            console.print(f'http://{settings.host}:{settings.port}/v2/runs/{run.run_id}',
+                          markup=False)
+            return
         run = DemoService(settings.data_dir).create(run_id, through, scenario)
     except ValueError as error:
         console.print(f"Error: {settings.redactor().text(str(error))}", markup=False)

@@ -31,7 +31,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T11 | Deterministic annual-growth calculations | DONE | Not applicable |
 | T12 | Pydantic AI report agent and citation validation | DONE | Configured model called twice; actual get_coverage observed; narrative validation failed, honest partial fallback verified |
 | T13 | Complete ticker-to-report workflow and run controls | DONE | Browser unavailable; live end-to-end not run |
-| T14 | V2 contracts, storage, and live pipeline shell | TODO | Not run |
+| T14 | V2 contracts, storage, and live pipeline shell | IN_PROGRESS | Not run |
 | T15 | Canonical visible source and exact anchors | TODO | Not run |
 | T16 | LLM outline with source-coverage validation | TODO | Not run |
 | T17 | Jev section scoring | TODO | Not run |

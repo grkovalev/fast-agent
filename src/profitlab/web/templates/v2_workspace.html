@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% block page_title %}{{ run.ticker }} pipeline{% endblock %}{% block content %}
+<p><a href="/">← Runs</a></p>
+<section class="v2-summary" data-v2-run="{{ run.run_id }}"><span class="badge">V2 · {{ run.mode }}</span><h2>{{ run.run_id }}</h2>
+<p id="v2-run-status" role="status"><strong>{{ run.status }}</strong> · {{ run.summary }}</p>
+<p class="muted">Created {{ run.created_at.isoformat() }}. This namespace does not load V1 artifacts.</p>
+{% if run.status in ['queued', 'running'] %}<form action="/v2/runs/{{ run.run_id }}/cancel" method="post"><button>Cancel run</button></form>{% endif %}</section>
+<div class="pipeline-workspace">
+<nav class="stage-rail" aria-label="V2 pipeline stages">{% for item in stages %}
+<a href="?stage={{ item.stage }}" class="stage-link{% if item.stage == selected.stage %} selected{% endif %}" {% if item.stage == selected.stage %}aria-current="step"{% endif %}>
+<span>{{ item.position }}</span><strong>{{ item.stage | replace('_', ' ') | title }}</strong><small data-stage="{{ item.stage }}">{{ item.status }}</small></a>
+{% endfor %}</nav>
+<section class="stage-detail"><p class="eyebrow">Stage {{ selected.position }} of 8</p><h2>{{ selected.stage | replace('_', ' ') | title }}</h2>
+<dl><dt>Purpose</dt><dd>{% if selected.stage == 'source' %}Prepare visible filing source.{% elif selected.stage == 'outline' %}Build a source-ranged topic outline.{% elif selected.stage == 'section_score' %}Rank outline sections with Jev.{% elif selected.stage == 'chunk' %}Create bounded source-range chunks.{% elif selected.stage == 'chunk_score' %}Rank detailed evidence chunks.{% elif selected.stage == 'findings' %}Create quote-backed findings.{% elif selected.stage == 'facts' %}Load independent SEC Company Facts.{% else %}Compare discovery with structured facts.{% endif %}</dd>
+<dt>Progress</dt><dd>{{ selected.completed_work }}{% if selected.total_work is not none %} / {{ selected.total_work }}{% endif %} · {{ selected.status }}</dd>
+<dt>Inputs</dt><dd>No domain inputs in the T14 shell.</dd><dt>Output summary</dt><dd>{{ selected.summary or 'Waiting to start.' }}</dd></dl>
+{% if selected.limitation %}<p class="notice"><strong>Limitation:</strong> {{ selected.limitation }}</p>{% endif %}{% if selected.error %}<p role="alert">{{ selected.error }}</p>{% endif %}
+<p class="muted">Inspectable items and on-demand trace arrive with this stage's implementation.</p></section></div>
+<noscript><p class="notice">Live updates require JavaScript. Refresh for persisted status.</p></noscript><script src="/static/v2-progress.js" defer></script>
+{% endblock %}
