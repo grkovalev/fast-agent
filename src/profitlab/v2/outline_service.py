@@ -75,7 +75,7 @@ Propose navigational topics and ranges only within this window.\n\n''' + lines
             response = await sdk.chat.completions.create(model=self.settings.llm_model,
                 messages=[{'role': 'system', 'content': 'You produce constrained filing navigation JSON.'},
                           {'role': 'user', 'content': self._prompt(document, start, end)}],
-                response_format={'type': 'json_object'}, temperature=0)
+                response_format={'type': 'json_object'})
         content = response.choices[0].message.content or '{}'
         parsed = json.loads(content)
         if not isinstance(parsed, dict) or not isinstance(parsed.get('sections'), list):
