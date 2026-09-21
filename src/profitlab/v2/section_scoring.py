@@ -38,13 +38,13 @@ class JevVisibleContext(BaseModel):
 
 class _V2Trace:
     """Small V2 trace sink compatible with the established Jev transport hooks."""
-    def __init__(self, repo, run_id, redactor):
-        self.repo, self.run_id, self.redactor, self.sequence = repo, run_id, redactor, 0
+    def __init__(self, repo, run_id, redactor, stage='section_score'):
+        self.repo, self.run_id, self.redactor, self.stage, self.sequence = repo, run_id, redactor, stage, 0
 
     def emit(self, *, kind, span_id, **payload):
         self.sequence += 1
         self.repo.save_exploration_action(self.run_id, span_id + '-' + str(self.sequence),
-                                          'section_score', self.sequence,
+                                          self.stage, self.sequence,
                                           self.redactor({'kind': kind, **payload}))
 
     @contextmanager
@@ -112,10 +112,10 @@ class SectionScoringService:
         self._guard(context.model_dump())
         return context
 
-    def _client(self, run_id, offline):
-        trace = _V2Trace(self.repo, run_id, self.settings.redactor())
+    def _client(self, run_id, offline, stage='section_score'):
+        trace = _V2Trace(self.repo, run_id, self.settings.redactor(), stage)
         return FakeJevClient(trace) if offline else LiveJevClient(
-            self.settings, trace, stage='section_score')
+            self.settings, trace, stage=stage)
 
     def _request(self, batch, offline):
         questions = {f'{context.section_id}__{target}': NoulQuestion(instructions=instruction)

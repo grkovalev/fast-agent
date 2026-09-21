@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T18 adds bounded source-range chunks from selected outline
-  sections, with separate context overlap and an inspectable workspace view.
-- Next task: **T19 — Jev detailed chunk scoring and diverse top-N evidence.**
-- Latest verified task: T18 focused local acceptance; manual browser inspection and live SEC/Jev retrieval remain pending.
+- Implementation status: T19 scores selected source-range chunks with Jev, then retains
+  bounded, diverse visible evidence with overlap suppression and an inspectable workspace view.
+- Next task: **T20 — Quote-backed findings and visible-number extraction.**
+- Latest verified task: T19 focused local acceptance; manual browser inspection and live Jev retrieval remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -37,7 +37,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T16 | LLM outline with source-coverage validation | DONE | Fixture offline acceptance passed; live LLM/SEC and manual UI inspection pending |
 | T17 | Jev section scoring | DONE | Offline fixture acceptance passed; live Jev/manual UI pending |
 | T18 | Source-range chunking with bounded overlap | DONE | Manual browser inspection and live SEC/Jev source pending |
-| T19 | Jev detailed chunk scoring | TODO | Not run |
+| T19 | Jev detailed chunk scoring | DONE | Offline fixture acceptance passed; live Jev/manual UI pending |
 | T20 | Quote-backed findings | TODO | Not run |
 | T21 | Post-discovery SEC Company Facts | TODO | Not run |
 | T22 | Independent fact comparison | TODO | Not run |
@@ -59,6 +59,51 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T19 — Jev detailed chunk scoring and diverse top-N evidence.
+Implemented: every V2 chunk is still reconstructed only from its selected-section
+canonical source ranges, then submitted to Jev with exact visible chunk text, visible
+heading path, and filing metadata through the existing XBRL/Company-Facts payload
+guard. Scores are checkpointed after every bounded batch and separately retained from
+the deterministic policy. The policy prioritizes uncovered targets, section and visible
+year diversity, score, smaller chunks, and source order; it suppresses heavily
+overlapping evidence, retains a bounded uncertain band, and enforces request, input,
+elapsed-time, retained-text, and top-N budgets. Cache entries are keyed by sanitized
+request hash, prompt version, relevant policy configuration, and model. The Chunk Score
+workspace shows score vectors, policy decisions, budget use, source previews, and
+on-demand sanitized provider request/response inspection. Offline fixture scoring is
+explicitly labeled; no provider inference is claimed.
+
+Commands/results:
+- Inspected and timed T17/T18 focused baseline: `time uv run pytest
+  tests/task_gates/test_t17.py tests/task_gates/test_t18.py -q`: **5 passed** in
+  0.84s (1.20s wall time), with one existing Starlette/AnyIO deprecation warning.
+  No obsolete tests were removed: both remain direct active-boundary coverage.
+- Added `tests/task_gates/test_t19.py`: one deterministic detailed-policy diversity
+  invariant, plus one offline source-through-chunk-score workspace path that verifies
+  persisted checkpoints, cache reuse in a second fresh run, and sanitized request
+  inspection.
+- `time uv run pytest tests/task_gates/test_t19.py tests/task_gates/test_t18.py -q`:
+  **4 passed** in 1.05s (1.42s wall time), with the same existing warning.
+- Final acceptance: `uv run ruff check .`, `git diff --check`, and `time uv run pytest
+  tests/task_gates/test_t14.py tests/task_gates/test_t15.py tests/task_gates/test_t16.py
+  tests/task_gates/test_t17.py tests/task_gates/test_t18.py tests/task_gates/test_t19.py -q`:
+  **15 passed** in 1.79s (2.08s wall time), with the same warning.
+- Browser automation was not run per task policy. No live Jev request was made because
+  credentials were not assumed; the remaining gap is live detailed-scoring request and
+  workspace inspection against a real saved SEC filing.
+
+With the server running, open `http://127.0.0.1:8000/`. In **V2 workspace**, enter
+`DEMO`, select **Offline fixture**, and click **Create fresh V2 run**. Open **Chunk
+Score** after the run advances. Confirm each chunk row has five target scores, a
+selected/uncertain/skipped decision and reason, bounded budget summary, and source
+preview link. Open **Inspect sanitized Jev requests and responses** and confirm it has
+only exact visible chunk text, visible headings, and filing metadata—never `contextRef`,
+`unitRef`, `us-gaap:`, Company Facts, or evaluation values. With configured SEC and Jev
+credentials, create a live run and inspect a retained, uncertain, overlap-suppressed,
+and skipped chunk; this live verification remains pending.
+
+Next: T20.
 
 Task: T18 — Source-range chunking with bounded overlap.
 Implemented: selected (not uncertain or skipped) outline sections now split into
