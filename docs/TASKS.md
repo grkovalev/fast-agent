@@ -38,6 +38,9 @@ If a task is too large for one session, finish a coherent working slice, keep it
 | T25 | Obsolete execution paths and tests removed | T24 |
 | T26 | Jev retrieval benchmark against simple baselines | T25 |
 | T27 | Complete measured real-data demonstration | T26 |
+| T28 | Fresh-only storage schema with migration history removed | T27 |
+| T29 | Live-SEC-only source workflow with offline fixture mode removed | T28 |
+| T30 | Evidence-backed evaluation redesign decision | T29 |
 
 ## T14 — V2 contracts, storage, and live pipeline shell
 
@@ -331,3 +334,58 @@ If a task is too large for one session, finish a coherent working slice, keep it
 **Acceptance gate:** real calls and data are clearly identified; Jev receives only sanitized visible source content; every published claim has an exact quote; structured facts load only after discovery; refresh/resume works; misses remain visible; the configured demo budget completes a representative run or reports the precise exhausted limit.
 
 **Final handoff:** provide the startup command, one representative run URL, measured results for each real company, remaining unsupported cases, and the shortest path for verifying that XBRL data did not enter Jev requests.
+
+## T28 — Fresh-only storage schema; remove migrations
+
+**Goal:** reduce persistence complexity by supporting only a newly created V2 database. Existing local run data may be discarded.
+
+**Implement:**
+
+1. Replace the versioned SQLite migration chain with one authoritative, current-schema creation path.
+2. Remove every V2 schema migration function, version-upgrade branch, compatibility shim, and migration-specific test.
+3. On opening an existing or incompatible V2 database, fail with a concise, actionable message explaining that stored data is unsupported and must be removed before starting again. Do not attempt conversion, partial reuse, or automatic deletion.
+4. Update setup/help/docs to make the destructive compatibility boundary explicit and give the exact local data-directory reset instruction.
+5. Preserve a focused clean-database integration test and add a controlled incompatible-database test. Delete tests that exist only to preserve upgrade behavior.
+
+**Manual verification handoff:** start from an empty data directory and create a live run. Then point the application at a deliberately old database and confirm it refuses to start without altering that file; remove the local data directory, restart, and confirm a new database is created.
+
+**Acceptance gate:** a clean V2 database has the full current schema; static search finds no V2 migration/version-upgrade code; no old data is read or silently modified; the reset path is documented and tested.
+
+**Next: T29.**
+
+## T29 — Remove offline fixture source mode
+
+**Goal:** simplify the product to one real-data path: a live SEC filing source followed by configured provider calls.
+
+**Implement:**
+
+1. Remove `offline` as a V2 run/source mode, the home-page selector and explanatory copy, fixture source generation, fixture-provider branches, and offline-only V2 CLI behavior.
+2. Make new V2 runs require a ticker and configured SEC contact; validate missing live prerequisites before creating a run, with clear remediation text.
+3. Remove fixture-only runtime persistence, labels, limitations, and UI conditions. Keep narrowly scoped test doubles only where they test a deterministic contract without exposing an offline product path.
+4. Replace end-to-end offline acceptance tests with saved real SEC documents/responses where practical, and retain unit tests that do not misrepresent synthetic output as an application mode.
+5. Simplify README, task handoffs, and run instructions around the live workflow.
+
+**Manual verification handoff:** open the home page and confirm only the ticker/live filing workflow is offered. With a configured SEC contact and provider credentials, create a run and confirm its source provenance is SEC; with credentials absent, confirm the page explains exactly what must be configured.
+
+**Acceptance gate:** static search finds no supported V2 offline mode, fixture source option, or fixture-provider branch; no UI or CLI offers an offline run; live prerequisite errors are actionable; focused tests cover live-mode validation and the retained source contracts.
+
+**Next: T30.**
+
+## T30 — Diagnose and redesign exact-match evaluation
+
+**Goal:** determine why quote-backed discoveries fail to match the exact structured facts currently used for evaluation, then make an evidence-backed decision to improve discovery, revise evaluation, or do both.
+
+**Research and decide:**
+
+1. Build a reviewed sample of real filings spanning at least three companies/accessions and record, for every expected fact, the structured fact, candidate visible source passages, discovered findings, and current match outcome.
+2. Classify each mismatch before proposing changes: wrong metric/concept, fiscal-year or comparative-period ambiguity, unit/scale/rounding difference, attribution difference, duplicate fact, source-selection miss, extraction/normalization defect, or invalid/insufficient evaluation denominator.
+3. Audit whether Company Facts is an appropriate oracle for each configured metric and filing scope. Document cases where a visible filing value legitimately cannot be expected to exactly equal a Company Facts value.
+4. Compare at least two alternatives: improving the source-to-finding pipeline (selection, extraction, metadata normalization) and changing evaluation to a reviewed semantic/source-range or tolerance-aware protocol. Keep an exact-match metric only where its assumptions are demonstrably valid.
+5. Write a short decision record with raw counts, examples, denominators, false-positive/false-negative risks, and a chosen follow-up implementation plan. Do not weaken evaluation merely to improve a score.
+6. Add regression fixtures/tests for the confirmed mismatch classes and update the Evaluation UI and metrics only after the decision record specifies the valid comparison contract.
+
+**Manual verification handoff:** open the evaluation report for each sampled real run, inspect one representative example from every observed mismatch class, and confirm the displayed denominator and match state follow the decision record.
+
+**Acceptance gate:** every sampled non-exact result has a reviewed classification; all reported metrics name their oracle, scope, normalization, and denominator; the decision record explicitly chooses pipeline changes, evaluation changes, or both; no evaluation state treats incomparable data as a discovery failure.
+
+**Final handoff:** provide the decision record, sample/run provenance, mismatch breakdown, selected metric definitions, and the next implementation task(s).

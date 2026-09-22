@@ -47,6 +47,9 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T25 | Remove obsolete execution paths and tests | TODO | Not run |
 | T26 | Retrieval benchmark and baselines | TODO | Not run |
 | T27 | Final real-data demonstration | TODO | Not run |
+| T28 | Fresh-only storage schema; remove migrations | TODO | Not run |
+| T29 | Remove offline fixture source mode | TODO | Not run |
+| T30 | Diagnose and redesign exact-match evaluation | TODO | Not run |
 
 ## Instruction for the implementing agent
 
