@@ -32,4 +32,4 @@ uv run ruff check .
 
 See [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the
 [V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md). The next task is
-T26: benchmark Jev retrieval against simple baselines.
+T26: source-validated evidence-context bindings from the existing outline pass.

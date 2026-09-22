@@ -36,11 +36,13 @@ If a task is too large for one session, finish a coherent working slice, keep it
 | T23 | Consolidated modern pipeline and report UI | T22 |
 | T24 | Faster cached/resumable workflow with measured gains | T23 |
 | T25 | Obsolete execution paths and tests removed | T24 |
-| T26 | Jev retrieval benchmark against simple baselines | T25 |
-| T27 | Complete measured real-data demonstration | T26 |
-| T28 | Fresh-only storage schema with migration history removed | T27 |
-| T29 | Live-SEC-only source workflow with offline fixture mode removed | T28 |
-| T30 | Evidence-backed evaluation redesign decision | T29 |
+| T26 | Context-bound evidence source ranges | T25 |
+| T27 | Context-aware findings inputs | T26 |
+| T28 | Jev retrieval benchmark against simple baselines | T27 |
+| T29 | Complete measured real-data demonstration | T28 |
+| T30 | Fresh-only storage schema with migration history removed | T29 |
+| T31 | Live-SEC-only source workflow with offline fixture mode removed | T30 |
+| T32 | Evidence-backed evaluation redesign decision | T31 |
 
 ## T14 — V2 contracts, storage, and live pipeline shell
 
@@ -294,11 +296,89 @@ If a task is too large for one session, finish a coherent working slice, keep it
 
 **Next: T26.**
 
-## T26 — Retrieval benchmark and baselines
+## T26 — Context-bound evidence source ranges
+
+**Goal:** preserve the exact visible context needed to interpret a possible financial
+value without relying on fragile HTML-table markup or arbitrary preceding chunks.
+
+**Read:** V2 plan sections 5, 7, and 15. Dependency: T25.
+
+**Implement:**
+
+1. Extend the existing bounded outline request and typed response with a capped set
+   of `EvidenceContextBinding` proposals per window. Each proposal identifies an
+   evidence range and exact visible context ranges for a title/heading, period
+   header, scale/unit, and continuation notice when present. Do not add an LLM
+   request solely for these bindings.
+2. Validate every proposed range against the numbered source window; retain only
+   exact source references, never generated values, metric labels, years, units,
+   or scale interpretations. Record rejected bindings and uncertainty explicitly.
+3. Reconcile overlapping-window proposals deterministically, deduplicate shared
+   context, and persist inspectable evidence bundles independently of chunks.
+   The representation must work for ordinary tables, div/span pseudo-tables,
+   and prose; it may use DOM structure as a hint but cannot require table tags.
+4. Add an outline/evidence-context inspector that links every evidence and
+   supporting range to canonical source lines and explains that these references
+   are context only, not findings or normalized financial data.
+5. Version the augmented outline prompt/schema and cache key. Keep this stage
+   bounded: limit bindings per window and do not scan or annotate every value in
+   the filing.
+
+**Manual verification handoff:** open a run's Outline stage, inspect a bound
+financial row or prose passage, and follow its evidence, period/header, and
+scale/title links. Confirm a div-based or continuation-table fixture can retain
+the same kind of binding without depending on `<table>` markup.
+
+**Acceptance gate:** every persisted binding range is an exact canonical-source
+range inside its supplied outline window; no generated semantic value enters
+storage; invalid/out-of-window bindings are rejected; outline request count does
+not increase; bindings are cached only for the matching source/prompt/schema/model.
+
+**Next: T27.**
+
+## T27 — Context-aware findings inputs
+
+**Goal:** give the findings model only retained evidence together with the exact
+visible source ranges needed to judge its year, scale, unit, and attribution.
+
+**Read:** V2 plan sections 7, 8, and 15. Dependency: T26.
+
+**Implement:**
+
+1. Resolve persisted evidence-context bundles against retained chunks. Attach
+   only bindings whose evidence overlaps the chunk's core range; deduplicate
+   shared context and enforce bounded request sizes.
+2. Render a structured findings request with separately labeled exact context
+   (title/heading, period header, scale/unit, continuation notice) and exact
+   evidence. Preserve source-range identities; do not flatten them into an
+   unlabelled preceding-chunk prefix.
+3. Extend the typed finding contract and validation so a normalized numeric claim
+   records the source references that support its number, period, and scale when
+   available. Missing or conflicting context remains unresolved rather than
+   guessed. Existing exact-quote validation still applies.
+4. Add finding-card inspection of all supporting source references and a
+   controlled ambiguity fixture. This task changes the findings-model input only;
+   it does not add a new Jev selection policy or retrieval benchmark.
+5. Version the findings prompt/configuration cache key and report added context
+   size and provider usage separately from evidence text.
+
+**Manual verification handoff:** open a published numeric finding, inspect its
+exact number quote and its separately linked title/year/scale context. Open an
+ambiguous finding and confirm it remains unresolved rather than receiving a
+guessed normalization.
+
+**Acceptance gate:** every context reference shown to the findings model is
+canonical visible source tied to the retained evidence; no Company Facts or
+evaluation value enters the request; valid findings retain their exact quotes;
+missing context cannot silently produce a year, unit, or scale claim.
+
+**Next: T28.**
+
+## T28 — Retrieval benchmark and baselines
 
 **Goal:** measure whether Jev improves discovery efficiency while preserving required visible evidence.
 
-**Read:** V2 plan sections 14–15. Dependency: T25.
+**Read:** V2 plan sections 14–16. Dependency: T27.
 
 **Implement:**
 
@@ -313,13 +393,13 @@ If a task is too large for one session, finish a coherent working slice, keep it
 
 **Acceptance gate:** gold ranges and structured facts never enter Jev requests; overlap is deduplicated; denominators are explained; initial held-out targets remain at least 95% relevant-range recall, 100% required-fact coverage, and no wrong selected metric/year values, or the UI clearly reports that the targets were not met.
 
-**Next: T27.**
+**Next: T29.**
 
-## T27 — Final real-data, real-time demonstration
+## T29 — Final real-data, real-time demonstration
 
 **Goal:** prove the streamlined V2 pipeline works end to end on varied real filings and remains inspectable when imperfect.
 
-**Read:** all V2 plan sections. Dependency: T26.
+**Read:** all V2 plan sections. Dependency: T28.
 
 **Implement:**
 
@@ -335,7 +415,7 @@ If a task is too large for one session, finish a coherent working slice, keep it
 
 **Final handoff:** provide the startup command, one representative run URL, measured results for each real company, remaining unsupported cases, and the shortest path for verifying that XBRL data did not enter Jev requests.
 
-## T28 — Fresh-only storage schema; remove migrations
+## T30 — Fresh-only storage schema; remove migrations
 
 **Goal:** reduce persistence complexity by supporting only a newly created V2 database. Existing local run data may be discarded.
 
@@ -351,9 +431,9 @@ If a task is too large for one session, finish a coherent working slice, keep it
 
 **Acceptance gate:** a clean V2 database has the full current schema; static search finds no V2 migration/version-upgrade code; no old data is read or silently modified; the reset path is documented and tested.
 
-**Next: T29.**
+**Next: T31.**
 
-## T29 — Remove offline fixture source mode
+## T31 — Remove offline fixture source mode
 
 **Goal:** simplify the product to one real-data path: a live SEC filing source followed by configured provider calls.
 
@@ -369,9 +449,9 @@ If a task is too large for one session, finish a coherent working slice, keep it
 
 **Acceptance gate:** static search finds no supported V2 offline mode, fixture source option, or fixture-provider branch; no UI or CLI offers an offline run; live prerequisite errors are actionable; focused tests cover live-mode validation and the retained source contracts.
 
-**Next: T30.**
+**Next: T32.**
 
-## T30 — Diagnose and redesign exact-match evaluation
+## T32 — Diagnose and redesign exact-match evaluation
 
 **Goal:** determine why quote-backed discoveries fail to match the exact structured facts currently used for evaluation, then make an evidence-backed decision to improve discovery, revise evaluation, or do both.
 

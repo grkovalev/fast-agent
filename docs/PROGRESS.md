@@ -5,7 +5,7 @@
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
 - Implementation status: T25 removes the obsolete V1 execution surface; only the fresh
   V2 workspace is supported.
-- Next task: **T26 — Retrieval benchmark and baselines.**
+- Next task: **T26 — Context-bound evidence source ranges.**
 - Latest verified task: T25 local cleanup acceptance; manual browser inspection and live
   SEC/LLM comparison remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -45,11 +45,13 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T23 | Consolidated modern pipeline UI | DONE | Manual browser inspection pending |
 | T24 | Provider, persistence, and resume optimization | DONE | Offline replay passed; live verification pending |
 | T25 | Remove obsolete execution paths and tests | DONE | Not applicable |
-| T26 | Retrieval benchmark and baselines | TODO | Not run |
-| T27 | Final real-data demonstration | TODO | Not run |
-| T28 | Fresh-only storage schema; remove migrations | TODO | Not run |
-| T29 | Remove offline fixture source mode | TODO | Not run |
-| T30 | Diagnose and redesign exact-match evaluation | TODO | Not run |
+| T26 | Context-bound evidence source ranges | TODO | Not run |
+| T27 | Context-aware findings inputs | TODO | Not run |
+| T28 | Retrieval benchmark and baselines | TODO | Not run |
+| T29 | Final real-data demonstration | TODO | Not run |
+| T30 | Fresh-only storage schema; remove migrations | TODO | Not run |
+| T31 | Remove offline fixture source mode | TODO | Not run |
+| T32 | Diagnose and redesign exact-match evaluation | TODO | Not run |
 
 ## Instruction for the implementing agent
 
@@ -94,7 +96,7 @@ analysis form appears, then create an offline `DEMO` run and open **Pipeline →
 Findings**. Confirm the source and provider-trace drill-downs work. With configured
 live credentials, create a live ticker run; that live verification remains pending.
 
-Next: T26.
+Next: T26 — Context-bound evidence source ranges.
 
 Task: T24 — Provider, persistence, and resume optimization.
 Implemented: V2 outline requests now reuse one LLM HTTP connection pool across its

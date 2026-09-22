@@ -116,13 +116,29 @@ For every task, inspect and time affected tests first; delete or consolidate obs
 
 Do not run browser automation. End each task with manual verification instructions: command, URL/click path, exact observations, and unresolved live checks. Run the full suite only for shared infrastructure, cleanup, and final gates.
 
-## 15. Benchmark
+## 15. Context-bound evidence
+
+Outline generation also identifies a bounded set of source-validated evidence
+context bindings. A binding associates a possible evidence range with the exact
+visible ranges that establish its title/heading, period header, scale/unit, or
+continuation notice. It is not a generated financial assertion. Bindings are
+validated against the numbered outline window, reconciled across overlaps, and
+stored independently of chunks. This source-range representation must work for
+ordinary tables, div/span pseudo-tables, and prose; DOM structure may guide
+candidate generation but is never a prerequisite.
+
+Findings requests resolve bindings only for retained chunk cores and render exact
+context separately from exact evidence. A model may normalize a number only when
+the visible source supports the necessary attribution; otherwise it must preserve
+the ambiguity. Company Facts and evaluation output remain unavailable.
+
+## 16. Benchmark
 
 Split immutable development and held-out samples by company/accession. Maintain reviewed source ranges for relevant evidence, misleading quarterly/segment/non-GAAP values, explanations, comparability passages, and irrelevant sections. Compare keep-all, keyword, structural, Jev section, and Jev section-plus-chunk strategies.
 
 Report relevant-range recall, structured-fact coverage, exact value accuracy, recall at retained-source budget, source percentage explored, calls, usage, latency, and time to first match. Gold ranges and structured facts never enter Jev requests. Initial held-out targets are at least 95% relevant-range recall, 100% required-fact coverage, and no wrong selected metric/year values; report failure honestly when unmet.
 
-## 16. Definition of done
+## 17. Definition of done
 
 - A fresh V2 run works with real SEC documents and configured real providers.
 - The UI updates during every stage and survives refresh/cancel/resume.
