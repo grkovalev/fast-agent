@@ -127,16 +127,10 @@ class SECClient:
                         if status != 200:
                             raise SECError(f'http_{status}', f'SEC returned HTTP {status}.')
                         if document:
-                            from profitlab.documents.parser import parse_source
-
                             if 'html' not in response.headers.get('content-type', '').lower():
                                 raise SECError('unsupported_content', 'Expected HTML annual filing.')
                             if not re.search(br'</html\s*>', body, re.IGNORECASE):
                                 raise SECError('incomplete_document', 'HTML document is empty or incomplete.')
-                            try:
-                                parse_source(bytes(body), 'validation')
-                            except ValueError:
-                                raise SECError('invalid_document', 'HTML has no usable visible content.') from None
                             return bytes(body), response.headers.get('content-type')
                         try:
                             value = adapter.validate_json(body)

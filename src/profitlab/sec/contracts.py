@@ -1,10 +1,35 @@
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from profitlab.contracts.base import CompanyIdentity, Contract
-from profitlab.contracts.sources import FilingRecord
+
+class Contract(BaseModel):
+    model_config = ConfigDict(extra='forbid', frozen=True, allow_inf_nan=False)
+
+
+class CompanyIdentity(Contract):
+    ticker: str = Field(pattern=r'^[A-Z0-9][A-Z0-9.-]{0,19}$')
+    name: str = Field(min_length=1)
+    cik: str = Field(pattern=r'^\d{10}$')
+    lookup_source: str
+    lookup_at: AwareDatetime
+    other_tickers: list[str] = Field(default_factory=list)
+
+
+class FilingRecord(Contract):
+    filing_id: str = Field(pattern=r'^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$')
+    cik: str = Field(pattern=r'^\d{10}$')
+    accession: str = Field(pattern=r'^\d{10}-\d{2}-\d{6}$')
+    form: str
+    report_date: date
+    filing_date: date
+    primary_document_url: str
+    amendment_of: str | None = None
+
+    @property
+    def accession_compact(self):
+        return self.accession.replace('-', '')
 
 
 class TickerEntry(BaseModel):

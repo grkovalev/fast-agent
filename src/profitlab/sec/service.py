@@ -1,19 +1,10 @@
 """Ticker resolution and annual-period selection independent of CLI/web handlers."""
 import re
-import threading
 from datetime import UTC, date, datetime
 from urllib.parse import quote
-from uuid import uuid4
 
-from profitlab.contracts.base import CompanyIdentity, RunManifest
-from profitlab.contracts.sources import FilingRecord
-from profitlab.sec.client import SECClient, SECError
-from profitlab.sec.contracts import DiscoveryResult
-from profitlab.sec.fixtures import FixtureLimiter, fixture_transport
-from profitlab.storage import Repository
-from profitlab.trace import TraceRecorder
-
-_live_lock = threading.Lock()
+from profitlab.sec.client import SECError
+from profitlab.sec.contracts import CompanyIdentity, DiscoveryResult, FilingRecord
 
 
 def normalize_ticker(ticker):
@@ -61,76 +52,9 @@ def select_filings(rows, cik, years, synthetic=False):
 
 
 class DiscoveryService:
-    def __init__(self, settings, *, transport=None, limiter=None):
-        self.settings, self.transport, self.limiter = settings, transport, limiter
-
-    def create(self, ticker, years=4, mode='live', run_id=None, scenario='normal'):
-        ticker = normalize_ticker(ticker)
-        if years not in range(1, 5) or mode not in ('demo', 'live'):
-            raise ValueError('Use 1–4 years and mode demo or live.')
-        if scenario not in ('normal', 'two-years', 'conflict', 'restatement', 'split-adjusted', 'losses'):
-            raise ValueError('Supported scenarios: normal, two-years, conflict, restatement, split-adjusted, losses.')
-        if mode == 'live' and not self.settings.sec_contact_ready():
-            raise ValueError('Configure SEC_USER_AGENT with a real contact email before live discovery.')
-        if mode == 'live' and not _live_lock.acquire(blocking=False):
-            raise ValueError('A live discovery is already active; wait before starting another.')
-        try:
-            return self._create(ticker, years, mode, run_id, scenario)
-        finally:
-            if mode == 'live':
-                _live_lock.release()
-
-    def _create(self, ticker, years, mode, run_id, scenario, initialize=True):
-        now = datetime.now(UTC)
-        run_id = run_id or 'discover-' + uuid4().hex[:12]
-        initial = RunManifest(run_id=run_id, ticker=ticker, mode=mode, created_at=now,
-                              updated_at=now, requested_years=years, stage='lookup',
-                              status='running', configuration={'through': 'T04',
-                              'scenario': scenario}, limitation='Discovery only; no financial extraction.')
-        repo = Repository(self.settings.data_dir)
-        if initialize:
-            repo.create_run(initial)
-            repo.put(run_id, 'summary', initial.model_dump_json().encode())
-        else:
-            initial = repo.manifest(run_id)
-        trace = TraceRecorder(repo, run_id, self.settings.redactor())
-        client = SECClient(self.settings, trace, transport=self.transport or (
-            fixture_transport(scenario, ticker) if mode == 'demo' else None),
-            fixture=mode == 'demo', limiter=self.limiter or (
-                FixtureLimiter() if mode == 'demo' else None))
-        # Fixture timeouts remain instantaneous and deterministic.
-        if mode == 'demo':
-            client.settings = self.settings.model_copy(update={'sec_retries': 0})
-        try:
-            result = self.discover(client, ticker, years, synthetic=mode == 'demo')
-        except SECError as error:
-            result = DiscoveryResult(outcome='service_error', ticker=ticker,
-                error_code=error.code, message=self.settings.redactor().text(str(error)),
-                history_complete=False)
-        finally:
-            client.close()
-        # The typed result is persisted independently of trace payloads, so it must
-        # pass through the same redactor (including successful echoed responses).
-        try:
-            result = DiscoveryResult.model_validate(trace.redact(result))
-        except ValueError:
-            result = DiscoveryResult(outcome='service_error', ticker=ticker,
-                error_code='redaction_validation', history_complete=False,
-                message='SEC response cannot be safely persisted with valid identifiers.')
-        # Originals precede amendments so repository-boundary references validate.
-        for filing in result.filings:
-            repo.save_contract(run_id, filing.filing_id, filing)
-        repo.save_contract(run_id, 'discovery', result)
-        status = 'completed' if result.outcome == 'found' else 'failed'
-        if result.outcome == 'found' and len(result.report_periods) < years:
-            status = 'partial'
-        final = initial.model_copy(update={'company': result.company,
-            'covered_years': sorted({period.year for period in result.report_periods}),
-            'status': status, 'stage': 'discover', 'updated_at': datetime.now(UTC),
-            'artifact_ids': ['discovery'] + [r.filing_id for r in result.filings],
-            'limitation': result.message + ' This run stopped at discovery; financial extraction has not run.'})
-        repo.save_contract(run_id, 'manifest-discovery', final)
-        return final
+    """Bounded SEC ticker and annual-filing discovery for the V2 source stage."""
+    def __init__(self, settings):
+        self.settings = settings
 
     def discover(self, client, ticker, years, synthetic=False):
         with client.trace.operation('Resolve ticker', {'ticker': ticker}, stage='lookup') as output:

@@ -25,7 +25,7 @@ class V2SourceService:
         self.settings, self.repo = settings, repository
 
     def acquire(self, run):
-        """Store one primary visible filing without creating or reading a V1 run."""
+        """Store one primary visible filing in the V2 workspace."""
         if run.mode == 'offline':
             filing_id = 'filing-synthetic-2025'
             raw_html = (FIXTURES / 'annual-2025.html').read_bytes()

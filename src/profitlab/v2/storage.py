@@ -1,4 +1,4 @@
-"""Fresh SQLite namespace for V2 runs; V1 storage is never opened here."""
+"""Fresh SQLite namespace for V2 runs."""
 import json
 import sqlite3
 import zlib

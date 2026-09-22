@@ -5,12 +5,11 @@ from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from profitlab.contracts.base import StableID
-
 STAGE_NAMES = (
     'source', 'outline', 'section_score', 'chunk',
     'chunk_score', 'findings', 'facts', 'evaluate',
 )
+StableID = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$")]
 StageName = Literal[
     'source', 'outline', 'section_score', 'chunk',
     'chunk_score', 'findings', 'facts', 'evaluate',

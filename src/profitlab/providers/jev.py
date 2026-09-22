@@ -2,13 +2,14 @@
 
 Only the Noul primitive needed for screening is supported by this slice.
 """
-from typing import Literal, Protocol
+from typing import Annotated, Literal, Protocol
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
-from profitlab.contracts.base import Probability
 from profitlab.providers.transport import ProviderFailure, TracedTransport
+
+Probability = Annotated[float, Field(ge=0, le=1, allow_inf_nan=False)]
 
 
 class APIModel(BaseModel):

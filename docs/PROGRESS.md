@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T24 reuses persisted provider results and records V2 replay
-  measurements without changing discovery policy outcomes.
-- Next task: **T25 — Remove obsolete execution paths and tests.**
-- Latest verified task: T23 focused local acceptance; manual browser inspection and live
+- Implementation status: T25 removes the obsolete V1 execution surface; only the fresh
+  V2 workspace is supported.
+- Next task: **T26 — Retrieval benchmark and baselines.**
+- Latest verified task: T25 local cleanup acceptance; manual browser inspection and live
   SEC/LLM comparison remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
@@ -44,7 +44,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T22 | Independent fact comparison | DONE | Offline fixture acceptance passed; live SEC/LLM/manual UI pending |
 | T23 | Consolidated modern pipeline UI | DONE | Manual browser inspection pending |
 | T24 | Provider, persistence, and resume optimization | DONE | Offline replay passed; live verification pending |
-| T25 | Remove obsolete execution paths and tests | TODO | Not run |
+| T25 | Remove obsolete execution paths and tests | DONE | Not applicable |
 | T26 | Retrieval benchmark and baselines | TODO | Not run |
 | T27 | Final real-data demonstration | TODO | Not run |
 | T28 | Fresh-only storage schema; remove migrations | TODO | Not run |
@@ -63,6 +63,38 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T25 — Remove obsolete execution paths and tests.
+Implemented: deleted the V1 flat pipeline, file-per-artifact repository, historical
+CLI commands, legacy web routes/templates, screening/extraction/reconciliation/
+calculation/report services, and their T01–T13 gates. The supported CLI now exposes
+only `profitlab serve`; the UI exposes only fresh V2 runs. SEC discovery/transport,
+provider transports, redaction, and V2 contracts remain with direct V2 ownership.
+README now documents the V2 workflow and explicitly says historical run data is
+unsupported.
+
+Commands/results:
+- Timed predecessor boundary: `time uv run pytest tests/task_gates/test_t14.py
+  tests/task_gates/test_t15.py tests/task_gates/test_t16.py tests/task_gates/test_t17.py
+  tests/task_gates/test_t18.py tests/task_gates/test_t19.py tests/task_gates/test_t20.py
+  tests/task_gates/test_t21.py tests/task_gates/test_t22.py tests/task_gates/test_t23.py
+  tests/task_gates/test_t24.py -q`: **26 passed** in 3.51s (3.87s wall time), with one
+  existing Starlette/AnyIO deprecation warning.
+- Added `tests/task_gates/test_t25.py`: asserts the supported CLI has only the V2 server
+  command, legacy routes return 404, the home page has no historical-run surface, and
+  deleted module paths do not remain.
+- Final acceptance: `time uv run pytest -q`: **27 passed** in 3.71s (4.08s wall time),
+  with the same warning; `uv run ruff check .` and `git diff --check` passed.
+- Browser automation was not run per task policy. No live SEC, Jev, or LLM calls were
+  made because credentials were not assumed; manual and live inspection remain pending.
+
+With `uv run profitlab serve` running, open `http://127.0.0.1:8000/`. Confirm that the
+home page offers only **Create fresh V2 run**, that no historical run list or legacy
+analysis form appears, then create an offline `DEMO` run and open **Pipeline →
+Findings**. Confirm the source and provider-trace drill-downs work. With configured
+live credentials, create a live ticker run; that live verification remains pending.
+
+Next: T26.
 
 Task: T24 — Provider, persistence, and resume optimization.
 Implemented: V2 outline requests now reuse one LLM HTTP connection pool across its

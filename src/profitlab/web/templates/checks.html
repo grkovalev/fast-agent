@@ -1,5 +1,0 @@
-{% extends "base.html" %}{% block content %}
-<p><a href="/runs/{{ run.run_id }}/report">Report</a> · <a href="/runs/{{ run.run_id }}/trace?stage=validate">Validation trace</a></p>
-<h2>Mechanical report checks · {{ run.run_id }}</h2>
-{% for item in items %}<pre>{{ item | tojson(indent=2) }}</pre>{% else %}<p>No report checks saved. Run verify after write.</p>{% endfor %}
-{% endblock %}
