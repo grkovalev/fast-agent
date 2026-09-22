@@ -3,11 +3,11 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T21 seals findings before retrieving one independent SEC Company
-  Facts dataset, preserving normalized exact annual facts and duplicate provenance.
-- Next task: **T22 — Independent fact comparison.**
-- Latest verified task: T21 focused local acceptance; manual browser inspection and live
-  SEC Company Facts retrieval remain pending.
+- Implementation status: T22 independently compares sealed quote-backed findings with
+  Company Facts using exact Decimal values and never alters discovery.
+- Next task: **T23 — Consolidated modern pipeline UI.**
+- Latest verified task: T22 focused local acceptance; manual browser inspection and live
+  SEC/LLM comparison remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -41,7 +41,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T19 | Jev detailed chunk scoring | DONE | Offline fixture acceptance passed; live Jev/manual UI pending |
 | T20 | Quote-backed findings | DONE | Manual browser and live LLM verification pending |
 | T21 | Post-discovery SEC Company Facts | DONE | Offline fixture acceptance passed; live SEC/manual UI pending |
-| T22 | Independent fact comparison | TODO | Not run |
+| T22 | Independent fact comparison | DONE | Offline fixture acceptance passed; live SEC/LLM/manual UI pending |
 | T23 | Consolidated modern pipeline UI | TODO | Not run |
 | T24 | Provider, persistence, and resume optimization | TODO | Not run |
 | T25 | Remove obsolete execution paths and tests | TODO | Not run |
@@ -60,6 +60,34 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T22 — Independent fact comparison.
+Implemented: the V2 Evaluate stage runs only after findings and Company Facts complete.
+It persists an exact-Decimal fiscal-year matrix with explicit match/miss states and
+audit metrics, without changing discovery scores, findings, or quotes.
+
+Commands/results:
+- Timed predecessor boundary: `time uv run pytest tests/task_gates/test_t21.py
+  tests/task_gates/test_t20.py -q`: **4 passed** in 1.18s (1.57s wall time), with
+  one existing Starlette/AnyIO deprecation warning. No obsolete tests were removed.
+- Added `tests/task_gates/test_t22.py`: a hand-constructed exact-Decimal contract for
+  exact, mismatch, unresolved-period, and unsupported states plus a discovery
+  immutability assertion; and an offline pipeline/workspace persistence path.
+- Final acceptance: `uv run ruff check .`, `git diff --check`, and `time uv run pytest
+  tests/task_gates/test_t14.py tests/task_gates/test_t15.py tests/task_gates/test_t16.py
+  tests/task_gates/test_t17.py tests/task_gates/test_t18.py tests/task_gates/test_t19.py
+  tests/task_gates/test_t20.py tests/task_gates/test_t21.py tests/task_gates/test_t22.py -q`:
+  **21 passed** in 2.76s (3.12s wall time), with the same warning.
+- Browser automation was not run per task policy. No live SEC or LLM request was made
+  because credentials were not assumed; real filing/provider and manual UI checks remain pending.
+
+With the server running, open `http://127.0.0.1:8000/`. In **V2 workspace**, enter
+`DEMO`, select **Offline fixture**, create a fresh run, and open **Evaluate**. Confirm
+each row has an explicit match state, source-linked quotes open canonical lines, and
+the expanded metrics report `deterministic_recovery_applied` and
+`discovery_output_mutated` as `false`. Then confirm the **Findings** cards are unchanged.
+
+Next: T23.
 
 Task: T21 — Post-discovery SEC Company Facts adapter.
 Implemented: the V2 Facts stage now runs only after Findings has completed and sealed.

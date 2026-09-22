@@ -10,6 +10,7 @@ from profitlab.sec.service import normalize_ticker
 from .chunk_scoring import ChunkScoringService
 from .chunking import SourceRangeChunker
 from .contracts import STAGE_NAMES, V2Run
+from .evaluation_service import EvaluationService
 from .facts_service import CompanyFactsService
 from .findings_service import FindingsService
 from .outline_service import OutlineService
@@ -316,6 +317,35 @@ class V2PipelineService:
                 self.repo.update_stage(finished, event_kind='stage_finished',
                                        event_summary=finished.summary)
                 continue
+            if name == 'evaluate' and implement_source:
+                try:
+                    result = await asyncio.to_thread(EvaluationService(self.repo).compare, run_id)
+                except Exception as error:  # noqa: BLE001 - evaluation must not alter sealed inputs
+                    failed = running.model_copy(update={
+                        'status': 'failed', 'finished_at': datetime.now(UTC),
+                        'elapsed_seconds': monotonic() - tick,
+                        'summary': 'Independent finding-to-fact comparison could not be completed.',
+                        'error': self.settings.redactor().text(str(error)),
+                    })
+                    self.repo.update_stage(failed, event_kind='stage_finished',
+                                           event_summary=failed.summary)
+                    self.repo.update_run(run_id, status='failed', summary=failed.summary,
+                                         kind='run_finished')
+                    return self.repo.get_run(run_id)
+                finished = running.model_copy(update={
+                    'status': 'completed', 'completed_work': len(result.comparisons),
+                    'total_work': len(result.comparisons), 'finished_at': datetime.now(UTC),
+                    'elapsed_seconds': monotonic() - tick,
+                    'summary': (f"Compared {result.summary['expected_facts']} independent expected fact(s): "
+                                f"{result.summary['exact_matches']} exact match(es), "
+                                f"{result.summary['misses']} miss(es)."),
+                    'limitation': ('Saved synthetic facts and fixture findings only; live filing and '
+                                   'provider comparison remains unverified.' if run.mode == 'offline' else None),
+                    'output_hash': hashlib.sha256(''.join(item.comparison_id for item in result.comparisons).encode()).hexdigest(),
+                })
+                self.repo.update_stage(finished, event_kind='stage_finished',
+                                       event_summary=finished.summary)
+                continue
             limitation = 'Stage implementation begins in a later task; no domain output was fabricated.'
             finished = running.model_copy(update={
                 'status': 'partial', 'completed_work': 0, 'total_work': 0,
@@ -325,7 +355,7 @@ class V2PipelineService:
             })
             self.repo.update_stage(finished, event_kind='stage_finished',
                                    event_summary=finished.summary)
-        summary = ('V2 source, outline, section scoring, source-range chunking, detailed chunk scoring, quote-backed findings, and independent Company Facts are complete; later domain stages are explicitly unimplemented.'
+        summary = ('V2 source, outline, section scoring, source-range chunking, detailed chunk scoring, quote-backed findings, independent Company Facts, and independent evaluation are complete.'
                    if implement_source else
                    'V2 shell completed; all domain stages are explicitly unimplemented.')
         self.repo.update_run(run_id, status='partial', summary=summary, kind='run_finished')

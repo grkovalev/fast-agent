@@ -93,7 +93,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(404, 'V2 run not found') from None
         selected = next(item for item in state['stages'] if item.stage == stage)
         outline_sections = (v2_pipeline.repo.outline_sections(run_id)
-                            if stage in ('outline', 'section_score', 'chunk', 'chunk_score', 'findings') else [])
+                            if stage in ('outline', 'section_score', 'chunk', 'chunk_score', 'findings', 'evaluate') else [])
         return templates.TemplateResponse(request=request, name='v2_workspace.html', context={
             **state, 'selected': selected, 'canonical_refs': v2_pipeline.repo.canonical_refs(run_id),
             'outline_sections': outline_sections,
@@ -104,11 +104,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             'chunk_scores': v2_pipeline.repo.scores(run_id, 'chunk_score') if stage == 'chunk_score' else [],
             'chunk_score_summary': v2_pipeline.repo.chunk_score_summary(run_id) if stage == 'chunk_score' else None,
             'chunk_actions': v2_pipeline.repo.exploration_actions(run_id, 'chunk_score') if stage == 'chunk_score' else [],
-            'findings': v2_pipeline.repo.findings(run_id) if stage == 'findings' else [],
+            'findings': v2_pipeline.repo.findings(run_id) if stage in ('findings', 'evaluate') else [],
             'finding_summary': v2_pipeline.repo.finding_summary(run_id) if stage == 'findings' else None,
             'finding_actions': v2_pipeline.repo.exploration_actions(run_id, 'findings') if stage == 'findings' else [],
-            'structured_facts': v2_pipeline.repo.structured_facts(run_id) if stage == 'facts' else [],
+            'structured_facts': v2_pipeline.repo.structured_facts(run_id) if stage in ('facts', 'evaluate') else [],
             'fact_summary': v2_pipeline.repo.fact_summary(run_id) if stage == 'facts' else None,
+            'comparisons': v2_pipeline.repo.comparisons(run_id) if stage == 'evaluate' else [],
+            'comparison_summary': v2_pipeline.repo.comparison_summary(run_id) if stage == 'evaluate' else None,
         })
 
     @app.get('/v2/runs/{run_id}/chunks/{chunk_id}')

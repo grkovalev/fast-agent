@@ -24,7 +24,7 @@ class V2Repository:
         self.db_path = self.root / 'profitlab-v2.sqlite3'
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 2, 3, 4, 5, 6, 7, 8):
+            if version not in (0, 2, 3, 4, 5, 6, 7, 8, 9):
                 raise ValueError(f'Unsupported V2 storage schema version: {version}')
             if version == 0:
                 db.executescript(self._schema())
@@ -33,21 +33,36 @@ class V2Repository:
                 db.executescript(self._migrate_3_to_4())
                 db.executescript(self._migrate_4_to_5())
                 db.executescript(self._migrate_5_to_6())
+                db.executescript(self._migrate_6_to_7())
+                db.executescript(self._migrate_7_to_8())
+                db.executescript(self._migrate_8_to_9())
             elif version == 3:
                 db.executescript(self._migrate_3_to_4())
                 db.executescript(self._migrate_4_to_5())
                 db.executescript(self._migrate_5_to_6())
+                db.executescript(self._migrate_6_to_7())
+                db.executescript(self._migrate_7_to_8())
+                db.executescript(self._migrate_8_to_9())
             elif version == 4:
                 db.executescript(self._migrate_4_to_5())
                 db.executescript(self._migrate_5_to_6())
+                db.executescript(self._migrate_6_to_7())
+                db.executescript(self._migrate_7_to_8())
+                db.executescript(self._migrate_8_to_9())
             elif version == 5:
                 db.executescript(self._migrate_5_to_6())
                 db.executescript(self._migrate_6_to_7())
+                db.executescript(self._migrate_7_to_8())
+                db.executescript(self._migrate_8_to_9())
             elif version == 6:
                 db.executescript(self._migrate_6_to_7())
                 db.executescript(self._migrate_7_to_8())
+                db.executescript(self._migrate_8_to_9())
             elif version == 7:
                 db.executescript(self._migrate_7_to_8())
+                db.executescript(self._migrate_8_to_9())
+            elif version == 8:
+                db.executescript(self._migrate_8_to_9())
 
     @staticmethod
     def _schema():
@@ -120,7 +135,8 @@ class V2Repository:
                 cik TEXT NOT NULL, source_url TEXT NOT NULL, source_hash TEXT NOT NULL,
                 retrieved_at TEXT NOT NULL, payload BLOB NOT NULL);
             CREATE TABLE fact_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
-            PRAGMA user_version=8;
+            CREATE TABLE comparison_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
+            PRAGMA user_version=9;
         '''
 
     @staticmethod
@@ -183,6 +199,13 @@ class V2Repository:
                 retrieved_at TEXT NOT NULL, payload BLOB NOT NULL);
             CREATE TABLE fact_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
             PRAGMA user_version=8;
+        '''
+
+    @staticmethod
+    def _migrate_8_to_9():
+        return '''
+            CREATE TABLE comparison_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
+            PRAGMA user_version=9;
         '''
 
     @contextmanager
@@ -493,6 +516,34 @@ class V2Repository:
     def fact_summary(self, run_id: str):
         with self.connect() as db:
             row = db.execute('SELECT payload FROM fact_summaries WHERE run_id=?', (run_id,)).fetchone()
+        return json.loads(row['payload']) if row else None
+
+    def save_comparisons(self, run_id: str, comparisons):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM comparisons WHERE run_id=?', (run_id,))
+            db.executemany('INSERT INTO comparisons (run_id, comparison_id, state, payload) VALUES (?, ?, ?, ?)', [
+                (run_id, item.comparison_id, item.state, item.model_dump_json()) for item in comparisons])
+
+    def comparisons(self, run_id: str):
+        from .contracts import FactComparison
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM comparisons WHERE run_id=? ORDER BY state, comparison_id',
+                              (run_id,)).fetchall()
+        return [FactComparison.model_validate_json(row['payload']) for row in rows]
+
+    def save_comparison_summary(self, run_id: str, payload: dict):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('INSERT OR REPLACE INTO comparison_summaries (run_id, payload) VALUES (?, ?)',
+                       (run_id, json.dumps(payload, sort_keys=True)))
+
+    def comparison_summary(self, run_id: str):
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM comparison_summaries WHERE run_id=?',
+                             (run_id,)).fetchone()
         return json.loads(row['payload']) if row else None
 
     def finding_batch(self, request_hash: str, prompt_version: str,

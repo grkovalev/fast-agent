@@ -149,6 +149,7 @@ class StructuredFact(V2Contract):
 
 class FactComparison(V2Contract):
     comparison_id: StableID
+    metric: str | None = None
     fact_id: StableID | None = None
     finding_ids: list[StableID] = Field(default_factory=list)
     state: Literal[
