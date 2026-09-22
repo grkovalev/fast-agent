@@ -53,6 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="ProfitLab", lifespan=lifespan)
     templates = Jinja2Templates(directory=WEB_DIR / "templates")
+
     app.mount("/static", StaticFiles(directory=WEB_DIR / "static"), name="static")
 
     @app.get("/health")
@@ -83,35 +84,69 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                          'error': settings.redactor().text(str(error))})
         return RedirectResponse(f'/v2/runs/{run.run_id}', status_code=303)
 
-    @app.get('/v2/runs/{run_id}')
-    def v2_workspace(request: Request, run_id: str, stage: str = 'source'):
-        try:
-            if stage not in STAGE_NAMES:
-                raise ValueError('Unknown V2 stage')
-            state = v2_pipeline.repo.state(run_id)
-        except (FileNotFoundError, ValueError):
-            raise HTTPException(404, 'V2 run not found') from None
+    def v2_context(run_id: str, stage: str, page: int = 1):
+        """Return one bounded page of stage data for the reader-facing workspace."""
+        if stage not in STAGE_NAMES:
+            raise ValueError('Unknown V2 stage')
+        state = v2_pipeline.repo.state(run_id)
         selected = next(item for item in state['stages'] if item.stage == stage)
-        outline_sections = (v2_pipeline.repo.outline_sections(run_id)
-                            if stage in ('outline', 'section_score', 'chunk', 'chunk_score', 'findings', 'evaluate') else [])
-        return templates.TemplateResponse(request=request, name='v2_workspace.html', context={
-            **state, 'selected': selected, 'canonical_refs': v2_pipeline.repo.canonical_refs(run_id),
+        page = max(page, 1)
+        data_stages = {'outline', 'section_score', 'chunk', 'chunk_score', 'findings', 'facts', 'evaluate'}
+        outline_sections = (v2_pipeline.repo.outline_sections(run_id, page=page)
+                            if stage in data_stages else [])
+        chunks = (v2_pipeline.repo.chunks(run_id, page=page)
+                  if stage in {'chunk', 'chunk_score', 'findings'} else [])
+        context = {
+            **state, 'selected': selected, 'page': page,
+            'has_next': False,
+            'canonical_refs': v2_pipeline.repo.canonical_refs(run_id),
             'outline_sections': outline_sections,
             'section_lookup': {item.section_id: item for item in outline_sections},
-            'section_scores': v2_pipeline.repo.scores(run_id, 'section_score') if stage == 'section_score' else [],
-            'section_actions': v2_pipeline.repo.exploration_actions(run_id, 'section_score') if stage == 'section_score' else [],
-            'chunks': v2_pipeline.repo.chunks(run_id) if stage in ('chunk', 'chunk_score', 'findings') else [],
-            'chunk_scores': v2_pipeline.repo.scores(run_id, 'chunk_score') if stage == 'chunk_score' else [],
+            'section_scores': (v2_pipeline.repo.scores(run_id, 'section_score', page=page)
+                               if stage == 'section_score' else []),
+            'section_actions': [],
+            'chunks': chunks,
+            'chunk_scores': (v2_pipeline.repo.scores(run_id, 'chunk_score', page=page)
+                             if stage == 'chunk_score' else []),
             'chunk_score_summary': v2_pipeline.repo.chunk_score_summary(run_id) if stage == 'chunk_score' else None,
-            'chunk_actions': v2_pipeline.repo.exploration_actions(run_id, 'chunk_score') if stage == 'chunk_score' else [],
-            'findings': v2_pipeline.repo.findings(run_id) if stage in ('findings', 'evaluate') else [],
+            'chunk_actions': [],
+            'findings': (v2_pipeline.repo.findings(run_id, page=page)
+                         if stage in {'findings', 'evaluate'} else []),
             'finding_summary': v2_pipeline.repo.finding_summary(run_id) if stage == 'findings' else None,
-            'finding_actions': v2_pipeline.repo.exploration_actions(run_id, 'findings') if stage == 'findings' else [],
-            'structured_facts': v2_pipeline.repo.structured_facts(run_id) if stage in ('facts', 'evaluate') else [],
+            'finding_actions': [],
+            'structured_facts': (v2_pipeline.repo.structured_facts(run_id, page=page)
+                                 if stage in {'facts', 'evaluate'} else []),
             'fact_summary': v2_pipeline.repo.fact_summary(run_id) if stage == 'facts' else None,
-            'comparisons': v2_pipeline.repo.comparisons(run_id) if stage == 'evaluate' else [],
+            'comparisons': (v2_pipeline.repo.comparisons(run_id, page=page)
+                            if stage == 'evaluate' else []),
             'comparison_summary': v2_pipeline.repo.comparison_summary(run_id) if stage == 'evaluate' else None,
-        })
+        }
+        repeated = max(len(context['outline_sections']), len(context['section_scores']),
+                       len(context['chunks']), len(context['chunk_scores']),
+                       len(context['findings']), len(context['structured_facts']),
+                       len(context['comparisons']))
+        context['has_next'] = repeated == 100
+        return context
+
+    @app.get('/v2/runs/{run_id}')
+    @app.get('/v2/runs/{run_id}/pipeline')
+    def v2_workspace(request: Request, run_id: str, stage: str = 'source', page: int = 1):
+        try:
+            context = v2_context(run_id, stage, page)
+        except (FileNotFoundError, ValueError):
+            raise HTTPException(404, 'V2 run not found') from None
+        return templates.TemplateResponse(request=request, name='v2_workspace.html', context=context)
+
+    @app.get('/v2/runs/{run_id}/pipeline/{stage}/trace')
+    def v2_stage_trace(request: Request, run_id: str, stage: str):
+        if stage not in {'section_score', 'chunk_score', 'findings'}:
+            raise HTTPException(404, 'No provider trace for this stage')
+        try:
+            actions = v2_pipeline.repo.exploration_actions(run_id, stage, limit=100)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V2 run not found') from None
+        return templates.TemplateResponse(request=request, name='v2_trace.html',
+                                          context={'run_id': run_id, 'stage': stage, 'actions': actions})
 
     @app.get('/v2/runs/{run_id}/chunks/{chunk_id}')
     def v2_chunk_inspector(request: Request, run_id: str, chunk_id: str):

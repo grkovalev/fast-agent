@@ -93,4 +93,4 @@ def test_offline_section_score_persists_and_is_inspectable_in_workspace(tmp_path
     assert page.status_code == 200
     assert 'Ranked visible sections' in page.text
     assert 'No XBRL, Company Facts, or evaluation values are supplied' in page.text
-    assert 'Inspect sanitized Jev requests and responses' in page.text
+    assert 'Inspect sanitized provider trace' in page.text

@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T22 independently compares sealed quote-backed findings with
-  Company Facts using exact Decimal values and never alters discovery.
-- Next task: **T23 — Consolidated modern pipeline UI.**
-- Latest verified task: T22 focused local acceptance; manual browser inspection and live
+- Implementation status: T23 presents the V2 workflow in one reader-facing Pipeline
+  workspace, with bounded stage data and on-demand diagnostics.
+- Next task: **T24 — Provider, persistence, and resume optimization.**
+- Latest verified task: T23 focused local acceptance; manual browser inspection and live
   SEC/LLM comparison remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
@@ -42,7 +42,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T20 | Quote-backed findings | DONE | Manual browser and live LLM verification pending |
 | T21 | Post-discovery SEC Company Facts | DONE | Offline fixture acceptance passed; live SEC/manual UI pending |
 | T22 | Independent fact comparison | DONE | Offline fixture acceptance passed; live SEC/LLM/manual UI pending |
-| T23 | Consolidated modern pipeline UI | TODO | Not run |
+| T23 | Consolidated modern pipeline UI | DONE | Manual browser inspection pending |
 | T24 | Provider, persistence, and resume optimization | TODO | Not run |
 | T25 | Remove obsolete execution paths and tests | TODO | Not run |
 | T26 | Retrieval benchmark and baselines | TODO | Not run |
@@ -63,6 +63,43 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T23 — Consolidated modern pipeline and report UI.
+Implemented: V2 runs now expose **Runs** and one reader-facing **Pipeline** workspace.
+Its findings and evaluation stage cards remain the canonical place for quote-backed
+findings, coverage, limitations, exact Decimal values, and audit IDs. Pipeline stages
+retain their eight-step rail and use bounded pages of at most 100 repeated records.
+Provider request/response diagnostics are no longer embedded in the main workspace; a
+per-stage on-demand trace page exposes at most 100 sanitized actions. Live updates
+coalesce bursts and skip polling while the page is hidden.
+
+Commands/results:
+- Timed predecessor boundary: `time uv run pytest tests/task_gates/test_t22.py
+  tests/task_gates/test_t21.py -q`: **4 passed** in 1.23s (1.63s wall time), with
+  one existing Starlette/AnyIO deprecation warning. The old inline-diagnostic
+  assertions in T17/T19 were consolidated to assert the new on-demand trace link.
+- Added `tests/task_gates/test_t23.py`: single-workspace pipeline/trace route coverage
+  plus a storage pagination invariant proving a 101-record stage returns 100 then 1
+  record.
+- Final acceptance: `uv run ruff check .`, `git diff --check`, and `time uv run pytest
+  tests/task_gates/test_t14.py tests/task_gates/test_t15.py tests/task_gates/test_t16.py
+  tests/task_gates/test_t17.py tests/task_gates/test_t18.py tests/task_gates/test_t19.py
+  tests/task_gates/test_t20.py tests/task_gates/test_t21.py tests/task_gates/test_t22.py
+  tests/task_gates/test_t23.py -q`: **23 passed** in 2.86s (3.18s wall time), with
+  the same warning.
+- Browser automation was not run per task policy. No live SEC or provider request was
+  made because credentials were not assumed; responsive/manual and real multi-filing
+  checks remain pending.
+
+With `uv run profitlab serve` running, open `http://127.0.0.1:8000/`, create a fresh
+offline V2 `DEMO` run, and use the **Pipeline** rail to open **Findings** and
+**Evaluate**. At both desktop and narrow widths, confirm focus-visible keyboard
+navigation, live status, each source drill-down, figures, limitations, and audit
+details. Use **Inspect sanitized provider trace** to verify diagnostics load separately
+from the primary page. A configured real multi-filing run remains the outstanding live
+responsiveness check.
+
+Next: T24.
 
 Task: T22 — Independent fact comparison.
 Implemented: the V2 Evaluate stage runs only after findings and Company Facts complete.

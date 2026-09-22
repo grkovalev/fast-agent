@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block page_title %}{{ stage | replace('_', ' ') | title }} trace{% endblock %}{% block content %}
+<p><a href="/v2/runs/{{ run_id }}/pipeline?stage={{ stage }}">← Pipeline stage</a></p><section><p class="eyebrow">On-demand diagnostic</p><h2>Sanitized {{ stage | replace('_', ' ') }} provider trace</h2><p class="muted">At most 100 actions are shown. Raw provider data is never included in the primary workspace.</p>{% for action in actions %}<details><summary>{{ action.action_id }}</summary><pre>{{ action | tojson(indent=2) }}</pre></details>{% else %}<p>No provider activity was recorded.</p>{% endfor %}</section>
+{% endblock %}

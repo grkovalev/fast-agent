@@ -56,4 +56,4 @@ def test_offline_chunk_scoring_checkpoints_caches_and_renders_workspace(tmp_path
         page = client.get('/v2/runs/score-t19-a?stage=chunk_score')
     assert page.status_code == 200
     assert 'Ranked detailed evidence' in page.text
-    assert 'sanitized Jev requests and responses' in page.text
+    assert 'Inspect sanitized provider trace' in page.text

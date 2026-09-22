@@ -1,0 +1,1 @@
+.primary-nav{margin:1rem 0}.primary-nav a{padding:.45rem .65rem;border-radius:5px}.primary-nav [aria-current="page"]{background:#183b42;color:#fff;text-decoration:none}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #477cbd;outline-offset:3px}@media(max-width:600px){.primary-nav{overflow-x:auto;flex-wrap:nowrap}.primary-nav a{white-space:nowrap}}

@@ -396,10 +396,17 @@ class V2Repository:
                      item.primary_range.start_line, item.primary_range.end_line,
                      item.model_dump_json()) for item in sections])
 
-    def outline_sections(self, run_id: str) -> list[OutlineSection]:
+    def outline_sections(self, run_id: str, *, page: int | None = None,
+                         per_page: int = 100) -> list[OutlineSection]:
+        limit, offset = self._page_bounds(page, per_page)
         with self.connect() as db:
-            rows = db.execute('SELECT payload FROM outline_sections WHERE run_id=? '
-                              'ORDER BY start_line, end_line, section_id', (run_id,)).fetchall()
+            query = ('SELECT payload FROM outline_sections WHERE run_id=? '
+                     'ORDER BY start_line, end_line, section_id')
+            if limit:
+                query += ' LIMIT ? OFFSET ?'
+                rows = db.execute(query, (run_id, limit, offset)).fetchall()
+            else:
+                rows = db.execute(query, (run_id,)).fetchall()
         return [OutlineSection.model_validate_json(row['payload']) for row in rows]
 
     def save_scores(self, run_id: str, score_kind: str, scores):
@@ -410,12 +417,18 @@ class V2Repository:
             db.executemany('INSERT INTO scores (run_id, score_kind, item_id, payload) VALUES (?, ?, ?, ?)', [
                 (run_id, score_kind, item.item_id, item.model_dump_json()) for item in scores])
 
-    def scores(self, run_id: str, score_kind: str):
+    def scores(self, run_id: str, score_kind: str, *, page: int | None = None,
+               per_page: int = 100):
         from .contracts import ScoredItem
 
+        limit, offset = self._page_bounds(page, per_page)
         with self.connect() as db:
-            rows = db.execute('SELECT payload FROM scores WHERE run_id=? AND score_kind=? '
-                              'ORDER BY item_id', (run_id, score_kind)).fetchall()
+            query = 'SELECT payload FROM scores WHERE run_id=? AND score_kind=? ORDER BY item_id'
+            if limit:
+                query += ' LIMIT ? OFFSET ?'
+                rows = db.execute(query, (run_id, score_kind, limit, offset)).fetchall()
+            else:
+                rows = db.execute(query, (run_id, score_kind)).fetchall()
         return [ScoredItem.model_validate_json(row['payload']) for row in rows]
 
     def chunk_score_batch(self, source_range_hash: str, prompt_version: str,
@@ -457,12 +470,17 @@ class V2Repository:
             db.executemany('INSERT INTO findings (run_id, finding_id, payload) VALUES (?, ?, ?)', [
                 (run_id, item.finding_id, item.model_dump_json()) for item in findings])
 
-    def findings(self, run_id: str):
+    def findings(self, run_id: str, *, page: int | None = None, per_page: int = 100):
         from .contracts import Finding
 
+        limit, offset = self._page_bounds(page, per_page)
         with self.connect() as db:
-            rows = db.execute('SELECT payload FROM findings WHERE run_id=? ORDER BY finding_id',
-                              (run_id,)).fetchall()
+            query = 'SELECT payload FROM findings WHERE run_id=? ORDER BY finding_id'
+            if limit:
+                query += ' LIMIT ? OFFSET ?'
+                rows = db.execute(query, (run_id, limit, offset)).fetchall()
+            else:
+                rows = db.execute(query, (run_id,)).fetchall()
         return [Finding.model_validate_json(row['payload']) for row in rows]
 
     def filing(self, run_id: str):
@@ -499,11 +517,17 @@ class V2Repository:
             db.executemany('INSERT INTO structured_facts (run_id, fact_id, metric, value, payload) VALUES (?, ?, ?, ?, ?)', [
                 (run_id, item.fact_id, item.metric, str(item.value), item.model_dump_json()) for item in facts])
 
-    def structured_facts(self, run_id: str):
+    def structured_facts(self, run_id: str, *, page: int | None = None,
+                         per_page: int = 100):
         from .contracts import StructuredFact
+        limit, offset = self._page_bounds(page, per_page)
         with self.connect() as db:
-            rows = db.execute('SELECT payload FROM structured_facts WHERE run_id=? ORDER BY metric, payload',
-                              (run_id,)).fetchall()
+            query = 'SELECT payload FROM structured_facts WHERE run_id=? ORDER BY metric, payload'
+            if limit:
+                query += ' LIMIT ? OFFSET ?'
+                rows = db.execute(query, (run_id, limit, offset)).fetchall()
+            else:
+                rows = db.execute(query, (run_id,)).fetchall()
         return [StructuredFact.model_validate_json(row['payload']) for row in rows]
 
     def save_fact_summary(self, run_id: str, payload: dict):
@@ -526,11 +550,17 @@ class V2Repository:
             db.executemany('INSERT INTO comparisons (run_id, comparison_id, state, payload) VALUES (?, ?, ?, ?)', [
                 (run_id, item.comparison_id, item.state, item.model_dump_json()) for item in comparisons])
 
-    def comparisons(self, run_id: str):
+    def comparisons(self, run_id: str, *, page: int | None = None,
+                    per_page: int = 100):
         from .contracts import FactComparison
+        limit, offset = self._page_bounds(page, per_page)
         with self.connect() as db:
-            rows = db.execute('SELECT payload FROM comparisons WHERE run_id=? ORDER BY state, comparison_id',
-                              (run_id,)).fetchall()
+            query = 'SELECT payload FROM comparisons WHERE run_id=? ORDER BY state, comparison_id'
+            if limit:
+                query += ' LIMIT ? OFFSET ?'
+                rows = db.execute(query, (run_id, limit, offset)).fetchall()
+            else:
+                rows = db.execute(query, (run_id,)).fetchall()
         return [FactComparison.model_validate_json(row['payload']) for row in rows]
 
     def save_comparison_summary(self, run_id: str, payload: dict):
@@ -596,11 +626,17 @@ class V2Repository:
                 (run_id, chunk_id, range_kind, ordinal, start_line, end_line) VALUES (?, ?, ?, ?, ?, ?)''',
                            ranges)
 
-    def chunks(self, run_id: str) -> list[TextChunk]:
+    def chunks(self, run_id: str, *, page: int | None = None,
+               per_page: int = 100) -> list[TextChunk]:
+        limit, offset = self._page_bounds(page, per_page)
         with self.connect() as db:
-            rows = db.execute('SELECT payload FROM chunks WHERE run_id=? ORDER BY '
-                              'json_extract(payload, "$.core_range.start_line"), chunk_id',
-                              (run_id,)).fetchall()
+            query = ('SELECT payload FROM chunks WHERE run_id=? ORDER BY '
+                     'json_extract(payload, "$.core_range.start_line"), chunk_id')
+            if limit:
+                query += ' LIMIT ? OFFSET ?'
+                rows = db.execute(query, (run_id, limit, offset)).fetchall()
+            else:
+                rows = db.execute(query, (run_id,)).fetchall()
         return [TextChunk.model_validate_json(row['payload']) for row in rows]
 
     def chunk(self, run_id: str, chunk_id: str) -> TextChunk:
@@ -620,11 +656,19 @@ class V2Repository:
                        '(run_id, action_id, stage, sequence, payload) VALUES (?, ?, ?, ?, ?)',
                        (run_id, action_id, stage, sequence, json.dumps(payload, sort_keys=True)))
 
-    def exploration_actions(self, run_id: str, stage: str):
+    def exploration_actions(self, run_id: str, stage: str, *, limit: int = 100):
         with self.connect() as db:
             rows = db.execute('SELECT action_id, payload FROM exploration_actions WHERE run_id=? '
-                              'AND stage=? ORDER BY sequence, action_id', (run_id, stage)).fetchall()
+                              'AND stage=? ORDER BY sequence, action_id LIMIT ?',
+                              (run_id, stage, min(max(limit, 1), 100))).fetchall()
         return [{'action_id': row['action_id'], **json.loads(row['payload'])} for row in rows]
+
+    @staticmethod
+    def _page_bounds(page: int | None, per_page: int):
+        if page is None:
+            return None, 0
+        limit = min(max(per_page, 1), 100)
+        return limit, (max(page, 1) - 1) * limit
 
     def outline_batch(self, source_range_hash: str, prompt_version: str,
                       configuration_hash: str, actual_model: str):
