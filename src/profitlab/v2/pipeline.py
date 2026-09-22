@@ -36,17 +36,20 @@ class V2PipelineService:
         return run
 
     async def run(self, run_id: str, delay: float = 0, *, implement_source: bool = False):
+        run_started = monotonic()
         run = self.repo.get_run(run_id)
         if run.status == 'running':
             raise ValueError('V2 run is already active.')
         if run.cancellation_requested:
-            raise ValueError('V2 run was cancelled; create a fresh run.')
+            raise ValueError('V2 run was cancelled; resume it before running.')
         self.repo.update_run(run_id, status='running', summary='V2 shell is advancing.',
                              kind='stage_started')
         for name in STAGE_NAMES:
             if self.repo.cancellation_requested(run_id):
                 return self._cancel(run_id, name)
             old = self.repo.stage(run_id, name)
+            if old.status == 'completed':
+                continue
             started_at = datetime.now(UTC)
             tick = monotonic()
             running = old.model_copy(update={
@@ -130,10 +133,11 @@ class V2PipelineService:
                     document_ref = self.repo.canonical_refs(run_id)[0]
                     document = self.repo.canonical_document(run_id, document_ref.document_id)
                     sections = self.repo.outline_sections(run_id)
-                    def score_progress(completed, total, calls):
+                    def score_progress(completed, total, calls, cached=0):
                         snapshot = self.repo.stage(run_id, 'section_score').model_copy(update={
                             'completed_work': completed, 'total_work': total,
-                            'summary': f'Jev completed {calls} section-score batch(es).',
+                            'summary': (f'Jev checkpointed {completed}/{total} section descriptors; '
+                                        f'{calls} live batch(es), {cached} cached batch(es).'),
                         })
                         self.repo.update_stage(snapshot, event_kind='stage_started',
                                                event_summary=snapshot.summary)
@@ -160,7 +164,7 @@ class V2PipelineService:
                     'elapsed_seconds': monotonic() - tick,
                     'summary': (f'Jev scored {len(result.scores)} visible outline sections in '
                                 f'{result.calls} batch(es): {selected} selected, '
-                                f'{uncertain} uncertain.'),
+                                f'{uncertain} uncertain; {result.cached_batches} cached batch(es) reused.'),
                     'limitation': ('Fixture Jev scores only; configure TYPESAFE_API_KEY for live '
                                    'section discovery.' if run.mode == 'offline' else None),
                     'input_hash': document.ref.source_hash,
@@ -359,6 +363,17 @@ class V2PipelineService:
                    if implement_source else
                    'V2 shell completed; all domain stages are explicitly unimplemented.')
         self.repo.update_run(run_id, status='partial', summary=summary, kind='run_finished')
+        chunk = self.repo.chunk_score_summary(run_id) or {}
+        findings = self.repo.finding_summary(run_id) or {}
+        self.repo.save_performance_summary(run_id, {
+            'wall_seconds': round(monotonic() - run_started, 6),
+            'provider_requests': {'chunk_score_live': chunk.get('calls', 0),
+                                  'findings_live': findings.get('calls', 0)},
+            'cache': {'chunk_score_batches': chunk.get('cached_batches', 0),
+                      'findings_reused': findings.get('cached', False)},
+            'database_bytes': self.repo.db_path.stat().st_size if self.repo.db_path.exists() else 0,
+            'measurement': 'offline fixture or live replay; cached and live requests are counted separately',
+        })
         return self.repo.get_run(run_id)
 
     def _cancel(self, run_id, name, running=None):
@@ -366,7 +381,7 @@ class V2PipelineService:
         cancelled = stage.model_copy(update={
             'status': 'cancelled', 'finished_at': datetime.now(UTC),
             'summary': 'Cancelled before domain work.',
-            'limitation': 'Cancellation is durable; this shell run cannot be resumed.',
+            'limitation': 'Cancellation is durable; resume continues from completed checkpoints.',
         })
         self.repo.update_stage(cancelled, event_kind='stage_finished',
                                event_summary=cancelled.summary)
@@ -376,6 +391,12 @@ class V2PipelineService:
 
     def cancel(self, run_id: str):
         self.repo.request_cancellation(run_id)
+
+    def resume(self, run_id: str):
+        run = self.repo.get_run(run_id)
+        if run.status not in ('cancelled', 'interrupted', 'failed', 'partial'):
+            raise ValueError('Only a stopped V2 run can be resumed.')
+        self.repo.resume(run_id)
 
     def recover(self):
         for run in self.repo.recent(100):

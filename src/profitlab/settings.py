@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     section_score_uncertain_threshold: float = Field(.20, ge=0, le=1)
     section_score_max_selected: int = Field(12, ge=1, le=100)
     section_score_max_uncertain: int = Field(4, ge=0, le=100)
+    # Independent Jev batches share one connection pool, while this bound keeps a
+    # single run from overwhelming the provider or losing useful checkpoints.
+    v2_provider_concurrency: int = Field(3, ge=1, le=12)
     chunk_score_prompt_version: str = 'chunk-score-v1'
     chunk_score_batch_size: int = Field(4, ge=1, le=20)
     chunk_score_request_char_budget: int = Field(22000, ge=1000, le=60000)

@@ -1,13 +1,16 @@
 """Visible-only Jev discovery over validated V2 outline sections."""
 import asyncio
+import hashlib
 import json
 from contextlib import contextmanager
 from dataclasses import dataclass
 from uuid import uuid4
 
+import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 from profitlab.providers.jev import FakeJevClient, JevRequest, LiveJevClient, NoulQuestion
+from profitlab.providers.transport import TracedTransport
 
 from .canonical import CanonicalDocument
 from .contracts import OutlineSection, ScoredItem
@@ -69,6 +72,7 @@ class SectionScoreResult:
     scores: list[ScoredItem]
     models: list[str]
     calls: int
+    cached_batches: int
     usage: dict[str, int]
 
 
@@ -112,10 +116,16 @@ class SectionScoringService:
         self._guard(context.model_dump())
         return context
 
-    def _client(self, run_id, offline, stage='section_score'):
+    def _client(self, run_id, offline, stage='section_score', http_client=None):
         trace = _V2Trace(self.repo, run_id, self.settings.redactor(), stage)
         return FakeJevClient(trace) if offline else LiveJevClient(
-            self.settings, trace, stage=stage)
+            self.settings, trace, stage=stage, http_client=http_client)
+
+    def _connection_pool(self, run_id, stage):
+        trace = _V2Trace(self.repo, run_id, self.settings.redactor(), stage)
+        return httpx.AsyncClient(
+            transport=TracedTransport(trace, self.settings, 'jev', stage=stage),
+            timeout=self.settings.provider_timeout), trace
 
     def _request(self, batch, offline):
         questions = {f'{context.section_id}__{target}': NoulQuestion(instructions=instruction)
@@ -197,28 +207,70 @@ class SectionScoringService:
         filing_metadata = {'ticker': self.repo.get_run(run_id).ticker,
                            'filing_id': document.ref.filing_id}
         contexts = [self._context(section, document, filing_metadata) for section in sections]
-        client, raw, models, calls = self._client(run_id, offline), [], set(), 0
+        raw, models, calls, cached = [], set(), 0, 0
         usage = {'input_tokens': 0, 'output_tokens': 0}
         bounded = []
         for offset in range(0, len(contexts), self.settings.section_score_batch_size):
             bounded.extend(self._batches(
                 contexts[offset:offset + self.settings.section_score_batch_size], offline))
-        for batch_number, batch in enumerate(bounded, 1):
+        config = hashlib.sha256(json.dumps({
+            'request_char_budget': self.settings.section_score_request_char_budget,
+            'prompt_version': self.settings.section_score_prompt_version,
+            'questions': TARGETS,
+        }, sort_keys=True).encode()).hexdigest()
+        cache_model = 'fixture-jev-1' if offline else self.settings.typesafe_model
+
+        async def evaluate(batch_number, batch, client):
             request = self._request(batch, offline)
-            calls += 1
+            key = hashlib.sha256(json.dumps(request.model_dump(mode='json'), sort_keys=True).encode()).hexdigest()
+            saved = self.repo.section_score_batch(key, self.settings.section_score_prompt_version,
+                                                  config, cache_model)
+            if saved:
+                return batch_number, batch, saved['scores'], saved['model'], None, True
             response = await asyncio.wait_for(client.evaluate(request), self.settings.provider_total_timeout)
-            models.add(response.model)
-            usage['input_tokens'] += response.usage.input_tokens
-            usage['output_tokens'] += response.usage.output_tokens
-            call_id = f'section-batch-{batch_number}'
-            for context in batch:
-                vector = {target: response.answers[f'{context.section_id}__{target}'].noul
-                          for target in TARGETS}
-                raw.append(ScoredItem(item_id=context.section_id, target_scores=vector,
-                                      model=response.model, call_id=call_id,
-                                      policy_decision='skipped', policy_reason='policy pending'))
+            vectors = {context.section_id: {target: response.answers[
+                f'{context.section_id}__{target}'].noul for target in TARGETS} for context in batch}
+            # Cache only under the pinned model identity; aliases that resolve to a
+            # different model remain live and visibly distinct rather than unsafe reuse.
+            if response.model == cache_model:
+                self.repo.save_section_score_batch(key, self.settings.section_score_prompt_version,
+                                                   config, cache_model,
+                                                   {'scores': vectors, 'model': response.model})
+            return batch_number, batch, vectors, response.model, response.usage, False
+
+        async def run_with(client):
+            semaphore = asyncio.Semaphore(self.settings.v2_provider_concurrency)
+            async def bounded_call(number, batch):
+                async with semaphore:
+                    return await evaluate(number, batch, client)
+            return await asyncio.gather(*(bounded_call(number, batch)
+                                          for number, batch in enumerate(bounded, 1)))
+
+        if offline:
+            results = await run_with(self._client(run_id, True))
+        else:
+            pool, trace = self._connection_pool(run_id, 'section_score')
+            async with pool:
+                results = await run_with(LiveJevClient(self.settings, trace, stage='section_score',
+                                                        http_client=pool))
+        for batch_number, batch, vectors, response_model, response_usage, was_cached in sorted(results):
+            cached += was_cached
+            calls += not was_cached
+            models.add(response_model)
+            if response_usage:
+                usage['input_tokens'] += response_usage.input_tokens
+                usage['output_tokens'] += response_usage.output_tokens
+            raw.extend(ScoredItem(item_id=context.section_id, target_scores=vectors[context.section_id],
+                                  model=response_model, call_id=f'section-batch-{batch_number}',
+                                  policy_decision='skipped', policy_reason='policy pending')
+                       for context in batch)
+            # A completed batch is committed before progress is emitted, making a
+            # restart reuse its cache/checkpoint rather than repeat a paid request.
+            self.repo.save_scores(run_id, 'section_score', self._policy(raw,
+                                  [item for item in sections if item.section_id in {x.item_id for x in raw}],
+                                  self.settings))
             if on_progress:
-                on_progress(len(raw), len(sections), calls)
+                on_progress(len(raw), len(sections), calls, cached)
         scored = self._policy(raw, sections, self.settings)
         self.repo.save_scores(run_id, 'section_score', scored)
-        return SectionScoreResult(scored, sorted(models), calls, usage)
+        return SectionScoreResult(scored, sorted(models), calls, cached, usage)

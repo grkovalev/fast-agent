@@ -2,6 +2,7 @@ import asyncio
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
+from time import monotonic
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse, StreamingResponse
@@ -35,6 +36,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         task.add_done_callback(lambda completed: completed.exception()
                                if not completed.cancelled() else None)
         v2_tasks[run_id] = task
+
+    def resume_v2(run_id):
+        v2_pipeline.resume(run_id)
+        start_v2(run_id)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -131,11 +136,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get('/v2/runs/{run_id}')
     @app.get('/v2/runs/{run_id}/pipeline')
     def v2_workspace(request: Request, run_id: str, stage: str = 'source', page: int = 1):
+        started = monotonic()
         try:
             context = v2_context(run_id, stage, page)
         except (FileNotFoundError, ValueError):
             raise HTTPException(404, 'V2 run not found') from None
-        return templates.TemplateResponse(request=request, name='v2_workspace.html', context=context)
+        response = templates.TemplateResponse(request=request, name='v2_workspace.html', context=context)
+        v2_pipeline.repo.record_route_measurement(
+            run_id, route=f'pipeline:{stage}', latency_ms=(monotonic() - started) * 1000,
+            payload_bytes=len(response.body))
+        return response
 
     @app.get('/v2/runs/{run_id}/pipeline/{stage}/trace')
     def v2_stage_trace(request: Request, run_id: str, stage: str):
@@ -233,6 +243,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             v2_pipeline.cancel(run_id)
         except FileNotFoundError:
             raise HTTPException(404, 'V2 run not found') from None
+        return RedirectResponse(f'/v2/runs/{run_id}', status_code=303)
+
+    @app.post('/v2/runs/{run_id}/resume')
+    def resume_v2_run(run_id: str):
+        try:
+            resume_v2(run_id)
+        except (FileNotFoundError, ValueError):
+            raise HTTPException(404, 'V2 run cannot be resumed') from None
         return RedirectResponse(f'/v2/runs/{run_id}', status_code=303)
 
     @app.get("/runs/{run_id}")

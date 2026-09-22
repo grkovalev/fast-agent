@@ -3,9 +3,9 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T23 presents the V2 workflow in one reader-facing Pipeline
-  workspace, with bounded stage data and on-demand diagnostics.
-- Next task: **T24 — Provider, persistence, and resume optimization.**
+- Implementation status: T24 reuses persisted provider results and records V2 replay
+  measurements without changing discovery policy outcomes.
+- Next task: **T25 — Remove obsolete execution paths and tests.**
 - Latest verified task: T23 focused local acceptance; manual browser inspection and live
   SEC/LLM comparison remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -43,7 +43,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T21 | Post-discovery SEC Company Facts | DONE | Offline fixture acceptance passed; live SEC/manual UI pending |
 | T22 | Independent fact comparison | DONE | Offline fixture acceptance passed; live SEC/LLM/manual UI pending |
 | T23 | Consolidated modern pipeline UI | DONE | Manual browser inspection pending |
-| T24 | Provider, persistence, and resume optimization | TODO | Not run |
+| T24 | Provider, persistence, and resume optimization | DONE | Offline replay passed; live verification pending |
 | T25 | Remove obsolete execution paths and tests | TODO | Not run |
 | T26 | Retrieval benchmark and baselines | TODO | Not run |
 | T27 | Final real-data demonstration | TODO | Not run |
@@ -63,6 +63,48 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T24 — Provider, persistence, and resume optimization.
+Implemented: V2 outline requests now reuse one LLM HTTP connection pool across its
+ordered windows. Independent Jev section-score batches share one provider connection
+pool and obey `V2_PROVIDER_CONCURRENCY` (default 3); their sanitized request hashes,
+prompt/questions, relevant configuration, and pinned model identity gate cache reuse.
+Completed batches are persisted before progress updates, so a fresh replay reuses them
+without changing the deterministic scoring policy. Diagnostic action payloads above
+2 KiB are compressed in SQLite transparently. New lookup indexes cover score/chunk/action
+paths, and the persisted performance summary records wall time, distinct live/cache
+request counts, database bytes, plus the latest reader-route latency and rendered payload
+size. No source/chunk text duplication was introduced.
+
+Commands/results:
+- Timed predecessor boundary: `time uv run pytest tests/task_gates/test_t23.py
+  tests/task_gates/test_t22.py -q`: **4 passed** in 1.14s (1.50s wall time), with
+  one existing Starlette/AnyIO deprecation warning. No obsolete tests were removed:
+  they cover the immediately preceding reader workspace and evaluation boundaries.
+- Added `tests/task_gates/test_t24.py`: repeat-fixture replay preserves every section
+  score/policy decision while reporting cache reuse and persisted wall/database/reader
+  measurements, verifies transparent large-diagnostic compression, and proves explicit
+  resume does not repeat a completed source checkpoint.
+- Final acceptance: `uv run ruff check .`, `git diff --check`, and `time uv run pytest
+  tests/task_gates/test_t14.py tests/task_gates/test_t15.py tests/task_gates/test_t16.py
+  tests/task_gates/test_t17.py tests/task_gates/test_t18.py tests/task_gates/test_t19.py
+  tests/task_gates/test_t20.py tests/task_gates/test_t21.py tests/task_gates/test_t22.py
+  tests/task_gates/test_t23.py tests/task_gates/test_t24.py -q`: **26 passed** in
+  3.57s (3.88s wall time), with the same warning.
+- Browser automation was not run per task policy. No live SEC, Jev, or LLM call was
+  made because credentials were not assumed; actual live latency/concurrency gains and
+  an interruption during an in-flight paid request remain the live verification gap.
+
+With `uv run profitlab serve` running, open `http://127.0.0.1:8000/`, create two fresh
+offline V2 `DEMO` runs, and open **Pipeline → Section Score** on the second. Confirm its
+summary says cached batches were reused, while the selected/uncertain/skipped decisions
+match the first. Open **Findings → Inspect sanitized provider trace** to confirm the
+trace still renders after compressed diagnostic persistence. With configured live SEC,
+Jev, and LLM credentials, repeat a same-source replay and inspect the saved performance
+summary for distinct live/cache counts and reader route measurements; that live check
+remains pending.
+
+Next: T25.
 
 Task: T23 — Consolidated modern pipeline and report UI.
 Implemented: V2 runs now expose **Runs** and one reader-facing **Pipeline** workspace.

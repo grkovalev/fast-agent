@@ -166,7 +166,7 @@ class PipelineEvent(V2Contract):
     run_id: StableID
     stage: StageName | None = None
     kind: Literal['run_created', 'stage_started', 'stage_finished', 'run_finished',
-                  'cancellation_requested', 'run_cancelled', 'run_interrupted']
+                  'cancellation_requested', 'resume_requested', 'run_cancelled', 'run_interrupted']
     status: StageStatus
     summary: str
     created_at: AwareDatetime

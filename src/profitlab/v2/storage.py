@@ -1,6 +1,7 @@
 """Fresh SQLite namespace for V2 runs; V1 storage is never opened here."""
 import json
 import sqlite3
+import zlib
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,7 +25,7 @@ class V2Repository:
         self.db_path = self.root / 'profitlab-v2.sqlite3'
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 2, 3, 4, 5, 6, 7, 8, 9):
+            if version not in (0, 2, 3, 4, 5, 6, 7, 8, 9, 10):
                 raise ValueError(f'Unsupported V2 storage schema version: {version}')
             if version == 0:
                 db.executescript(self._schema())
@@ -36,6 +37,7 @@ class V2Repository:
                 db.executescript(self._migrate_6_to_7())
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
+                db.executescript(self._migrate_9_to_10())
             elif version == 3:
                 db.executescript(self._migrate_3_to_4())
                 db.executescript(self._migrate_4_to_5())
@@ -43,26 +45,34 @@ class V2Repository:
                 db.executescript(self._migrate_6_to_7())
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
+                db.executescript(self._migrate_9_to_10())
             elif version == 4:
                 db.executescript(self._migrate_4_to_5())
                 db.executescript(self._migrate_5_to_6())
                 db.executescript(self._migrate_6_to_7())
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
+                db.executescript(self._migrate_9_to_10())
             elif version == 5:
                 db.executescript(self._migrate_5_to_6())
                 db.executescript(self._migrate_6_to_7())
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
+                db.executescript(self._migrate_9_to_10())
             elif version == 6:
                 db.executescript(self._migrate_6_to_7())
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
+                db.executescript(self._migrate_9_to_10())
             elif version == 7:
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
+                db.executescript(self._migrate_9_to_10())
             elif version == 8:
                 db.executescript(self._migrate_8_to_9())
+                db.executescript(self._migrate_9_to_10())
+            elif version == 9:
+                db.executescript(self._migrate_9_to_10())
 
     @staticmethod
     def _schema():
@@ -136,7 +146,15 @@ class V2Repository:
                 retrieved_at TEXT NOT NULL, payload BLOB NOT NULL);
             CREATE TABLE fact_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
             CREATE TABLE comparison_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
-            PRAGMA user_version=9;
+            CREATE TABLE section_score_batches (source_range_hash TEXT NOT NULL,
+                prompt_version TEXT NOT NULL, configuration_hash TEXT NOT NULL,
+                actual_model TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL,
+                PRIMARY KEY(source_range_hash, prompt_version, configuration_hash, actual_model));
+            CREATE TABLE performance_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
+            CREATE INDEX scores_run_kind_item ON scores(run_id, score_kind, item_id);
+            CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
+            CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
+            PRAGMA user_version=10;
         '''
 
     @staticmethod
@@ -206,6 +224,20 @@ class V2Repository:
         return '''
             CREATE TABLE comparison_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
             PRAGMA user_version=9;
+        '''
+
+    @staticmethod
+    def _migrate_9_to_10():
+        return '''
+            CREATE TABLE section_score_batches (source_range_hash TEXT NOT NULL,
+                prompt_version TEXT NOT NULL, configuration_hash TEXT NOT NULL,
+                actual_model TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL,
+                PRIMARY KEY(source_range_hash, prompt_version, configuration_hash, actual_model));
+            CREATE TABLE performance_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
+            CREATE INDEX scores_run_kind_item ON scores(run_id, score_kind, item_id);
+            CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
+            CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
+            PRAGMA user_version=10;
         '''
 
     @contextmanager
@@ -309,6 +341,18 @@ class V2Repository:
                 raise FileNotFoundError(run_id)
             return self._event(db, run_id, None, 'cancellation_requested',
                                self.get_run_status(db, run_id), 'Cancellation requested.')
+
+    def resume(self, run_id: str):
+        """Clear only the durable stop flag; stage checkpoints remain authoritative."""
+        now = datetime.now(UTC).isoformat()
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            changed = db.execute('UPDATE runs SET cancellation_requested=0, status=?, updated_at=? '
+                                 'WHERE run_id=?', ('queued', now, run_id)).rowcount
+            if not changed:
+                raise FileNotFoundError(run_id)
+            return self._event(db, run_id, None, 'resume_requested', 'queued',
+                               'Resume requested; completed checkpoints will be reused.')
 
     @staticmethod
     def get_run_status(db, run_id):
@@ -439,6 +483,25 @@ class V2Repository:
                              (source_range_hash, prompt_version, configuration_hash,
                               actual_model)).fetchone()
         return json.loads(row['payload']) if row else None
+
+    def section_score_batch(self, source_range_hash: str, prompt_version: str,
+                            configuration_hash: str, actual_model: str):
+        with self.connect() as db:
+            row = db.execute('''SELECT payload FROM section_score_batches WHERE source_range_hash=?
+                AND prompt_version=? AND configuration_hash=? AND actual_model=?''',
+                             (source_range_hash, prompt_version, configuration_hash,
+                              actual_model)).fetchone()
+        return json.loads(row['payload']) if row else None
+
+    def save_section_score_batch(self, source_range_hash: str, prompt_version: str,
+                                 configuration_hash: str, actual_model: str, payload: dict):
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('''INSERT OR REPLACE INTO section_score_batches
+                (source_range_hash, prompt_version, configuration_hash, actual_model, payload, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)''',
+                       (source_range_hash, prompt_version, configuration_hash, actual_model,
+                        json.dumps(payload, sort_keys=True), datetime.now(UTC).isoformat()))
 
     def save_chunk_score_batch(self, source_range_hash: str, prompt_version: str,
                                configuration_hash: str, actual_model: str, payload: dict):
@@ -654,14 +717,54 @@ class V2Repository:
             db.execute('BEGIN IMMEDIATE')
             db.execute('INSERT OR REPLACE INTO exploration_actions '
                        '(run_id, action_id, stage, sequence, payload) VALUES (?, ?, ?, ?, ?)',
-                       (run_id, action_id, stage, sequence, json.dumps(payload, sort_keys=True)))
+                       (run_id, action_id, stage, sequence, self._diagnostic_payload(payload)))
 
     def exploration_actions(self, run_id: str, stage: str, *, limit: int = 100):
         with self.connect() as db:
             rows = db.execute('SELECT action_id, payload FROM exploration_actions WHERE run_id=? '
                               'AND stage=? ORDER BY sequence, action_id LIMIT ?',
                               (run_id, stage, min(max(limit, 1), 100))).fetchall()
-        return [{'action_id': row['action_id'], **json.loads(row['payload'])} for row in rows]
+        return [{'action_id': row['action_id'], **self._read_diagnostic_payload(row['payload'])} for row in rows]
+
+    @staticmethod
+    def _diagnostic_payload(payload: dict):
+        encoded = json.dumps(payload, sort_keys=True).encode()
+        # Diagnostics can contain retained visible source. Keep small records easy
+        # to inspect, but avoid multiplying database size for large provider bodies.
+        return sqlite3.Binary(b'z:' + zlib.compress(encoded)) if len(encoded) > 2048 else encoded.decode()
+
+    @staticmethod
+    def _read_diagnostic_payload(payload):
+        raw = bytes(payload) if isinstance(payload, bytes) else str(payload).encode()
+        if raw.startswith(b'z:'):
+            raw = zlib.decompress(raw[2:])
+        return json.loads(raw)
+
+    def save_performance_summary(self, run_id: str, payload: dict):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('INSERT OR REPLACE INTO performance_summaries (run_id, payload) VALUES (?, ?)',
+                       (run_id, json.dumps(payload, sort_keys=True)))
+
+    def performance_summary(self, run_id: str):
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM performance_summaries WHERE run_id=?', (run_id,)).fetchone()
+        return json.loads(row['payload']) if row else None
+
+    def record_route_measurement(self, run_id: str, *, route: str, latency_ms: float,
+                                 payload_bytes: int):
+        """Keep the latest bounded reader-page measurement alongside run metrics."""
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if not db.execute('SELECT 1 FROM runs WHERE run_id=?', (run_id,)).fetchone():
+                raise FileNotFoundError(run_id)
+            row = db.execute('SELECT payload FROM performance_summaries WHERE run_id=?', (run_id,)).fetchone()
+            payload = json.loads(row['payload']) if row else {}
+            payload['reader_route'] = {'route': route, 'latency_ms': round(latency_ms, 3),
+                                       'payload_bytes': payload_bytes}
+            db.execute('INSERT OR REPLACE INTO performance_summaries (run_id, payload) VALUES (?, ?)',
+                       (run_id, json.dumps(payload, sort_keys=True)))
 
     @staticmethod
     def _page_bounds(page: int | None, per_page: int):

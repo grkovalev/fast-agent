@@ -82,17 +82,19 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
         return proposals
 
     async def _live_proposals(self, document: CanonicalDocument, start: int, end: int,
-                              continuation: list[dict]):
+                              continuation: list[dict], client=None):
         if not self.settings.llm_api_key.get_secret_value():
             raise ValueError('LLM_API_KEY is missing; configure it for a live outline run.')
-        async with httpx.AsyncClient(timeout=self.settings.provider_timeout) as client:
-            sdk = AsyncOpenAI(base_url=self.settings.llm_base_url,
-                              api_key=self.settings.llm_api_key.get_secret_value(),
-                              max_retries=0, http_client=client)
-            response = await sdk.chat.completions.create(model=self.settings.outline_model,
-                messages=[{'role': 'system', 'content': 'You produce constrained filing navigation JSON.'},
-                          {'role': 'user', 'content': self._prompt(document, start, end, continuation)}],
-                response_format={'type': 'json_object'})
+        if client is None:
+            async with httpx.AsyncClient(timeout=self.settings.provider_timeout) as temporary:
+                return await self._live_proposals(document, start, end, continuation, temporary)
+        sdk = AsyncOpenAI(base_url=self.settings.llm_base_url,
+                          api_key=self.settings.llm_api_key.get_secret_value(),
+                          max_retries=0, http_client=client)
+        response = await sdk.chat.completions.create(model=self.settings.outline_model,
+            messages=[{'role': 'system', 'content': 'You produce constrained filing navigation JSON.'},
+                      {'role': 'user', 'content': self._prompt(document, start, end, continuation)}],
+            response_format={'type': 'json_object'})
         content = response.choices[0].message.content or '{}'
         parsed = json.loads(content)
         if not isinstance(parsed, dict) or not isinstance(parsed.get('sections'), list):
@@ -123,7 +125,7 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
                 'parent_topic_hint': proposal.get('parent_topic_hint') if isinstance(proposal.get('parent_topic_hint'), str) else None,
                 'continues_previous': proposal.get('continues_previous') is True}, None
 
-    async def _batch(self, document: CanonicalDocument, start: int, end: int, continuation: list[dict], *, offline: bool):
+    async def _batch(self, document: CanonicalDocument, start: int, end: int, continuation: list[dict], *, offline: bool, client=None):
         source_hash, config_hash = self._range_hash(document, start, end, continuation), self._configuration_hash()
         model = 'fixture-outline-v2' if offline else self.settings.outline_model
         cached = self.repo.outline_batch(source_hash, self.prompt_version, config_hash, model)
@@ -132,30 +134,39 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
         if offline:
             proposals, actual_model = self._fixture_proposals(document, start, end, continuation), model
         else:
-            proposals, actual_model = await self._live_proposals(document, start, end, continuation)
+            proposals, actual_model = await self._live_proposals(document, start, end, continuation, client)
         self.repo.save_outline_batch(source_hash, self.prompt_version, config_hash, actual_model,
                                      {'proposals': proposals})
         return OutlineBatch(proposals, actual_model, False)
 
     async def build(self, document: CanonicalDocument, *, offline: bool):
         accepted, warnings, models, cached_count, continuation = [], [], set(), 0, []
-        for start, end in self.windows(document):
-            batch = await self._batch(document, start, end, continuation, offline=offline)
-            models.add(batch.actual_model)
-            cached_count += batch.cached
-            for proposal in batch.proposals:
-                valid, warning = self._validate(document, start, end, proposal)
-                if valid is None:
-                    warnings.append(f'Lines {start}-{end}: rejected proposal: {warning}.')
+        client_context = httpx.AsyncClient(timeout=self.settings.provider_timeout) if not offline else None
+        if client_context:
+            await client_context.__aenter__()
+        try:
+            for start, end in self.windows(document):
+                if client_context:
+                    batch = await self._batch(document, start, end, continuation, offline=False,
+                                              client=client_context)
                 else:
-                    accepted.append(valid)
-            # Later calls see the preceding validated topics/ranges, allowing an
-            # explicit continuation rather than treating each window as a new section.
-            continuation = [{'generated_topic': item['generated_topic'],
-                             'exact_source_title': item['exact_source_title'],
-                             'end_line': item['end_line'],
-                             'parent_topic_hint': item['parent_topic_hint']}
-                            for item in accepted[-8:]]
+                    batch = await self._batch(document, start, end, continuation, offline=True)
+                models.add(batch.actual_model)
+                cached_count += batch.cached
+                for proposal in batch.proposals:
+                    valid, warning = self._validate(document, start, end, proposal)
+                    if valid is None:
+                        warnings.append(f'Lines {start}-{end}: rejected proposal: {warning}.')
+                    else:
+                        accepted.append(valid)
+                continuation = [{'generated_topic': item['generated_topic'],
+                                 'exact_source_title': item['exact_source_title'],
+                                 'end_line': item['end_line'],
+                                 'parent_topic_hint': item['parent_topic_hint']}
+                                for item in accepted[-8:]]
+        finally:
+            if client_context:
+                await client_context.aclose()
         # Explicit visible headings take precedence. Duplicate overlap proposals collapse by range/title.
         unique = {}
         for item in accepted:
