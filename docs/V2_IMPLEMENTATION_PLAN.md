@@ -116,21 +116,23 @@ For every task, inspect and time affected tests first; delete or consolidate obs
 
 Do not run browser automation. End each task with manual verification instructions: command, URL/click path, exact observations, and unresolved live checks. Run the full suite only for shared infrastructure, cleanup, and final gates.
 
-## 15. Context-bound evidence
+## 15. Outline-aware findings context
 
-Outline generation also identifies a bounded set of source-validated evidence
-context bindings. A binding associates a possible evidence range with the exact
-visible ranges that establish its title/heading, period header, scale/unit, or
-continuation notice. It is not a generated financial assertion. Bindings are
-validated against the numbered outline window, reconciled across overlaps, and
-stored independently of chunks. This source-range representation must work for
-ordinary tables, div/span pseudo-tables, and prose; DOM structure may guide
-candidate generation but is never a prerequisite.
+The validated filing outline is the sole additional navigation context for a
+findings request. Send the complete persisted outline once with the retained
+chunk evidence, retaining section IDs, exact source ranges, exact visible titles
+or representative quotes when available, and clearly distinguished generated
+topic labels. Also provide the filing's current fiscal-reporting year and state
+that the requested values are for that year. Do not search for, infer, persist,
+or make a separate LLM request for evidence-context bindings.
 
-Findings requests resolve bindings only for retained chunk cores and render exact
-context separately from exact evidence. A model may normalize a number only when
-the visible source supports the necessary attribution; otherwise it must preserve
-the ambiguity. Company Facts and evaluation output remain unavailable.
+The outline orients the model to the filing; it is not evidence for a financial
+assertion. A finding still requires an exact quote in its retained chunk, and a
+model may normalize a number only when that visible evidence supports the needed
+attribution and current-period claim. The exact number quote need not also contain
+the period, unit, or scale header when those occur on separate retained visible
+lines. Otherwise it must preserve ambiguity. Company Facts and evaluation output
+remain unavailable.
 
 ## 16. Benchmark
 

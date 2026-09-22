@@ -3,10 +3,10 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T25 removes the obsolete V1 execution surface; only the fresh
-  V2 workspace is supported.
-- Next task: **T26 — Context-bound evidence source ranges.**
-- Latest verified task: T25 local cleanup acceptance; manual browser inspection and live
+- Implementation status: T27 adds the validated outline and requested current fiscal year
+  to the bounded findings request; only the fresh V2 workspace is supported.
+- Next task: **T28 — Retrieval benchmark and baselines.**
+- Latest verified task: T27 local acceptance; manual browser inspection and live
   SEC/LLM comparison remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
@@ -45,8 +45,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T23 | Consolidated modern pipeline UI | DONE | Manual browser inspection pending |
 | T24 | Provider, persistence, and resume optimization | DONE | Offline replay passed; live verification pending |
 | T25 | Remove obsolete execution paths and tests | DONE | Not applicable |
-| T26 | Context-bound evidence source ranges | TODO | Not run |
-| T27 | Context-aware findings inputs | TODO | Not run |
+| T27 | Outline-aware findings inputs | DONE | Offline request/input acceptance passed; live/manual inspection pending |
 | T28 | Retrieval benchmark and baselines | TODO | Not run |
 | T29 | Final real-data demonstration | TODO | Not run |
 | T30 | Fresh-only storage schema; remove migrations | TODO | Not run |
@@ -65,6 +64,46 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T27 — Outline-aware findings inputs.
+Implemented: the single bounded findings request now includes the complete persisted
+validated outline once, with labeled generated topics, exact visible titles/quotes where
+available, section IDs, and canonical line ranges. Every retained chunk identifies its
+outline section. Trusted filing `report_date` metadata supplies the requested current
+fiscal-reporting year; the findings prompt asks for that year's values and treats both
+the outline and year as orientation rather than evidence. The exact quote validates the
+numeric value; period, unit, and scale may use separately retained visible chunk context.
+Findings diagnostics and the workspace now report the requested year plus separate
+outline-context and retained-evidence character counts. The findings prompt version is
+`findings-v2-outline-current-year`, so previous findings batches are not reused.
+
+Commands/results:
+
+- Timed predecessor boundary: `uv run pytest tests/task_gates/test_t20.py -q`:
+  **2 passed** in 0.96s, with one existing Starlette/AnyIO deprecation warning.
+- Added `tests/task_gates/test_t27.py`: asserts the full persisted outline appears once
+  in the findings request, chunks retain outline lineage, trusted report year `2025` is
+  supplied, diagnostics record the separate payload sizes, and a current-year period can
+  use separate retained visible context rather than the number quote itself.
+- Focused acceptance: `uv run pytest tests/task_gates/test_t20.py
+  tests/task_gates/test_t27.py -q`: **4 passed** in 1.26s, with the same warning.
+- Affected regression: `uv run pytest tests/task_gates/test_t19.py
+  tests/task_gates/test_t20.py tests/task_gates/test_t21.py
+  tests/task_gates/test_t22.py tests/task_gates/test_t23.py
+  tests/task_gates/test_t27.py -q`: **12 passed** in 2.34s, with the same warning;
+  `uv run ruff check .` and `git diff --check` passed.
+- Browser automation was not run per task policy. No live SEC or LLM calls were made;
+  manual and live inspection remain pending.
+
+With `uv run profitlab serve` running, create an offline `DEMO` run and open
+**Pipeline → Findings**. Confirm the card summary shows requested fiscal year **2025**
+and separate outline/evidence sizes. Open **Inspect sanitized provider trace** and
+confirm the request has one `validated_outline` array, `current_report_year: "2025"`,
+and `outline_section_id` on each retained chunk. With configured live credentials,
+verify that a current-year value is found only when its exact quote visibly supports the
+reported period.
+
+Next: T28 — Retrieval benchmark and baselines.
 
 Task: T25 — Remove obsolete execution paths and tests.
 Implemented: deleted the V1 flat pipeline, file-per-artifact repository, historical
@@ -96,7 +135,7 @@ analysis form appears, then create an offline `DEMO` run and open **Pipeline →
 Findings**. Confirm the source and provider-trace drill-downs work. With configured
 live credentials, create a live ticker run; that live verification remains pending.
 
-Next: T26 — Context-bound evidence source ranges.
+Next: T27 — Outline-aware findings inputs.
 
 Task: T24 — Provider, persistence, and resume optimization.
 Implemented: V2 outline requests now reuse one LLM HTTP connection pool across its

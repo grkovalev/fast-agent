@@ -36,8 +36,7 @@ If a task is too large for one session, finish a coherent working slice, keep it
 | T23 | Consolidated modern pipeline and report UI | T22 |
 | T24 | Faster cached/resumable workflow with measured gains | T23 |
 | T25 | Obsolete execution paths and tests removed | T24 |
-| T26 | Context-bound evidence source ranges | T25 |
-| T27 | Context-aware findings inputs | T26 |
+| T27 | Outline-aware findings inputs | T25 |
 | T28 | Jev retrieval benchmark against simple baselines | T27 |
 | T29 | Complete measured real-data demonstration | T28 |
 | T30 | Fresh-only storage schema with migration history removed | T29 |
@@ -294,83 +293,55 @@ If a task is too large for one session, finish a coherent working slice, keep it
 
 **Acceptance gate:** static/import search finds no obsolete execution path; full V2 tests pass; application starts cleanly; deletion reduces code without replacing it with compatibility adapters.
 
-**Next: T26.**
-
-## T26 — Context-bound evidence source ranges
-
-**Goal:** preserve the exact visible context needed to interpret a possible financial
-value without relying on fragile HTML-table markup or arbitrary preceding chunks.
-
-**Read:** V2 plan sections 5, 7, and 15. Dependency: T25.
-
-**Implement:**
-
-1. Extend the existing bounded outline request and typed response with a capped set
-   of `EvidenceContextBinding` proposals per window. Each proposal identifies an
-   evidence range and exact visible context ranges for a title/heading, period
-   header, scale/unit, and continuation notice when present. Do not add an LLM
-   request solely for these bindings.
-2. Validate every proposed range against the numbered source window; retain only
-   exact source references, never generated values, metric labels, years, units,
-   or scale interpretations. Record rejected bindings and uncertainty explicitly.
-3. Reconcile overlapping-window proposals deterministically, deduplicate shared
-   context, and persist inspectable evidence bundles independently of chunks.
-   The representation must work for ordinary tables, div/span pseudo-tables,
-   and prose; it may use DOM structure as a hint but cannot require table tags.
-4. Add an outline/evidence-context inspector that links every evidence and
-   supporting range to canonical source lines and explains that these references
-   are context only, not findings or normalized financial data.
-5. Version the augmented outline prompt/schema and cache key. Keep this stage
-   bounded: limit bindings per window and do not scan or annotate every value in
-   the filing.
-
-**Manual verification handoff:** open a run's Outline stage, inspect a bound
-financial row or prose passage, and follow its evidence, period/header, and
-scale/title links. Confirm a div-based or continuation-table fixture can retain
-the same kind of binding without depending on `<table>` markup.
-
-**Acceptance gate:** every persisted binding range is an exact canonical-source
-range inside its supplied outline window; no generated semantic value enters
-storage; invalid/out-of-window bindings are rejected; outline request count does
-not increase; bindings are cached only for the matching source/prompt/schema/model.
-
 **Next: T27.**
 
-## T27 — Context-aware findings inputs
+## T27 — Outline-aware findings inputs
 
-**Goal:** give the findings model only retained evidence together with the exact
-visible source ranges needed to judge its year, scale, unit, and attribution.
+**Goal:** give the findings model the existing validated filing outline as
+navigational context alongside retained evidence, in its single bounded request.
 
-**Read:** V2 plan sections 7, 8, and 15. Dependency: T26.
+**Read:** V2 plan sections 5, 7, 8, and 15. Dependency: T25.
 
 **Implement:**
 
-1. Resolve persisted evidence-context bundles against retained chunks. Attach
-   only bindings whose evidence overlaps the chunk's core range; deduplicate
-   shared context and enforce bounded request sizes.
-2. Render a structured findings request with separately labeled exact context
-   (title/heading, period header, scale/unit, continuation notice) and exact
-   evidence. Preserve source-range identities; do not flatten them into an
-   unlabelled preceding-chunk prefix.
-3. Extend the typed finding contract and validation so a normalized numeric claim
-   records the source references that support its number, period, and scale when
-   available. Missing or conflicting context remains unresolved rather than
-   guessed. Existing exact-quote validation still applies.
-4. Add finding-card inspection of all supporting source references and a
-   controlled ambiguity fixture. This task changes the findings-model input only;
-   it does not add a new Jev selection policy or retrieval benchmark.
-5. Version the findings prompt/configuration cache key and report added context
-   size and provider usage separately from evidence text.
+1. Load the persisted validated outline and render it once in the findings request,
+   together with the retained chunks. Each entry retains its section ID, canonical
+   line range, exact visible title or representative quote when available, and a
+   clearly labeled generated topic. Link each retained chunk to its outline
+   section.
+2. Supply the filing's current fiscal-reporting year as explicit request metadata
+   and instruct the findings model to look for values for that year. Derive it from
+   trusted filing metadata, label it as the requested year rather than source
+   evidence. The exact number quote does not have to repeat a period, unit, or
+   scale header when that visible context appears elsewhere in the retained chunk.
+3. Treat the outline as navigation metadata, not supporting evidence. Do not look
+   for, infer, store, or resolve evidence-context bindings; do not add an outline
+   LLM call or modify the outline response contract.
+4. Keep the combined request bounded and structured: the full outline is sent once,
+   while each evidence item remains the exact visible text of its retained chunk.
+   Preserve source-range identities and enforce the configured request budget.
+5. Keep exact-quote validation unchanged. The outline may help the model orient
+   itself, but it cannot justify a guessed period, unit, scale, or attribution;
+   use separately retained visible context when available, and leave missing or
+   conflicting support unresolved.
+6. Version the findings prompt/configuration cache key and report outline-context
+   size separately from retained-evidence size. Add a focused request-shape test
+   proving the outline and requested current fiscal year are supplied once and no
+   additional outline request occurs.
 
-**Manual verification handoff:** open a published numeric finding, inspect its
-exact number quote and its separately linked title/year/scale context. Open an
-ambiguous finding and confirm it remains unresolved rather than receiving a
-guessed normalization.
+**Manual verification handoff:** open a run's Findings stage and its sanitized
+provider trace. Confirm the request contains the complete labeled outline once,
+the current fiscal-reporting year, each retained chunk links to an outline section,
+and every published finding still jumps to an exact visible quote. Confirm
+ambiguous period, unit, scale, or attribution remains unresolved.
 
-**Acceptance gate:** every context reference shown to the findings model is
-canonical visible source tied to the retained evidence; no Company Facts or
-evaluation value enters the request; valid findings retain their exact quotes;
-missing context cannot silently produce a year, unit, or scale claim.
+**Acceptance gate:** the findings request contains the persisted validated outline
+exactly once and only retained chunk text as evidence; it creates no extra outline
+request or persisted binding; no Company Facts or evaluation value enters the
+request; it states the requested current fiscal-reporting year; valid findings
+retain exact quotes; the exact quote need not repeat period/unit/scale context from
+another retained visible line; missing source support cannot silently produce a
+year, unit, scale, or attribution claim.
 
 **Next: T28.**
 
