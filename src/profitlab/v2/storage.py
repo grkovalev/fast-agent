@@ -24,7 +24,7 @@ class V2Repository:
         self.db_path = self.root / 'profitlab-v2.sqlite3'
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 2, 3, 4, 5, 6, 7):
+            if version not in (0, 2, 3, 4, 5, 6, 7, 8):
                 raise ValueError(f'Unsupported V2 storage schema version: {version}')
             if version == 0:
                 db.executescript(self._schema())
@@ -45,6 +45,9 @@ class V2Repository:
                 db.executescript(self._migrate_6_to_7())
             elif version == 6:
                 db.executescript(self._migrate_6_to_7())
+                db.executescript(self._migrate_7_to_8())
+            elif version == 7:
+                db.executescript(self._migrate_7_to_8())
 
     @staticmethod
     def _schema():
@@ -113,7 +116,11 @@ class V2Repository:
                 created_at TEXT NOT NULL,
                 PRIMARY KEY(request_hash, prompt_version, configuration_hash, actual_model));
             CREATE TABLE finding_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
-            PRAGMA user_version=7;
+            CREATE TABLE company_fact_datasets (run_id TEXT PRIMARY KEY,
+                cik TEXT NOT NULL, source_url TEXT NOT NULL, source_hash TEXT NOT NULL,
+                retrieved_at TEXT NOT NULL, payload BLOB NOT NULL);
+            CREATE TABLE fact_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
+            PRAGMA user_version=8;
         '''
 
     @staticmethod
@@ -166,6 +173,16 @@ class V2Repository:
                 PRIMARY KEY(request_hash, prompt_version, configuration_hash, actual_model));
             CREATE TABLE finding_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
             PRAGMA user_version=7;
+        '''
+
+    @staticmethod
+    def _migrate_7_to_8():
+        return '''
+            CREATE TABLE company_fact_datasets (run_id TEXT PRIMARY KEY,
+                cik TEXT NOT NULL, source_url TEXT NOT NULL, source_hash TEXT NOT NULL,
+                retrieved_at TEXT NOT NULL, payload BLOB NOT NULL);
+            CREATE TABLE fact_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
+            PRAGMA user_version=8;
         '''
 
     @contextmanager
@@ -424,6 +441,59 @@ class V2Repository:
             rows = db.execute('SELECT payload FROM findings WHERE run_id=? ORDER BY finding_id',
                               (run_id,)).fetchall()
         return [Finding.model_validate_json(row['payload']) for row in rows]
+
+    def filing(self, run_id: str):
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM filings WHERE run_id=? ORDER BY filing_id LIMIT 1',
+                             (run_id,)).fetchone()
+        if not row:
+            raise FileNotFoundError('V2 filing')
+        return json.loads(row['payload'])
+
+    def save_company_fact_dataset(self, run_id: str, *, cik: str, source_url: str,
+                                  source_hash: str, payload: bytes):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('''INSERT OR REPLACE INTO company_fact_datasets
+                (run_id, cik, source_url, source_hash, retrieved_at, payload) VALUES (?, ?, ?, ?, ?, ?)''',
+                       (run_id, cik, source_url, source_hash, datetime.now(UTC).isoformat(), payload))
+
+    def company_fact_dataset(self, run_id: str):
+        with self.connect() as db:
+            row = db.execute('SELECT cik, source_url, source_hash, retrieved_at, payload FROM '
+                             'company_fact_datasets WHERE run_id=?', (run_id,)).fetchone()
+        if not row:
+            return None
+        return {**{key: row[key] for key in ('cik', 'source_url', 'source_hash', 'retrieved_at')},
+                'payload': json.loads(bytes(row['payload']))}
+
+    def save_structured_facts(self, run_id: str, facts):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM structured_facts WHERE run_id=?', (run_id,))
+            db.executemany('INSERT INTO structured_facts (run_id, fact_id, metric, value, payload) VALUES (?, ?, ?, ?, ?)', [
+                (run_id, item.fact_id, item.metric, str(item.value), item.model_dump_json()) for item in facts])
+
+    def structured_facts(self, run_id: str):
+        from .contracts import StructuredFact
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM structured_facts WHERE run_id=? ORDER BY metric, payload',
+                              (run_id,)).fetchall()
+        return [StructuredFact.model_validate_json(row['payload']) for row in rows]
+
+    def save_fact_summary(self, run_id: str, payload: dict):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('INSERT OR REPLACE INTO fact_summaries (run_id, payload) VALUES (?, ?)',
+                       (run_id, json.dumps(payload, sort_keys=True)))
+
+    def fact_summary(self, run_id: str):
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM fact_summaries WHERE run_id=?', (run_id,)).fetchone()
+        return json.loads(row['payload']) if row else None
 
     def finding_batch(self, request_hash: str, prompt_version: str,
                       configuration_hash: str, actual_model: str):

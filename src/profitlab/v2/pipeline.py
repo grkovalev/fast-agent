@@ -10,6 +10,7 @@ from profitlab.sec.service import normalize_ticker
 from .chunk_scoring import ChunkScoringService
 from .chunking import SourceRangeChunker
 from .contracts import STAGE_NAMES, V2Run
+from .facts_service import CompanyFactsService
 from .findings_service import FindingsService
 from .outline_service import OutlineService
 from .section_scoring import SectionScoringService
@@ -286,6 +287,35 @@ class V2PipelineService:
                 self.repo.update_stage(finished, event_kind='stage_finished',
                                        event_summary=finished.summary)
                 continue
+            if name == 'facts' and implement_source:
+                try:
+                    facts, alternatives, source_hash = await asyncio.to_thread(
+                        CompanyFactsService(self.settings, self.repo).load, self.repo.get_run(run_id))
+                except Exception as error:  # noqa: BLE001 - facts failure cannot rewrite discovery output
+                    failed = running.model_copy(update={
+                        'status': 'failed', 'finished_at': datetime.now(UTC),
+                        'elapsed_seconds': monotonic() - tick,
+                        'summary': 'Independent SEC Company Facts could not be loaded.',
+                        'error': self.settings.redactor().text(str(error)),
+                    })
+                    self.repo.update_stage(failed, event_kind='stage_finished',
+                                           event_summary=failed.summary)
+                    self.repo.update_run(run_id, status='failed', summary=failed.summary,
+                                         kind='run_finished')
+                    return self.repo.get_run(run_id)
+                finished = running.model_copy(update={
+                    'status': 'completed', 'completed_work': len(facts),
+                    'total_work': len(facts), 'finished_at': datetime.now(UTC),
+                    'elapsed_seconds': monotonic() - tick,
+                    'summary': (f'Normalized {len(facts)} independent annual SEC Company Facts; '
+                                f'{sum(map(len, alternatives.values()))} duplicate alternative(s) retained.'),
+                    'limitation': ('Saved synthetic Company Facts fixture only; configure SEC contact '
+                                   'details for live SEC retrieval.' if run.mode == 'offline' else None),
+                    'output_hash': source_hash,
+                })
+                self.repo.update_stage(finished, event_kind='stage_finished',
+                                       event_summary=finished.summary)
+                continue
             limitation = 'Stage implementation begins in a later task; no domain output was fabricated.'
             finished = running.model_copy(update={
                 'status': 'partial', 'completed_work': 0, 'total_work': 0,
@@ -295,7 +325,7 @@ class V2PipelineService:
             })
             self.repo.update_stage(finished, event_kind='stage_finished',
                                    event_summary=finished.summary)
-        summary = ('V2 source, outline, section scoring, source-range chunking, detailed chunk scoring, and quote-backed findings are complete; later domain stages are explicitly unimplemented.'
+        summary = ('V2 source, outline, section scoring, source-range chunking, detailed chunk scoring, quote-backed findings, and independent Company Facts are complete; later domain stages are explicitly unimplemented.'
                    if implement_source else
                    'V2 shell completed; all domain stages are explicitly unimplemented.')
         self.repo.update_run(run_id, status='partial', summary=summary, kind='run_finished')

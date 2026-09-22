@@ -107,6 +107,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             'findings': v2_pipeline.repo.findings(run_id) if stage == 'findings' else [],
             'finding_summary': v2_pipeline.repo.finding_summary(run_id) if stage == 'findings' else None,
             'finding_actions': v2_pipeline.repo.exploration_actions(run_id, 'findings') if stage == 'findings' else [],
+            'structured_facts': v2_pipeline.repo.structured_facts(run_id) if stage == 'facts' else [],
+            'fact_summary': v2_pipeline.repo.fact_summary(run_id) if stage == 'facts' else None,
         })
 
     @app.get('/v2/runs/{run_id}/chunks/{chunk_id}')

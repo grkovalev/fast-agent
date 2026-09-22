@@ -3,11 +3,11 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T20 converts retained visible evidence into persisted
-  quote-backed findings with canonical character coordinates and source anchors.
-- Next task: **T21 — Post-discovery SEC Company Facts adapter.**
-- Latest verified task: T20 focused local acceptance; manual browser inspection and live
-  findings-model retrieval remain pending.
+- Implementation status: T21 seals findings before retrieving one independent SEC Company
+  Facts dataset, preserving normalized exact annual facts and duplicate provenance.
+- Next task: **T22 — Independent fact comparison.**
+- Latest verified task: T21 focused local acceptance; manual browser inspection and live
+  SEC Company Facts retrieval remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -40,7 +40,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T18 | Source-range chunking with bounded overlap | DONE | Manual browser inspection and live SEC/Jev source pending |
 | T19 | Jev detailed chunk scoring | DONE | Offline fixture acceptance passed; live Jev/manual UI pending |
 | T20 | Quote-backed findings | DONE | Manual browser and live LLM verification pending |
-| T21 | Post-discovery SEC Company Facts | TODO | Not run |
+| T21 | Post-discovery SEC Company Facts | DONE | Offline fixture acceptance passed; live SEC/manual UI pending |
 | T22 | Independent fact comparison | TODO | Not run |
 | T23 | Consolidated modern pipeline UI | TODO | Not run |
 | T24 | Provider, persistence, and resume optimization | TODO | Not run |
@@ -60,6 +60,45 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T21 — Post-discovery SEC Company Facts adapter.
+Implemented: the V2 Facts stage now runs only after Findings has completed and sealed.
+It retrieves one Company Facts JSON dataset using the existing bounded SEC client,
+identity, retry, and cache policy (or a clearly labeled saved synthetic fixture), stores
+that raw dataset as one V2 source blob, and normalizes only configured annual facts.
+The narrow mapping supports `NetIncomeLoss`, `ProfitLoss`, common-stockholder
+basic/diluted income concepts, diluted EPS, and diluted weighted-average shares. Facts
+must match the selected accession/form, FY duration, accepted unit, and selected report
+period; exact Decimal, unit, interval, accession, form, and filed date are persisted.
+Repeated candidates are selected deterministically while alternatives remain visible in
+the Facts workspace. The source HTML is never parsed as Inline XBRL, and neither Jev nor
+findings payloads gain access to Company Facts.
+
+Commands/results:
+- Inspected and timed the direct predecessor boundary: `time uv run pytest
+  tests/task_gates/test_t20.py tests/task_gates/test_t19.py -q`: **4 passed** in
+  1.25s (1.64s wall time), with one existing Starlette/AnyIO deprecation warning.
+  No obsolete tests were removed: both directly cover the active discovery/finding
+  boundary.
+- Added `tests/task_gates/test_t21.py`: sealing-before-facts, exact Decimal/provenance,
+  deterministic duplicate-alternative, non-leakage, and offline workspace coverage.
+- Final acceptance: `uv run ruff check .`, `git diff --check`, and `time uv run pytest
+  tests/task_gates/test_t21.py tests/task_gates/test_t20.py -q`: **4 passed** in
+  1.18s (1.59s wall time), with the same warning.
+- Browser automation was not run per task policy. No live SEC request was made because
+  SEC contact credentials were not assumed. The remaining gap is a configured live MSFT
+  run confirming the annual `NetIncomeLoss` series and manual Facts-stage inspection.
+
+With the server running, open `http://127.0.0.1:8000/`. In **V2 workspace**, enter
+`DEMO`, select **Offline fixture**, and click **Create fresh V2 run**. After it advances,
+open **Facts**. Confirm that each row shows the metric-to-concept mapping, exact Decimal,
+annual period/unit, accession, and filed date; open the duplicate alternatives and the
+dataset-provenance details. Then open **Findings** and its request inspection to confirm
+Company Facts never appeared there. With a real SEC contact configured, repeat for
+`MSFT` and confirm the appropriate annual `NetIncomeLoss` series. This live check remains
+pending.
+
+Next: T22.
 
 Task: T20 — Quote-backed findings and visible-number extraction.
 Implemented: only T19-retained chunks, filing metadata, and target definitions now

@@ -30,6 +30,7 @@ class V2SourceService:
             filing_id = 'filing-synthetic-2025'
             raw_html = (FIXTURES / 'annual-2025.html').read_bytes()
             filing = {'filing_id': filing_id, 'form': '10-K', 'report_date': '2025-12-31',
+                      'cik': '0001234567',
                       'source_url': 'synthetic:annual-2025.html', 'provenance': 'saved synthetic fixture'}
         else:
             if not self.settings.sec_contact_ready():
@@ -48,6 +49,7 @@ class V2SourceService:
                 filing = {'filing_id': selected.filing_id, 'form': selected.form,
                           'report_date': selected.report_date.isoformat(),
                           'accession': selected.accession,
+                          'cik': result.company.cik,
                           'source_url': selected.primary_document_url,
                           'provenance': 'SEC primary filing HTML'}
             except SECError as error:

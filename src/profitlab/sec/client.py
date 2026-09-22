@@ -18,6 +18,7 @@ from profitlab.sec.contracts import FilingArrays, Submissions, TickerEntry
 
 TICKERS = 'https://www.sec.gov/files/company_tickers.json'
 SUBMISSIONS = 'https://data.sec.gov/submissions/'
+COMPANY_FACTS = 'https://data.sec.gov/api/xbrl/companyfacts/'
 
 
 class SECError(Exception):
@@ -75,7 +76,8 @@ class SECClient:
         if document:
             if not re.fullmatch(r'https://www\.sec\.gov/Archives/edgar/data/[0-9]+/[0-9]{18}/[A-Za-z0-9_.-]+', url):
                 raise SECError('invalid_url', 'Only verified SEC archive URLs are allowed.')
-        elif url != TICKERS and not url.startswith(SUBMISSIONS):
+        elif url != TICKERS and not url.startswith(SUBMISSIONS) and not re.fullmatch(
+                r'https://data\.sec\.gov/api/xbrl/companyfacts/CIK\d{10}\.json', url):
             raise SECError('invalid_url', 'Only official SEC discovery URLs are allowed.')
         adapter = TypeAdapter(schema)
         call = 'call-' + uuid4().hex
@@ -186,3 +188,9 @@ class SECClient:
 
     def history(self, name):
         return self.get(SUBMISSIONS + name, FilingArrays, stage='discover')
+
+    def company_facts(self, cik):
+        """Retrieve one bounded SEC Company Facts dataset for a discovered company."""
+        if not re.fullmatch(r'\d{10}', str(cik)):
+            raise SECError('invalid_response', 'Invalid SEC CIK for Company Facts.')
+        return self.get(f'{COMPANY_FACTS}CIK{cik}.json', dict, stage='facts')
