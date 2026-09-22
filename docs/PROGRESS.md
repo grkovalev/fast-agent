@@ -4,7 +4,8 @@
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
 - Implementation status: T27 adds the validated outline and requested current fiscal year
-  to the bounded findings request; only the fresh V2 workspace is supported.
+  to the bounded findings request and requires one exact core-line citation; only
+  the fresh V2 workspace is supported.
 - Next task: **T28 — Retrieval benchmark and baselines.**
 - Latest verified task: T27 local acceptance; manual browser inspection and live
   SEC/LLM comparison remain pending.
@@ -69,13 +70,16 @@ Task: T27 — Outline-aware findings inputs.
 Implemented: the single bounded findings request now includes the complete persisted
 validated outline once, with labeled generated topics, exact visible titles/quotes where
 available, section IDs, and canonical line ranges. Every retained chunk identifies its
-outline section. Trusted filing `report_date` metadata supplies the requested current
+outline section and separates numbered core evidence lines from context lines. Every
+finding must declare one core source line and quote only from that line; context cannot
+be cited. Trusted filing `report_date` metadata supplies the requested current
 fiscal-reporting year; the findings prompt asks for that year's values and treats both
 the outline and year as orientation rather than evidence. The exact quote validates the
 numeric value; period, unit, and scale may use separately retained visible chunk context.
 Findings diagnostics and the workspace now report the requested year plus separate
-outline-context and retained-evidence character counts. The findings prompt version is
-`findings-v2-outline-current-year`, so previous findings batches are not reused.
+outline-context and retained-evidence character counts. String `limitations` values are
+normalized to a one-item list before validation. The findings prompt version is
+`findings-v3-core-line-citation`, so previous findings batches are not reused.
 
 Commands/results:
 
@@ -84,7 +88,8 @@ Commands/results:
 - Added `tests/task_gates/test_t27.py`: asserts the full persisted outline appears once
   in the findings request, chunks retain outline lineage, trusted report year `2025` is
   supplied, diagnostics record the separate payload sizes, and a current-year period can
-  use separate retained visible context rather than the number quote itself.
+  use separate retained visible context rather than the number quote itself. It also
+  verifies a context line cannot be used as a finding citation.
 - Focused acceptance: `uv run pytest tests/task_gates/test_t20.py
   tests/task_gates/test_t27.py -q`: **4 passed** in 1.26s, with the same warning.
 - Affected regression: `uv run pytest tests/task_gates/test_t19.py
@@ -92,6 +97,8 @@ Commands/results:
   tests/task_gates/test_t22.py tests/task_gates/test_t23.py
   tests/task_gates/test_t27.py -q`: **12 passed** in 2.34s, with the same warning;
   `uv run ruff check .` and `git diff --check` passed.
+- Citation-boundary follow-up: the same affected command now reports **13 passed** in
+  2.41s, with the same warning; `uv run ruff check .` and `git diff --check` passed.
 - Browser automation was not run per task policy. No live SEC or LLM calls were made;
   manual and live inspection remain pending.
 

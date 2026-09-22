@@ -131,8 +131,10 @@ assertion. A finding still requires an exact quote in its retained chunk, and a
 model may normalize a number only when that visible evidence supports the needed
 attribution and current-period claim. The exact number quote need not also contain
 the period, unit, or scale header when those occur on separate retained visible
-lines. Otherwise it must preserve ambiguity. Company Facts and evaluation output
-remain unavailable.
+lines. A finding names one core source line, and its quote must be an exact
+substring of that line; all other core and overlap lines are context only and
+cannot be cited. Otherwise it must preserve ambiguity. Company Facts and
+evaluation output remain unavailable.
 
 ## 16. Benchmark
 

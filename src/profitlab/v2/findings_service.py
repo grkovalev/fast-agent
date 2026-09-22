@@ -10,7 +10,7 @@ import httpx
 from openai import AsyncOpenAI
 
 from .canonical import CanonicalDocument
-from .contracts import Finding, SourceRange, TextChunk
+from .contracts import Finding, SourceRange
 from .section_scoring import TARGETS, SectionScoringService
 
 
@@ -31,11 +31,6 @@ class FindingsService:
         self.prompt_version = settings.findings_prompt_version
 
     @staticmethod
-    def _chunk_text(document: CanonicalDocument, chunk: TextChunk) -> str:
-        return '\n'.join([*(document.slice(item) for item in chunk.context_ranges),
-                          document.slice(chunk.core_range)])
-
-    @staticmethod
     def _outline_entry(section):
         return {
             'section_id': section.section_id,
@@ -46,6 +41,11 @@ class FindingsService:
             'exact_representative_quote': section.exact_representative_quote,
         }
 
+    @staticmethod
+    def _lines(document: CanonicalDocument, source_range: SourceRange):
+        return [{'line_number': line.line_number, 'text': line.text}
+                for line in document.lines[source_range.start_line - 1:source_range.end_line]]
+
     def _request_data(self, run_id, document, chunks, scores):
         score_by_id = {item.item_id: item for item in scores if item.policy_decision == 'selected'}
         retained = []
@@ -55,9 +55,9 @@ class FindingsService:
                 continue
             retained.append({'chunk_id': chunk.chunk_id,
                              'outline_section_id': chunk.section_id,
-                             'source_lines': {'start': chunk.core_range.start_line,
-                                              'end': chunk.core_range.end_line},
-                             'exact_visible_text': self._chunk_text(document, chunk),
+                             'core_evidence_lines': self._lines(document, chunk.core_range),
+                             'context_lines': [line for source_range in chunk.context_ranges
+                                               for line in self._lines(document, source_range)],
                              'targets': [target for target, value in score.target_scores.items()
                                          if value >= self.settings.chunk_score_keep_threshold]})
         filing = self.repo.filing(run_id)
@@ -82,17 +82,18 @@ class FindingsService:
     @staticmethod
     def _prompt(state, repair=None):
         instruction = '''Return JSON only: {"findings":[...]}. Each finding object may contain only
-narrative, exact_quote, source_chunk_id, target, raw_number, normalized_value, unit,
-period, attribution, limitations. exact_quote must be copied verbatim from exactly one
-provided chunk and must fit within one visible source line. Do not infer a period, scale,
-unit, or attribution: use null and add a limitation when unclear. raw_number must be
-visible inside exact_quote. normalized_value is an optional decimal proposal, never an
-oracle value. The requested value period is the filing_metadata.current_report_year: seek
-values for that current fiscal-reporting year, not comparative years. The validated_outline
-is navigation metadata only, not evidence. exact_quote proves the numeric finding only:
-period, unit, scale, and attribution may come from separate visible lines in the same
-retained chunk. Use null and explain the limitation when that chunk does not make a field
-clear. Create no finding without an exact quote.\n\nInputs:\n'''
+narrative, exact_quote, source_chunk_id, source_line, target, raw_number,
+normalized_value, unit, period, attribution, limitations. source_line must be a line_number
+from the selected chunk's core_evidence_lines. exact_quote must be copied verbatim from that
+one source_line only; context_lines may never be cited. limitations must be a JSON array of
+strings. Do not infer a period, scale, unit, or attribution: use null and add a limitation
+when unclear. raw_number must be visible inside exact_quote. normalized_value is an optional
+decimal proposal, never an oracle value. The requested value period is the
+filing_metadata.current_report_year: seek values for that current fiscal-reporting year, not
+comparative years. The validated_outline is navigation metadata only, not evidence.
+exact_quote proves the numeric finding only: period, unit, scale, and attribution may come
+from separate visible lines in the same retained chunk. Use null and explain the limitation
+when that chunk does not make a field clear. Create no finding without an exact quote.\n\nInputs:\n'''
         if repair:
             instruction += '\nRepair only the invalid citations below; retain no invalid item.\n' + json.dumps(repair)
         return instruction + json.dumps(state, ensure_ascii=False)
@@ -100,11 +101,14 @@ clear. Create no finding without an exact quote.\n\nInputs:\n'''
     def _fixture(self, state):
         output = []
         for item in state['retained_chunks']:
-            lines = item['exact_visible_text'].splitlines()
-            quote = next((line for line in lines if re.search(r'\d', line)), lines[0] if lines else '')
+            lines = item['core_evidence_lines']
+            evidence = next((line for line in lines if re.search(r'\d', line['text'])),
+                            lines[0] if lines else {'line_number': None, 'text': ''})
+            quote = evidence['text']
             number = re.search(r'(?<!\w)(?:\$?\(?[\d,]+(?:\.\d+)?\)?)(?!\w)', quote)
             output.append({'narrative': 'Visible filing evidence retained for review.',
                            'exact_quote': quote, 'source_chunk_id': item['chunk_id'],
+                           'source_line': evidence['line_number'],
                            'target': item['targets'][0] if item['targets'] else None,
                            'raw_number': number.group(0) if number else None,
                            'normalized_value': None, 'unit': None, 'period': None,
@@ -146,22 +150,18 @@ clear. Create no finding without an exact quote.\n\nInputs:\n'''
         quote = proposal.get('exact_quote')
         if not chunk or not isinstance(quote, str) or not quote:
             return None, 'missing chunk reference or exact quote'
-        # Quote resolution intentionally searches the referenced chunk/source range,
-        # never the document globally. Core has priority over contextual overlap.
-        location = None
-        for source_range in [chunk.core_range, *chunk.context_ranges]:
-            for line in document.lines[source_range.start_line - 1:source_range.end_line]:
-                offset = line.text.find(quote)
-                if offset >= 0:
-                    location = SourceRange(document_id=document.ref.document_id,
-                        source_hash=document.ref.source_hash, start_line=line.line_number,
-                        end_line=line.line_number, start_character=offset,
-                        end_character=offset + len(quote))
-                    break
-            if location:
-                break
-        if location is None or quote not in self._chunk_text(document, chunk):
-            return None, 'quote is not an exact substring in the referenced chunk/source range'
+        source_line = proposal.get('source_line')
+        if not isinstance(source_line, int) or isinstance(source_line, bool):
+            return None, 'source line must be an integer core evidence line'
+        if not chunk.core_range.start_line <= source_line <= chunk.core_range.end_line:
+            return None, 'source line is outside the chunk core evidence range'
+        line = document.lines[source_line - 1]
+        offset = line.text.find(quote)
+        if offset < 0:
+            return None, 'quote is not an exact substring in the declared core evidence line'
+        location = SourceRange(document_id=document.ref.document_id,
+            source_hash=document.ref.source_hash, start_line=source_line,
+            end_line=source_line, start_character=offset, end_character=offset + len(quote))
         raw = proposal.get('raw_number')
         if raw is not None and (not isinstance(raw, str) or raw not in quote):
             return None, 'raw number is not visible in the exact quote'
@@ -172,6 +172,8 @@ clear. Create no finding without an exact quote.\n\nInputs:\n'''
         if normalized is not None and raw is None:
             return None, 'normalized number must retain its visible raw number'
         limitations = proposal.get('limitations', [])
+        if isinstance(limitations, str):
+            limitations = [limitations]
         if not isinstance(limitations, list) or not all(isinstance(item, str) for item in limitations):
             return None, 'limitations must be a string list'
         unknown = [field for field in ('unit', 'period', 'attribution')
@@ -249,7 +251,8 @@ clear. Create no finding without an exact quote.\n\nInputs:\n'''
             'calls': calls, 'cached': cached, 'rejected': len(rejected), 'model': actual_model,
             'outline_context_characters': len(json.dumps(state['validated_outline'], ensure_ascii=False)),
             'retained_evidence_characters': sum(
-                len(item['exact_visible_text']) for item in state['retained_chunks']),
+                sum(len(line['text']) for line in item['core_evidence_lines'])
+                for item in state['retained_chunks']),
             'current_report_year': state['filing_metadata']['current_report_year'],
         })
         self.repo.save_exploration_action(run_id, 'findings-request', 'findings', 1,

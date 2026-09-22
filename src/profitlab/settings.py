@@ -77,7 +77,7 @@ class Settings(BaseSettings):
     chunk_score_overlap_dedupe_ratio: float = Field(.65, ge=0, le=1)
     # Findings receive only the small retained visible-evidence set.  One repair is
     # intentionally permitted for a malformed citation; uncited prose is rejected.
-    findings_prompt_version: str = 'findings-v2-outline-current-year'
+    findings_prompt_version: str = 'findings-v3-core-line-citation'
     findings_max_requests: int = Field(2, ge=1, le=10)
     findings_total_timeout: float = Field(300, gt=0, le=1800)
     findings_request_char_budget: int = Field(60000, ge=1000, le=1000000)

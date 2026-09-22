@@ -29,6 +29,9 @@ def test_findings_request_sends_validated_outline_once_with_current_report_year(
     assert len({item['section_id'] for item in state['validated_outline']}) == len(sections)
     assert {item['outline_section_id'] for item in state['retained_chunks']} <= {
         item['section_id'] for item in state['validated_outline']}
+    assert all(item['core_evidence_lines'] for item in state['retained_chunks'])
+    assert all({'line_number', 'text'} == set(line)
+               for item in state['retained_chunks'] for line in item['core_evidence_lines'])
     assert 'contextRef' not in str(state) and 'structured_facts' not in state
 
     recorded = pipeline.repo.exploration_actions('outline-findings-t27', 'findings')[0]['request']
@@ -53,12 +56,37 @@ def test_current_year_period_may_use_separate_retained_chunk_context(tmp_path):
     chunk = next(item for item in pipeline.repo.chunks('period-proof-t27') if any(
         '2025' not in line.text and line.text for line in document.lines[
             item.core_range.start_line - 1:item.core_range.end_line]))
-    quote = next(line.text for line in document.lines[chunk.core_range.start_line - 1:
-                                                      chunk.core_range.end_line]
-                 if '2025' not in line.text and line.text)
+    source = next(line for line in document.lines[chunk.core_range.start_line - 1:
+                                                  chunk.core_range.end_line]
+                  if '2025' not in line.text and line.text)
     finding, reason = FindingsService(settings, pipeline.repo)._validate(document, [chunk], {
-        'source_chunk_id': chunk.chunk_id, 'exact_quote': quote, 'period': '2025',
+        'source_chunk_id': chunk.chunk_id, 'source_line': source.line_number,
+        'exact_quote': source.text, 'period': '2025',
     }, 'controlled')
 
     assert reason is None
     assert finding is not None and finding.period == '2025'
+
+
+def test_finding_citation_cannot_use_context_or_another_core_line(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None,
+                        chunk_target_tokens=100, chunk_overlap_tokens=40,
+                        chunk_question_overhead=500, chunk_request_budget=1000,
+                        outline_window_lines=100, section_score_batch_size=2)
+    pipeline = V2PipelineService(settings)
+    pipeline.create(run_id='core-citation-t27')
+    asyncio.run(pipeline.run('core-citation-t27', implement_source=True))
+    document_ref = pipeline.repo.canonical_refs('core-citation-t27')[0]
+    document = pipeline.repo.canonical_document('core-citation-t27', document_ref.document_id)
+    base_chunk = pipeline.repo.chunks('core-citation-t27')[0]
+    context_line = document.lines[-1]
+    chunk = base_chunk.model_copy(update={'context_ranges': [
+        base_chunk.core_range.model_copy(update={
+            'start_line': context_line.line_number, 'end_line': context_line.line_number})]})
+    finding, reason = FindingsService(settings, pipeline.repo)._validate(document, [chunk], {
+        'source_chunk_id': chunk.chunk_id, 'source_line': context_line.line_number,
+        'exact_quote': context_line.text,
+    }, 'controlled')
+
+    assert finding is None
+    assert reason == 'source line is outside the chunk core evidence range'

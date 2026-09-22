@@ -22,7 +22,9 @@ def test_findings_reject_invalid_quote_and_resolve_valid_quote_to_exact_anchor(t
     chunks = pipeline.repo.chunks('quotes-t20')
     service = FindingsService(settings, pipeline.repo)
     rejected, reason = service._validate(document, chunks, {
-        'source_chunk_id': chunks[0].chunk_id, 'exact_quote': 'invented oracle value',
+        'source_chunk_id': chunks[0].chunk_id,
+        'source_line': chunks[0].core_range.start_line,
+        'exact_quote': 'invented oracle value',
     }, 'controlled')
     assert rejected is None and 'exact substring' in reason
 
@@ -32,6 +34,8 @@ def test_findings_reject_invalid_quote_and_resolve_valid_quote_to_exact_anchor(t
         assert item.exact_quote == document.slice(item.source_range)
         assert document.anchor_for(item.source_range).startswith('v2-line-')
         assert item.source_chunk_id in {chunk.chunk_id for chunk in chunks}
+        source_chunk = next(chunk for chunk in chunks if chunk.chunk_id == item.source_chunk_id)
+        assert source_chunk.core_range.start_line <= item.source_range.start_line <= source_chunk.core_range.end_line
 
 
 def test_offline_findings_are_persisted_deduplicated_and_rendered(tmp_path):

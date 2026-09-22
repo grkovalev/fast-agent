@@ -318,8 +318,11 @@ navigational context alongside retained evidence, in its single bounded request.
    for, infer, store, or resolve evidence-context bindings; do not add an outline
    LLM call or modify the outline response contract.
 4. Keep the combined request bounded and structured: the full outline is sent once,
-   while each evidence item remains the exact visible text of its retained chunk.
-   Preserve source-range identities and enforce the configured request budget.
+   while each retained chunk supplies numbered core evidence lines and separately
+   labeled context lines. Require every finding to name one core source line and
+   quote an exact substring of that line; context may inform interpretation but
+   must never be cited. Preserve source-range identities and enforce the configured
+   request budget.
 5. Keep exact-quote validation unchanged. The outline may help the model orient
    itself, but it cannot justify a guessed period, unit, scale, or attribution;
    use separately retained visible context when available, and leave missing or
@@ -339,9 +342,9 @@ ambiguous period, unit, scale, or attribution remains unresolved.
 exactly once and only retained chunk text as evidence; it creates no extra outline
 request or persisted binding; no Company Facts or evaluation value enters the
 request; it states the requested current fiscal-reporting year; valid findings
-retain exact quotes; the exact quote need not repeat period/unit/scale context from
-another retained visible line; missing source support cannot silently produce a
-year, unit, scale, or attribution claim.
+retain an exact quote from their declared core source line; the exact quote need
+not repeat period/unit/scale context from another retained visible line; missing
+source support cannot silently produce a year, unit, scale, or attribution claim.
 
 **Next: T28.**
 
