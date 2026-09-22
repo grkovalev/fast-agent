@@ -121,6 +121,8 @@ class Finding(V2Contract):
     narrative: str = Field(min_length=1)
     exact_quote: str = Field(min_length=1)
     source_range: SourceRange
+    source_chunk_id: StableID | None = None
+    target: str | None = None
     raw_number: str | None = None
     normalized_value: Decimal | None = None
     unit: str | None = None
@@ -128,6 +130,8 @@ class Finding(V2Contract):
     attribution: str | None = None
     limitations: list[str] = Field(default_factory=list)
     validation_state: Literal['validated', 'rejected', 'unresolved']
+    model: str | None = None
+    repair_attempted: bool = False
 
 
 class StructuredFact(V2Contract):

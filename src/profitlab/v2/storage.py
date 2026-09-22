@@ -24,7 +24,7 @@ class V2Repository:
         self.db_path = self.root / 'profitlab-v2.sqlite3'
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 2, 3, 4, 5, 6):
+            if version not in (0, 2, 3, 4, 5, 6, 7):
                 raise ValueError(f'Unsupported V2 storage schema version: {version}')
             if version == 0:
                 db.executescript(self._schema())
@@ -42,6 +42,9 @@ class V2Repository:
                 db.executescript(self._migrate_5_to_6())
             elif version == 5:
                 db.executescript(self._migrate_5_to_6())
+                db.executescript(self._migrate_6_to_7())
+            elif version == 6:
+                db.executescript(self._migrate_6_to_7())
 
     @staticmethod
     def _schema():
@@ -105,7 +108,12 @@ class V2Repository:
                 actual_model TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL,
                 PRIMARY KEY(source_range_hash, prompt_version, configuration_hash, actual_model));
             CREATE TABLE chunk_score_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
-            PRAGMA user_version=6;
+            CREATE TABLE finding_batches (request_hash TEXT NOT NULL, prompt_version TEXT NOT NULL,
+                configuration_hash TEXT NOT NULL, actual_model TEXT NOT NULL, payload TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY(request_hash, prompt_version, configuration_hash, actual_model));
+            CREATE TABLE finding_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
+            PRAGMA user_version=7;
         '''
 
     @staticmethod
@@ -147,6 +155,17 @@ class V2Repository:
                 PRIMARY KEY(source_range_hash, prompt_version, configuration_hash, actual_model));
             CREATE TABLE chunk_score_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
             PRAGMA user_version=6;
+        '''
+
+    @staticmethod
+    def _migrate_6_to_7():
+        return '''
+            CREATE TABLE finding_batches (request_hash TEXT NOT NULL, prompt_version TEXT NOT NULL,
+                configuration_hash TEXT NOT NULL, actual_model TEXT NOT NULL, payload TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY(request_hash, prompt_version, configuration_hash, actual_model));
+            CREATE TABLE finding_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
+            PRAGMA user_version=7;
         '''
 
     @contextmanager
@@ -388,6 +407,53 @@ class V2Repository:
     def chunk_score_summary(self, run_id: str):
         with self.connect() as db:
             row = db.execute('SELECT payload FROM chunk_score_summaries WHERE run_id=?', (run_id,)).fetchone()
+        return json.loads(row['payload']) if row else None
+
+    def save_findings(self, run_id: str, findings):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM findings WHERE run_id=?', (run_id,))
+            db.executemany('INSERT INTO findings (run_id, finding_id, payload) VALUES (?, ?, ?)', [
+                (run_id, item.finding_id, item.model_dump_json()) for item in findings])
+
+    def findings(self, run_id: str):
+        from .contracts import Finding
+
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM findings WHERE run_id=? ORDER BY finding_id',
+                              (run_id,)).fetchall()
+        return [Finding.model_validate_json(row['payload']) for row in rows]
+
+    def finding_batch(self, request_hash: str, prompt_version: str,
+                      configuration_hash: str, actual_model: str):
+        with self.connect() as db:
+            row = db.execute('''SELECT payload FROM finding_batches WHERE request_hash=?
+                AND prompt_version=? AND configuration_hash=? AND actual_model=?''',
+                             (request_hash, prompt_version, configuration_hash,
+                              actual_model)).fetchone()
+        return json.loads(row['payload']) if row else None
+
+    def save_finding_batch(self, request_hash: str, prompt_version: str,
+                           configuration_hash: str, actual_model: str, payload: dict):
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('''INSERT OR REPLACE INTO finding_batches
+                (request_hash, prompt_version, configuration_hash, actual_model, payload, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)''',
+                       (request_hash, prompt_version, configuration_hash, actual_model,
+                        json.dumps(payload, sort_keys=True), datetime.now(UTC).isoformat()))
+
+    def save_finding_summary(self, run_id: str, payload: dict):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('INSERT OR REPLACE INTO finding_summaries (run_id, payload) VALUES (?, ?)',
+                       (run_id, json.dumps(payload, sort_keys=True)))
+
+    def finding_summary(self, run_id: str):
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM finding_summaries WHERE run_id=?', (run_id,)).fetchone()
         return json.loads(row['payload']) if row else None
 
     def save_chunks(self, run_id: str, chunks: list[TextChunk]):

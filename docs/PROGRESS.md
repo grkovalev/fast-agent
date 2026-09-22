@@ -3,10 +3,11 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T19 scores selected source-range chunks with Jev, then retains
-  bounded, diverse visible evidence with overlap suppression and an inspectable workspace view.
-- Next task: **T20 — Quote-backed findings and visible-number extraction.**
-- Latest verified task: T19 focused local acceptance; manual browser inspection and live Jev retrieval remain pending.
+- Implementation status: T20 converts retained visible evidence into persisted
+  quote-backed findings with canonical character coordinates and source anchors.
+- Next task: **T21 — Post-discovery SEC Company Facts adapter.**
+- Latest verified task: T20 focused local acceptance; manual browser inspection and live
+  findings-model retrieval remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -38,7 +39,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T17 | Jev section scoring | DONE | Offline fixture acceptance passed; live Jev/manual UI pending |
 | T18 | Source-range chunking with bounded overlap | DONE | Manual browser inspection and live SEC/Jev source pending |
 | T19 | Jev detailed chunk scoring | DONE | Offline fixture acceptance passed; live Jev/manual UI pending |
-| T20 | Quote-backed findings | TODO | Not run |
+| T20 | Quote-backed findings | DONE | Manual browser and live LLM verification pending |
 | T21 | Post-discovery SEC Company Facts | TODO | Not run |
 | T22 | Independent fact comparison | TODO | Not run |
 | T23 | Consolidated modern pipeline UI | TODO | Not run |
@@ -59,6 +60,56 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T20 — Quote-backed findings and visible-number extraction.
+Implemented: only T19-retained chunks, filing metadata, and target definitions now
+reach the findings LLM. Typed output requires a narrative, exact quote, chunk ID,
+observed raw number, optional Decimal proposal, unit/scale, period, attribution, and
+limitations. The validator resolves each quote only within its referenced retained
+chunk (core before overlap), then persists its exact canonical line/character span and
+HTML anchor lineage. A raw number must be inside that exact quote; malformed Decimal
+proposals, source references, or citations are rejected. A live run gets at most one
+bounded citation-repair request; it never publishes an uncited fallback. Identical
+quote/number pairs introduced by overlap collapse to one validated finding. The
+Findings workspace renders cards with exact quotes, visible-number highlighting,
+unresolved metadata, source jumps, and on-demand sanitized request/validation detail.
+Offline fixture findings are explicitly marked as such; no provider inference is
+claimed.
+
+Commands/results:
+- Inspected and timed the direct predecessor boundary: `time uv run pytest
+  tests/task_gates/test_t19.py tests/task_gates/test_t18.py -q`: **4 passed** in
+  1.07s (1.43s wall time), with one existing Starlette/AnyIO deprecation warning.
+  No obsolete tests were removed: both directly cover active source-range and retained
+  evidence behavior.
+- Added `tests/task_gates/test_t20.py`: a controlled invalid quote rejection plus a
+  source-coordinate/anchor invariant, and an offline pipeline/workspace path covering
+  persistence, deduplication, and the visible-only request boundary.
+- `uv run ruff check src/profitlab/v2 src/profitlab/web tests/task_gates/test_t20.py`
+  passed; `time uv run pytest tests/task_gates/test_t20.py tests/task_gates/test_t19.py -q`:
+  **4 passed** in 1.22s (1.60s wall time), with the same warning.
+- Final acceptance: `uv run ruff check .`, `git diff --check`, and `time uv run pytest
+  tests/task_gates/test_t14.py tests/task_gates/test_t15.py tests/task_gates/test_t16.py
+  tests/task_gates/test_t17.py tests/task_gates/test_t18.py tests/task_gates/test_t19.py
+  tests/task_gates/test_t20.py -q`: **17 passed** in 2.06s (2.37s wall time), with
+  the same warning.
+- Browser automation was not run per task policy. No live LLM request was made because
+  credentials were not assumed; the remaining gap is one real saved SEC filing and
+  configured LLM request, including a deliberately invalid-quote repair observation.
+
+With the server running, open `http://127.0.0.1:8000/`. In **V2 workspace**, enter
+`DEMO`, select **Offline fixture**, and click **Create fresh V2 run**. Open
+**Findings** after the run advances. Confirm every card contains an exact quote and a
+source link; follow it and verify the same text is on the canonical source line and
+the sanitized filing HTML anchor. Confirm an absent unit/scale, period, or attribution
+is shown as unresolved, not guessed. Open **Inspect sanitized findings request and
+validation results** and confirm it contains retained visible text and target
+definitions only—never `contextRef`, `unitRef`, `us-gaap:`, Company Facts, or evaluation
+values. With configured LLM/SEC credentials, repeat for a live filing and submit a
+controlled invalid quote to verify its single repair/rejection behavior; this remains
+pending.
+
+Next: T21.
 
 Task: T19 — Jev detailed chunk scoring and diverse top-N evidence.
 Implemented: every V2 chunk is still reconstructed only from its selected-section

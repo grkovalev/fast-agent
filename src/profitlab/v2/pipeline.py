@@ -10,6 +10,7 @@ from profitlab.sec.service import normalize_ticker
 from .chunk_scoring import ChunkScoringService
 from .chunking import SourceRangeChunker
 from .contracts import STAGE_NAMES, V2Run
+from .findings_service import FindingsService
 from .outline_service import OutlineService
 from .section_scoring import SectionScoringService
 from .source_service import V2SourceService
@@ -252,6 +253,39 @@ class V2PipelineService:
                 self.repo.update_stage(finished, event_kind='stage_finished',
                                        event_summary=finished.summary)
                 continue
+            if name == 'findings' and implement_source:
+                try:
+                    document_ref = self.repo.canonical_refs(run_id)[0]
+                    document = self.repo.canonical_document(run_id, document_ref.document_id)
+                    result = await FindingsService(self.settings, self.repo).build(
+                        run_id, document, self.repo.chunks(run_id),
+                        self.repo.scores(run_id, 'chunk_score'), offline=run.mode == 'offline')
+                except Exception as error:  # noqa: BLE001 - citation failures must be durable and inspectable
+                    failed = running.model_copy(update={
+                        'status': 'failed', 'finished_at': datetime.now(UTC),
+                        'elapsed_seconds': monotonic() - tick,
+                        'summary': 'Quote-backed visible findings could not be prepared.',
+                        'error': self.settings.redactor().text(str(error)),
+                    })
+                    self.repo.update_stage(failed, event_kind='stage_finished',
+                                           event_summary=failed.summary)
+                    self.repo.update_run(run_id, status='failed', summary=failed.summary,
+                                         kind='run_finished')
+                    return self.repo.get_run(run_id)
+                finished = running.model_copy(update={
+                    'status': 'completed', 'completed_work': len(result.findings),
+                    'total_work': len(result.findings), 'finished_at': datetime.now(UTC),
+                    'elapsed_seconds': monotonic() - tick,
+                    'summary': (f'Published {len(result.findings)} exact quote-validated findings; '
+                                f'{result.rejected} invalid citation(s) rejected.'),
+                    'limitation': ('Fixture findings only; configure LLM_API_KEY for live visible-number '
+                                   'extraction.' if run.mode == 'offline' else None),
+                    'input_hash': document.ref.source_hash,
+                    'output_hash': hashlib.sha256(''.join(item.finding_id for item in result.findings).encode()).hexdigest(),
+                })
+                self.repo.update_stage(finished, event_kind='stage_finished',
+                                       event_summary=finished.summary)
+                continue
             limitation = 'Stage implementation begins in a later task; no domain output was fabricated.'
             finished = running.model_copy(update={
                 'status': 'partial', 'completed_work': 0, 'total_work': 0,
@@ -261,7 +295,7 @@ class V2PipelineService:
             })
             self.repo.update_stage(finished, event_kind='stage_finished',
                                    event_summary=finished.summary)
-        summary = ('V2 source, outline, section scoring, source-range chunking, and detailed chunk scoring are complete; later domain stages are explicitly unimplemented.'
+        summary = ('V2 source, outline, section scoring, source-range chunking, detailed chunk scoring, and quote-backed findings are complete; later domain stages are explicitly unimplemented.'
                    if implement_source else
                    'V2 shell completed; all domain stages are explicitly unimplemented.')
         self.repo.update_run(run_id, status='partial', summary=summary, kind='run_finished')
