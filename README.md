@@ -32,4 +32,5 @@ uv run ruff check .
 
 See [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the
 [V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md). The next task is
-T28: benchmark Jev retrieval against simple baselines.
+T28: use a bounded Jev boolean verdict to distinguish visible scale-aware matches from
+true evaluation mismatches.

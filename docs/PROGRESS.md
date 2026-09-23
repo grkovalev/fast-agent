@@ -6,7 +6,7 @@
 - Implementation status: T27 adds the validated outline and requested current fiscal year
   to the bounded findings request and requires one exact core-line citation; only
   the fresh V2 workspace is supported.
-- Next task: **T28 — Retrieval benchmark and baselines.**
+- Next task: **T28 — Scale-aware Jev evaluation verdicts.**
 - Latest verified task: T27 local acceptance; manual browser inspection and live
   SEC/LLM comparison remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -47,11 +47,14 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T24 | Provider, persistence, and resume optimization | DONE | Offline replay passed; live verification pending |
 | T25 | Remove obsolete execution paths and tests | DONE | Not applicable |
 | T27 | Outline-aware findings inputs | DONE | Offline request/input acceptance passed; live/manual inspection pending |
-| T28 | Retrieval benchmark and baselines | TODO | Not run |
-| T29 | Final real-data demonstration | TODO | Not run |
-| T30 | Fresh-only storage schema; remove migrations | TODO | Not run |
-| T31 | Remove offline fixture source mode | TODO | Not run |
-| T32 | Diagnose and redesign exact-match evaluation | TODO | Not run |
+| T28 | Scale-aware Jev evaluation verdicts | TODO | Not run |
+| T29 | Readable evaluation comparison cards | TODO | Not run |
+| T30 | Random eligible ticker picker | TODO | Not run |
+| T31 | Retrieval benchmark and baselines | TODO | Not run |
+| T32 | Final real-data demonstration | TODO | Not run |
+| T33 | Fresh-only storage schema; remove migrations | TODO | Not run |
+| T34 | Remove offline fixture source mode | TODO | Not run |
+| T35 | Diagnose and redesign exact-match evaluation | TODO | Not run |
 
 ## Instruction for the implementing agent
 
@@ -82,7 +85,7 @@ optional.
 Findings diagnostics and the workspace now report the requested year plus separate
 outline-context and retained-evidence character counts. String `limitations` values are
 normalized to a one-item list before validation. The findings prompt version is
-`findings-v3-core-line-citation`, so previous findings batches are not reused.
+`findings-v4-required-amount`, so previous findings batches are not reused.
 
 Commands/results:
 
@@ -119,7 +122,7 @@ and `outline_section_id` on each retained chunk. With configured live credential
 verify that a current-year value is found only when its exact quote visibly supports the
 reported period.
 
-Next: T28 — Retrieval benchmark and baselines.
+Next: T28 — Scale-aware Jev evaluation verdicts.
 
 Task: T25 — Remove obsolete execution paths and tests.
 Implemented: deleted the V1 flat pipeline, file-per-artifact repository, historical

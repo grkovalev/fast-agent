@@ -88,7 +88,14 @@ Enforce non-leakage through the allowlisted Jev request contract, sanitization s
 
 ## 10. Independent comparison
 
-Compare findings and structured facts by configured metric, exact normalized Decimal, unit/scale, annual period, and filing scope. States are exact match; value match/period unresolved; period match/value mismatch; structured fact missed; additional visible value; unsupported; and ambiguous duplicate.
+Compare findings and structured facts by configured metric, exact Decimal, unit/scale,
+annual period, and filing scope. States are exact match; value match/period unresolved;
+period match/value mismatch; structured fact missed; additional visible value; unsupported;
+and ambiguous duplicate. For a bounded set of non-exact post-seal pairs, an independent
+Jev boolean verdict may identify scale-aware equivalence only when the supplied visible
+context explicitly supports the conversion. Keep deterministic and Jev-assisted outcomes
+separate; neither may rewrite findings or structured facts, and no evaluation data may
+enter discovery requests.
 
 Evaluation never repairs or mutates discovery. Report Jev-only outcomes separately from deterministic application policy or recovery. Measure expected facts, exact matches, misses, additional visible numbers, value/period accuracy, calls and source lines before first match, retained-source percentage, time to first finding, total latency, and provider usage.
 

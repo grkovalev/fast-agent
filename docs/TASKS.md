@@ -37,11 +37,14 @@ If a task is too large for one session, finish a coherent working slice, keep it
 | T24 | Faster cached/resumable workflow with measured gains | T23 |
 | T25 | Obsolete execution paths and tests removed | T24 |
 | T27 | Outline-aware findings inputs | T25 |
-| T28 | Jev retrieval benchmark against simple baselines | T27 |
-| T29 | Complete measured real-data demonstration | T28 |
-| T30 | Fresh-only storage schema with migration history removed | T29 |
-| T31 | Live-SEC-only source workflow with offline fixture mode removed | T30 |
-| T32 | Evidence-backed evaluation redesign decision | T31 |
+| T28 | Scale-aware Jev evaluation verdicts | T27 |
+| T29 | Readable evaluation comparison cards | T28 |
+| T30 | Random eligible ticker picker | T29 |
+| T31 | Jev retrieval benchmark against simple baselines | T30 |
+| T32 | Complete measured real-data demonstration | T31 |
+| T33 | Fresh-only storage schema with migration history removed | T32 |
+| T34 | Live-SEC-only source workflow with offline fixture mode removed | T33 |
+| T35 | Evidence-backed evaluation redesign decision | T34 |
 
 ## T14 — V2 contracts, storage, and live pipeline shell
 
@@ -348,11 +351,135 @@ source support cannot silently produce a year, unit, scale, or attribution claim
 
 **Next: T28.**
 
-## T28 — Retrieval benchmark and baselines
+## T28 — Scale-aware Jev evaluation verdicts
+
+**Goal:** distinguish a genuine discovery mismatch from the same reported value
+shown at a different explicitly visible scale or unit.
+
+**Read:** V2 plan sections 8–10 and 15. Dependency: T27.
+
+**Implement:**
+
+1. Keep the existing deterministic exact Decimal comparison as the baseline. For
+   bounded candidate finding/fact pairs that are not exact, call Jev after both
+   findings and Company Facts are sealed. This is an evaluation-only provider call:
+   no Company Facts value, verdict, or evaluation output may enter outline,
+   scoring, chunking, or findings requests.
+2. Send the judge the finding's required amount, optional period/unit, declared
+   core evidence line, separately labeled retained context lines, and the candidate
+   structured fact's amount, unit, and fiscal period. Ask one constrained boolean
+   question only: whether the visible finding and structured fact represent the
+   same annual metric/value after applying an explicitly visible scale or unit.
+   “Insufficient visible support,” different period, metric, attribution, or unit
+   must answer `false`; the judge must not invent a conversion.
+3. Persist the boolean verdict, the exact finding/fact IDs, prompt/configuration
+   version, model identity, and sanitized request/response trace. Cache by the
+   pair and visible-context hash. Bound the number of candidate pairs and provider
+   calls per run; do not send every combination of findings and facts.
+4. Add evaluation states that distinguish deterministic exact matches, Jev-confirmed
+   scale-aware equivalence, and rejected/inconclusive candidate pairs. A `true`
+   verdict may improve the evaluation display and metrics, but never rewrites the
+   finding amount, unit, period, citation, or Company Fact.
+5. Add controlled fixtures for the same amount expressed in units and thousands,
+   a genuine value mismatch, and missing scale context. Render the deterministic
+   comparison and Jev boolean verdict side by side with source jumps and provider
+   provenance.
+
+**Manual verification handoff:** open an evaluation with a finding such as
+`237,789` and a Company Fact `237,789,000`, where the retained context states
+“in thousands.” Confirm the exact comparison remains non-exact, the Jev verdict
+is `true`, and the UI labels it as scale-aware equivalence. Open a same-period
+but genuinely different amount and confirm the verdict is `false`.
+
+**Acceptance gate:** Jev receives only post-seal evaluation pairs and sanitized
+visible context; a boolean `true` requires visible scale/unit support and never
+mutates discovery or Company Facts; false/inconclusive pairs remain visible;
+exact-match reporting remains separately available; cache/call bounds and model
+identity are inspectable.
+
+**Next: T29.**
+
+## T29 — Readable evaluation comparison cards
+
+**Goal:** make every evaluation result understandable at a glance, including exact,
+scale-aware, rejected, unresolved, and missing outcomes.
+
+**Read:** V2 plan sections 10–11. Dependency: T28.
+
+**Implement:**
+
+1. Replace the dense evaluation table with one compact comparison card per expected
+   fact and a separate clearly labeled card for additional visible findings. Make
+   metric, requested/current fiscal year, status, discovered amount, structured
+   amount, unit/scale, and evidence source the primary visual hierarchy.
+2. Present deterministic comparison and any Jev boolean verdict together without
+   collapsing their meanings. State plainly whether a result is exact, confirmed
+   scale-aware equivalent, rejected by Jev, unresolved, or missing; never present
+   a Jev verdict as a changed source value.
+3. Put the exact quote, declared evidence line, source jump, retained scale/period
+   context, fact provenance, provider/model identity, and diagnostic JSON behind
+   compact progressive-disclosure controls. Avoid raw JSON or long prose in the
+   default card view.
+4. Add status-specific visual treatments and accessible text labels; retain a
+   sortable/filterable summary for all outcomes. The layout must remain legible on
+   a narrow viewport and with a mix of matched, missing, and additional findings.
+5. Add template-level and focused UI tests for a scale-aware match, genuine
+   mismatch, missing fact, and additional finding. This task changes presentation
+   only: it does not alter evaluation verdicts, provider requests, or metrics.
+
+**Manual verification handoff:** open an evaluation containing all four outcome
+types. Identify the status and both amounts of each card without opening details;
+then expand one card and follow its finding quote and fact provenance links.
+
+**Acceptance gate:** the default evaluation view contains no opaque raw payloads;
+each result makes its comparison state, amounts, and source direction clear;
+deterministic and Jev-assisted decisions remain visibly distinct; keyboard and
+narrow-screen views retain all essential information.
+
+**Next: T30.**
+
+## T30 — Random eligible ticker picker
+
+**Goal:** let a user start a run without having to choose a ticker manually.
+
+**Read:** V2 plan sections 4, 11, and 12. Dependency: T29.
+
+**Implement:**
+
+1. Add a **Random eligible ticker** control to the fresh-run form. It must populate
+   the existing ticker input and leave run creation under the user's explicit
+   control; selecting a ticker must not itself start a provider or SEC filing run.
+2. Reuse the SEC ticker-directory/cache path to construct a deduplicated candidate
+   pool. Sample without a fixed demonstration-company list and record only the
+   directory provenance/version needed to explain the selection.
+3. Before presenting a candidate, use bounded existing filing-discovery rules to
+   confirm it has an eligible recent 10-K for the supported workflow. Retry a
+   small fixed number of candidates; if none qualify or SEC prerequisites are
+   unavailable, show an actionable error and preserve the manually entered ticker.
+4. Make the selection auditable but privacy-preserving: record the displayed
+   ticker, selection timestamp, directory provenance/cache status, and eligibility
+   result. Do not expose a giant ticker list or retain unrelated company data.
+5. Add focused tests for deterministic injected randomness, duplicate ticker
+   handling, an ineligible candidate followed by an eligible one, exhausted
+   selection, and the guarantee that pressing the control does not create a run.
+
+**Manual verification handoff:** open the home page, press **Random eligible ticker**,
+confirm the ticker field changes while no run appears, then create the run explicitly.
+Repeat after forcing no eligible candidate and confirm the manual field remains intact
+with a clear remediation message.
+
+**Acceptance gate:** each displayed random ticker has passed the supported 10-K
+eligibility check; no run/provider call starts before the user submits the form;
+selection retries and failures are bounded and inspectable; manual ticker entry
+continues to work unchanged.
+
+**Next: T31.**
+
+## T31 — Retrieval benchmark and baselines
 
 **Goal:** measure whether Jev improves discovery efficiency while preserving required visible evidence.
 
-**Read:** V2 plan sections 14–16. Dependency: T27.
+**Read:** V2 plan sections 14–16. Dependency: T30.
 
 **Implement:**
 
@@ -367,13 +494,13 @@ source support cannot silently produce a year, unit, scale, or attribution claim
 
 **Acceptance gate:** gold ranges and structured facts never enter Jev requests; overlap is deduplicated; denominators are explained; initial held-out targets remain at least 95% relevant-range recall, 100% required-fact coverage, and no wrong selected metric/year values, or the UI clearly reports that the targets were not met.
 
-**Next: T29.**
+**Next: T32.**
 
-## T29 — Final real-data, real-time demonstration
+## T32 — Final real-data, real-time demonstration
 
 **Goal:** prove the streamlined V2 pipeline works end to end on varied real filings and remains inspectable when imperfect.
 
-**Read:** all V2 plan sections. Dependency: T28.
+**Read:** all V2 plan sections. Dependency: T31.
 
 **Implement:**
 
@@ -389,7 +516,7 @@ source support cannot silently produce a year, unit, scale, or attribution claim
 
 **Final handoff:** provide the startup command, one representative run URL, measured results for each real company, remaining unsupported cases, and the shortest path for verifying that XBRL data did not enter Jev requests.
 
-## T30 — Fresh-only storage schema; remove migrations
+## T33 — Fresh-only storage schema; remove migrations
 
 **Goal:** reduce persistence complexity by supporting only a newly created V2 database. Existing local run data may be discarded.
 
@@ -405,9 +532,9 @@ source support cannot silently produce a year, unit, scale, or attribution claim
 
 **Acceptance gate:** a clean V2 database has the full current schema; static search finds no V2 migration/version-upgrade code; no old data is read or silently modified; the reset path is documented and tested.
 
-**Next: T31.**
+**Next: T34.**
 
-## T31 — Remove offline fixture source mode
+## T34 — Remove offline fixture source mode
 
 **Goal:** simplify the product to one real-data path: a live SEC filing source followed by configured provider calls.
 
@@ -423,9 +550,9 @@ source support cannot silently produce a year, unit, scale, or attribution claim
 
 **Acceptance gate:** static search finds no supported V2 offline mode, fixture source option, or fixture-provider branch; no UI or CLI offers an offline run; live prerequisite errors are actionable; focused tests cover live-mode validation and the retained source contracts.
 
-**Next: T32.**
+**Next: T35.**
 
-## T32 — Diagnose and redesign exact-match evaluation
+## T35 — Diagnose and redesign exact-match evaluation
 
 **Goal:** determine why quote-backed discoveries fail to match the exact structured facts currently used for evaluation, then make an evidence-backed decision to improve discovery, revise evaluation, or do both.
 
