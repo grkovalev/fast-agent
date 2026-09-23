@@ -14,6 +14,9 @@
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
 - Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
+- Data-retention decision: the user authorizes discarding the current local V2 data when
+  the fresh-only schema/storage cleanup is performed; no compatibility or preservation
+  work is required for existing local runs.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
 
 ## Task tracker
@@ -56,6 +59,9 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T33 | Fresh-only storage schema; remove migrations | TODO | Not run |
 | T34 | Remove offline fixture source mode | TODO | Not run |
 | T35 | Diagnose and redesign exact-match evaluation | TODO | Not run |
+| T36 | Overall cross-run evaluation scorecard | TODO | Not run |
+| T37 | Sequential random-report batch runner | TODO | Not run |
+| T38 | Versioned run timing and evaluation cohorts | TODO | Not run |
 
 ## Instruction for the implementing agent
 

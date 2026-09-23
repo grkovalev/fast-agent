@@ -45,6 +45,9 @@ If a task is too large for one session, finish a coherent working slice, keep it
 | T33 | Fresh-only storage schema with migration history removed | T32 |
 | T34 | Live-SEC-only source workflow with offline fixture mode removed | T33 |
 | T35 | Evidence-backed evaluation redesign decision | T34 |
+| T36 | Overall cross-run evaluation scorecard | T35 |
+| T37 | Sequential random-report batch runner | T36 |
+| T38 | Versioned run timing and evaluation cohorts | T37 |
 
 ## T14 — V2 contracts, storage, and live pipeline shell
 
@@ -520,6 +523,9 @@ continues to work unchanged.
 
 **Goal:** reduce persistence complexity by supporting only a newly created V2 database. Existing local run data may be discarded.
 
+**Decision:** the user explicitly authorizes deletion of the current local V2 data for
+this cleanup. Preserve no migration, export, compatibility, or recovery path for it.
+
 **Implement:**
 
 1. Replace the versioned SQLite migration chain with one authoritative, current-schema creation path.
@@ -570,3 +576,147 @@ continues to work unchanged.
 **Acceptance gate:** every sampled non-exact result has a reviewed classification; all reported metrics name their oracle, scope, normalization, and denominator; the decision record explicitly chooses pipeline changes, evaluation changes, or both; no evaluation state treats incomparable data as a discovery failure.
 
 **Final handoff:** provide the decision record, sample/run provenance, mismatch breakdown, selected metric definitions, and the next implementation task(s).
+
+## T36 — Overall cross-run evaluation scorecard
+
+**Goal:** make aggregate quality measurable across every V2 run without hiding
+failed, incomplete, or incomparable runs behind a favorable score.
+
+**Read:** V2 plan sections 10, 14, and 16, plus the T35 decision record. Dependency:
+T35.
+
+**Implement:**
+
+1. Define a versioned evaluation unit from T35's approved metric, period, oracle, and
+   normalization contract. Aggregate every persisted V2 run in the current database:
+   completed evaluable runs contribute units; cancelled, failed, incomplete, and
+   unsupported/incomparable runs appear in a run-accounting ledger with their exact
+   exclusion reason and are never silently dropped.
+2. Build a global confusion matrix over reviewed evaluation units. Report true
+   positives (accepted, correct visible evidence), false positives (accepted but
+   incorrect/additional evidence), false negatives (required facts without accepted
+   correct evidence), and true negatives only when the reviewed negative-candidate
+   denominator makes them meaningful. Do not invent a true-negative count from the
+   unbounded filing text.
+3. Compute precision, recall, and F1 from the matrix with explicit zero-denominator
+   behavior and both micro and per-metric/per-period breakdowns. Keep deterministic,
+   Jev-assisted, and any T35 semantic-review outcomes separately selectable; do not
+   combine their denominators by default.
+4. Persist the aggregation configuration, run IDs, evaluation-contract version,
+   calculation timestamp, counts, and warnings. Recompute deterministically when a
+   run's evaluations change; do not call SEC, Jev, or an LLM to calculate scores.
+5. Add a bounded overall-score UI showing run coverage, exclusion reasons, confusion
+   matrix, precision/recall/F1, and links from every matrix cell to the contributing
+   run/comparison records. Make an unavailable or statistically non-meaningful metric
+   visibly unavailable rather than displaying `0%`.
+6. Add one hand-constructed multi-run aggregate invariant test, one incomplete-run
+   accounting test, and one route/UI test that verifies the displayed denominators and
+   links. Include regression coverage for no positives, no predicted positives, and no
+   reviewed negatives.
+
+**Manual verification handoff:** open the overall score page after at least two
+completed live runs and one incomplete/failed run. Confirm every run appears in either
+the included set or exclusion ledger, trace one TP, FP, and FN to its comparison, and
+confirm the displayed precision, recall, and F1 reproduce the matrix counts.
+
+**Acceptance gate:** every stored V2 run is accounted for; the scorecard names its
+evaluation contract and denominators; matrix cells are inspectable; precision, recall,
+and F1 agree exactly with the persisted counts; no unsupported or incomparable unit is
+classified as a false negative; no provider call is caused by score aggregation.
+
+## T37 — Sequential random-report batch runner
+
+**Goal:** run a user-chosen bounded number of independently selected eligible-company
+reports, one at a time, without requiring repeated manual ticker selection.
+
+**Read:** T30 picker behavior, V2 plan sections 2, 11, and 12, and T36 aggregation.
+Dependency: T36.
+
+**Implement:**
+
+1. Add a batch control that accepts an explicit integer `n` within a conservative
+   configured maximum. It creates a durable batch record and executes at most `n`
+   reports sequentially: choose one random eligible ticker, complete or terminally
+   fail that run, then choose the next. Never launch two report pipelines concurrently.
+2. Reuse the eligible-ticker picker and its current-workspace exclusion policy. Within
+   one batch, exclude every ticker already attempted by that batch; explain if the
+   candidate pool is exhausted before `n` runs can be started. Do not use a fixed
+   demonstration-company list.
+3. Before each new report, recheck live prerequisites and eligibility. Treat a picker
+   failure, no eligible filing, cancellation, provider failure, or source failure as a
+   recorded terminal batch item and continue only when the configured batch policy
+   permits it. Bound retries and total work; never spin indefinitely.
+4. Persist batch status, requested count, attempt order, selected ticker, linked run
+   ID when created, timestamps, terminal outcome, and concise error/remediation. Show
+   progress as completed/failed/skipped/requested and link each created run. Do not
+   duplicate source or provider payloads in batch records.
+5. Provide cancellation that prevents future selections after the in-flight run reaches
+   a safe terminal state, and resume that continues only the remaining count with the
+   same uniqueness rules. Surface batch errors without hiding already completed runs.
+6. Add focused tests for deterministic injected random selection, strict one-at-a-time
+   execution, within-batch uniqueness, exhaustion before `n`, failed-run accounting,
+   cancellation/resume, and the invariant that batch orchestration itself makes no
+   extra provider calls beyond its child runs.
+
+**Manual verification handoff:** start a batch of `n=3`, open its progress page, and
+confirm only one child run is active at any moment. Follow each report link, confirm
+the selected tickers are distinct within the batch, cancel after one completes, then
+resume and verify only the remaining reports are selected. Open T36 afterward and
+confirm completed/evaluable runs and failed/incomplete runs are all accounted for.
+
+**Acceptance gate:** a batch runs no more than `n` reports and never runs them in
+parallel; every attempted selection has a persisted outcome; tickers are not repeated
+within a batch unless an explicit exhausted-pool fallback is shown; cancellation and
+resume are durable; each child run remains independently inspectable; aggregate
+scoring can account for every resulting run.
+
+## T38 — Versioned run timing and evaluation cohorts
+
+**Goal:** make every run reproducible and comparable by recording its implementation
+version, every stage runtime, and total run runtime; aggregate evaluation only within
+one identical-version cohort.
+
+**Read:** V2 plan sections 2, 3, 10, and 12, plus T36/T37. Dependency: T37.
+
+**Implement:**
+
+1. Define an immutable run-version identifier at creation time. It must identify the
+   executable/application revision and all behavior-affecting evaluation and pipeline
+   configuration versions (including prompts, models, target definitions, and score
+   contract); record a clear `unknown`/non-comparable state when a component cannot be
+   resolved. A later code or configuration change never mutates an existing run's
+   version.
+2. Persist monotonic elapsed timing for every pipeline stage and the complete run,
+   including queued, active-work, retry/backoff, cancellation, and terminal timing as
+   separately labelled components where applicable. Keep wall-clock timestamps for
+   chronology, but calculate reported durations from monotonic measurements so clock
+   changes cannot corrupt them.
+3. Update the run workspace and batch views to show total elapsed time and a compact
+   stage timing breakdown with status, while preserving partial/cancelled timing and
+   clearly marking unavailable timings. Do not imply that sum-of-stage active work
+   equals wall-clock runtime when queueing or backoff occurred.
+4. Add version and timing provenance to each evaluation record and to the T36 overall
+   score page. The default aggregate must select exactly one run version and include
+   only runs with that exact version. Other versions appear as separate cohorts with
+   their run counts and exclusion notice; never pool them into precision, recall, F1,
+   or confusion-matrix denominators.
+5. Add a version selector and direct cohort/run links. If no cohort has enough
+   evaluable runs, show its accounting and metrics as unavailable rather than combining
+   incompatible data. Batch T37 may create multiple cohorts if the application changes
+   between child runs; show that explicitly.
+6. Add tests for stable version capture, changed configuration yielding a different
+   version, completed/failed/cancelled timing, deterministic total-vs-stage accounting,
+   and an aggregate fixture proving identical-version runs are included while a
+   different-version run is excluded from every score denominator.
+
+**Manual verification handoff:** create or inspect two completed runs with the same
+version and one with a deliberately changed versioned setting. Open each workspace to
+compare stage and total timing, then open the overall evaluation: select the shared
+version and confirm only its two runs contribute to the matrix/precision/recall/F1;
+select the other version and confirm it is shown as its own cohort.
+
+**Acceptance gate:** every newly created run has immutable version provenance and
+total/stage timing; terminal and partial states retain honest durations; all aggregate
+evaluation denominators contain exactly one selected run version; cross-version runs
+are visibly accounted for but never silently pooled; timing/version data require no
+provider calls to inspect.
