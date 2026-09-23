@@ -160,3 +160,36 @@ Report relevant-range recall, structured-fact coverage, exact value accuracy, re
 - No primary view is an unbounded artifact dump.
 - Obsolete V1 execution paths and tests are removed.
 - Manual verification instructions let the user inspect a complete run without browser automation by the agent.
+
+## 18. Context-aware evidence refinement
+
+The baseline sends exact retained chunks to detailed scoring and findings. A later,
+versioned refinement may distinguish evidence-bearing canonical blocks from scoped
+visible context. Examples of context are headings, table column headers, row labels,
+units/scales, table footers, and repeated boilerplate; their meaning is local to the
+section/table/chunk and repeated wording alone does not make it generic.
+
+Use Jev to classify every canonical source block/row in bounded source-order batches
+with a typed response. Its allowlisted input is the row, chunk type (such as table row,
+heading, paragraph, list item, or footer), a bounded preceding/following source window,
+table/section identity when known, and filing metadata. Each result identifies
+evidence-bearing versus contextual rows and attaches contextual rows to the evidence
+ranges they explain. The surrounding window is interpretation context; it is neither
+independently classified nor a replacement for the row as evidence.
+
+Do not fabricate a deterministic classification or fallback: incomplete or invalid Jev
+results leave an explicit partial state. For scoring, provide the evidence core plus the
+smallest necessary context in separate fields and assess relevance of the core. For
+findings, compact context may supplement retained cores, but a published exact quote
+must still be an exact substring of one retained evidence-core canonical line. Context
+may establish unit, period, attribution, or interpretation but may not replace the
+citable evidence.
+
+Keep full-chunk behavior as a versioned baseline and compare it with Jev-classified
+context on immutable reviewed development and held-out samples. Measure reviewed
+classification error, relevant-range recall, required-fact coverage, exact-value
+accuracy, wrong-value rate, cost, latency, and retained text. Adopt the refinement only
+if it preserves the quality floor while providing a measured benefit. Persist
+classifications and core/context source ranges so every decision and finding remains
+inspectable. Evaluation and structured facts remain unavailable to all classification,
+scoring, and findings requests.

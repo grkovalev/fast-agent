@@ -65,6 +65,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T36 | Overall cross-run evaluation scorecard | TODO | Not run |
 | T37 | Sequential random-report batch runner | TODO | Not run |
 | T38 | Versioned run timing and evaluation cohorts | TODO | Not run |
+| T39 | Context-aware Jev scoring and compact findings evidence | TODO | Not run |
 
 ## Instruction for the implementing agent
 

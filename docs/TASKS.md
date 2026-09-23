@@ -48,6 +48,7 @@ If a task is too large for one session, finish a coherent working slice, keep it
 | T36 | Overall cross-run evaluation scorecard | T35 |
 | T37 | Sequential random-report batch runner | T36 |
 | T38 | Versioned run timing and evaluation cohorts | T37 |
+| T39 | Context-aware Jev scoring and compact findings evidence | T38 |
 
 ## T14 — V2 contracts, storage, and live pipeline shell
 
@@ -720,3 +721,65 @@ total/stage timing; terminal and partial states retain honest durations; all agg
 evaluation denominators contain exactly one selected run version; cross-version runs
 are visibly accounted for but never silently pooled; timing/version data require no
 provider calls to inspect.
+
+## T39 — Context-aware Jev scoring and compact findings evidence
+
+**Goal:** test whether separating evidence-bearing source content from scoped visible
+context improves retrieval and quote-backed findings without weakening citation
+validation, recall, or the non-leak boundary.
+
+**Read:** V2 plan sections 7, 8, 15, 16, and 18. Dependency: T38.
+
+**Research, decide, and implement:**
+
+1. Define a persisted, source-range-bound classification for canonical source blocks
+   (including table rows), distinguishing **evidence-bearing** content from
+   **contextual** content. Contextual content may include table column headers,
+   units/scales, row labels, section/subsection headings, table footers, and repeated
+   boilerplate. It is scoped to its section/table/chunk; do not treat a label as
+   universally generic merely because its text repeats.
+2. Use Jev to classify every canonical source block/row in bounded, source-order
+   batches with a typed, constrained response. Each decision must identify whether the
+   row is evidence-bearing or contextual and, for contextual rows, the evidence
+   range(s) it explains. Give Jev only the row, chunk type (for example table row,
+   heading, paragraph, list item, or footer), a bounded preceding/following source
+   window, table/section identity where known, and filing metadata. The surrounding
+   window is interpretation context, not an independently classifiable or citable
+   replacement for the row.
+3. Never let Jev use XBRL, Company Facts, gold ranges, findings, or evaluation
+   outputs. Record no fabricated deterministic classification or fallback: an
+   unavailable, malformed, or incomplete provider result is an explicit partial state.
+4. For detailed Jev scoring, send each candidate's evidence-bearing core together
+   with its smallest necessary scoped context and clear field boundaries. Score the
+   core for target relevance; context supplies interpretation only. Preserve the full
+   canonical source ranges and the existing exact-text scoring baseline for an
+   apples-to-apples comparison.
+5. For findings, supply retained evidence cores, their associated scoped context, and
+   the existing validated outline. Allow compact requests only when the omitted text
+   is neither citable evidence nor required to interpret period, unit/scale, metric,
+   attribution, or limitations. An exact finding quote must still resolve to one
+   retained evidence-core line in canonical source; contextual lines may support it
+   but cannot substitute for the quote.
+6. Compare baseline full-chunk requests with Jev-classified context on immutable
+   development and held-out reviewed cases. Report reviewed classification errors,
+   relevant-range recall, required-fact coverage, exact-value accuracy, wrong-value
+   rate, retained/requested text, Jev/LLM calls and usage, latency, quote-validation
+   failures, and cases where supplied or omitted context changed interpretation. Adopt
+   the contextual strategy only if it meets the same recall/accuracy floor while
+   providing a measured precision, cost, latency, or retained-text benefit.
+7. Version classification, scoring, and findings configurations; persist the exact
+   core/context ranges and rationale shown in the chunk, score, and finding inspectors.
+   Add controlled tests for a table header/unit, a repeated footer, an ambiguous row,
+   and a finding whose valid quote depends on nearby context.
+
+**Manual verification handoff:** inspect a retained financial-table row and confirm
+the UI separately shows its citable evidence core and its scoped header/unit/footer
+context, with source jumps for both. Compare the baseline and contextual strategy on
+one reviewed case; confirm a published finding cites an evidence-core line rather than
+a header or footer.
+
+**Acceptance gate:** every scored source row has a source-range-bound, inspectable Jev
+classification record; contextual data never replaces the exact citable evidence line;
+no discovery request contains evaluation/XBRL data; reported held-out metrics expose
+classification quality, retrieval quality, and cost; and the contextual strategy is
+adopted only when the recorded comparison supports it.
