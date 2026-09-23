@@ -3,12 +3,11 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T28 adds a bounded post-seal Jev boolean evaluation pass
-  for visibly supported scale/unit equivalence and a finite, Jev-assigned finding type
-  sealed before facts retrieval, while preserving the exact-Decimal comparison as a
-  separate baseline; only the fresh V2 workspace is supported.
-- Next task: **T29 — Readable evaluation comparison cards.**
-- Latest verified task: T28 local acceptance; manual browser inspection and live
+- Implementation status: T29 presents the persisted independent comparison as compact,
+  status-specific cards, retaining the exact-Decimal baseline and any bounded Jev
+  scale-aware verdict as distinct decisions; only the fresh V2 workspace is supported.
+- Next task: **T30 — Random eligible ticker picker.**
+- Latest verified task: T29 local acceptance; manual browser inspection and live
   SEC/LLM comparison remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
@@ -49,7 +48,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T25 | Remove obsolete execution paths and tests | DONE | Not applicable |
 | T27 | Outline-aware findings inputs | DONE | Offline request/input acceptance passed; live/manual inspection pending |
 | T28 | Scale-aware Jev evaluation verdicts | DONE | Manual browser and live Jev verification pending |
-| T29 | Readable evaluation comparison cards | TODO | Not run |
+| T29 | Readable evaluation comparison cards | DONE | Manual browser inspection pending |
 | T30 | Random eligible ticker picker | TODO | Not run |
 | T31 | Retrieval benchmark and baselines | TODO | Not run |
 | T32 | Final real-data demonstration | TODO | Not run |
@@ -69,6 +68,51 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T29 — Readable evaluation comparison cards.
+Implemented: replaced the dense evaluation table with a bounded page of compact cards:
+one card per expected structured fact and clearly labelled separate cards for additional
+visible findings. Each card leads with a four-part, unfilled comparison: **Finding**,
+**Ground truth** (explicitly match or mismatch where applicable), **Heuristic
+evaluator** (the exact-Decimal baseline), and **Jev verdict**. A confirmed Jev verdict
+never appears as a changed source value. Status is expressed through plain language,
+text color, and a border rather than colored backgrounds. Native controls filter by
+outcome and reorder cards while the no-JavaScript view remains complete. Evidence
+quote/source link, retained context, Company Facts provenance, provider model/prompt,
+and diagnostic JSON are all behind progressive-disclosure controls. No evaluation data,
+metrics, or provider requests were changed.
+
+Commands/results:
+
+- Inspected the affected T22, T23, and T28 evaluation/UI gates; no obsolete tests were
+  removed because they continue to cover the data and workspace boundaries.
+- Added `tests/task_gates/test_t29.py`: renders scale-aware confirmed, Jev-rejected,
+  missing, and additional cards from persisted comparisons; verifies both amounts,
+  separate baseline/verdict language, provenance and diagnostic disclosure, controls,
+  and removal of the old evaluation table.
+- `uv run pytest tests/task_gates/test_t29.py tests/task_gates/test_t22.py
+  tests/task_gates/test_t23.py tests/task_gates/test_t28.py -q`: **7 passed** in
+  1.69s, then **7 passed** in 1.86s after the layout clarification, with one existing
+  Starlette/AnyIO deprecation warning. `uv run ruff check .` and `git diff --check`
+  passed.
+- Overlap-citation follow-up: evaluation still deduplicates an overlapping quote/value
+  for its verdict and denominator, but now persists every matching finding ID on that
+  comparison so the card displays every source citation. Added a regression for two
+  identical persisted findings; `uv run pytest tests/task_gates/test_t29.py
+  tests/task_gates/test_t22.py tests/task_gates/test_t28.py -q`: **6 passed** in
+  1.77s, with the same warning; `uv run ruff check .` and `git diff --check` passed.
+- Browser automation was not run per task policy. No live SEC or provider calls were
+  made; manual browser and live-provider inspection remain pending.
+
+With `uv run profitlab serve` running, create an offline `DEMO` run and open
+**Pipeline → Evaluate**. Confirm every expected fact is a card whose status and both
+amounts are readable without expanding details. Use **Status** and **Order** controls;
+then expand a card to open its quote source link and Company Facts provenance. For the
+saved scale-aware fixture, confirm **Confirmed scale-aware equivalent** still displays
+the exact-Decimal baseline separately. On a narrow viewport, confirm the two amount
+panels stack without hiding source direction or status.
+
+Next: T30 — Random eligible ticker picker.
 
 Task: T28 — Scale-aware Jev evaluation verdicts.
 Implemented: exact-Decimal comparison remains the persisted deterministic baseline.

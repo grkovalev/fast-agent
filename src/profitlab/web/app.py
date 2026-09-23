@@ -93,7 +93,56 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                   'finding_actions': [], 'structured_facts': pipeline.repo.structured_facts(run_id, page=page) if stage in {'facts', 'evaluate'} else [],
                   'fact_summary': pipeline.repo.fact_summary(run_id) if stage == 'facts' else None,
                   'comparisons': pipeline.repo.comparisons(run_id, page=page) if stage == 'evaluate' else [],
-                  'comparison_summary': pipeline.repo.comparison_summary(run_id) if stage == 'evaluate' else None}
+                  'comparison_summary': pipeline.repo.comparison_summary(run_id) if stage == 'evaluate' else None,
+                  'evaluation_cards': []}
+        if stage == 'evaluate':
+            # A comparison page is bounded, but its cards need the linked inputs even
+            # when the finding or fact sorts onto a different storage page.
+            all_findings = {item.finding_id: item for item in pipeline.repo.findings(run_id)}
+            all_facts = {item.fact_id: item for item in pipeline.repo.structured_facts(run_id)}
+            chunks = {item.chunk_id: item for item in pipeline.repo.chunks(run_id)}
+            documents = {}
+
+            def visible_context(finding):
+                chunk = chunks.get(finding.source_chunk_id)
+                if not chunk:
+                    return []
+                document = documents.setdefault(
+                    chunk.core_range.document_id,
+                    pipeline.repo.canonical_document(run_id, chunk.core_range.document_id))
+                ranges = [chunk.core_range, *chunk.context_ranges]
+                lines = []
+                for source_range in ranges:
+                    for line in document.lines[source_range.start_line - 1:source_range.end_line]:
+                        lines.append({'number': line.line_number, 'text': line.text[:280]})
+                        if len(lines) == 6:
+                            return lines
+                return lines
+
+            labels = {
+                'exact_match': ('Exact match', 'exact'),
+                'scale_aware_equivalent': ('Confirmed scale-aware equivalent', 'confirmed'),
+                'jev_rejected': ('Rejected by Jev', 'rejected'),
+                'jev_inconclusive': ('Unresolved by Jev', 'unresolved'),
+                'structured_fact_missed': ('Missing visible finding', 'missing'),
+                'additional_visible_value': ('Additional visible finding', 'additional'),
+                'value_match_period_unresolved': ('Value match; period unresolved', 'unresolved'),
+                'period_match_value_mismatch': ('Period match; value mismatch', 'rejected'),
+                'period_match_unit_mismatch': ('Period match; unit mismatch', 'rejected'),
+                'unsupported': ('Unsupported visible finding', 'unresolved'),
+                'ambiguous_duplicate': ('Ambiguous structured facts', 'unresolved'),
+            }
+            for comparison in result['comparisons']:
+                findings_for_card = [all_findings[item] for item in comparison.finding_ids if item in all_findings]
+                fact = all_facts.get(comparison.fact_id)
+                label, tone = labels[comparison.state]
+                result['evaluation_cards'].append({
+                    'comparison': comparison, 'fact': fact, 'findings': findings_for_card,
+                    'label': label, 'tone': tone,
+                    'kind': 'additional' if comparison.state == 'additional_visible_value' else 'expected',
+                    'context': {item.finding_id: visible_context(item) for item in findings_for_card},
+                    'diagnostic': comparison.model_dump(mode='json'),
+                })
         result['has_next'] = max(len(result['outline_sections']), len(result['section_scores']), len(result['chunks']),
                                  len(result['chunk_scores']), len(result['findings']), len(result['structured_facts']), len(result['comparisons'])) == 100
         return result

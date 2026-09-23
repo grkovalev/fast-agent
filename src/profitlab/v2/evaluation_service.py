@@ -64,8 +64,15 @@ class EvaluationService:
         findings = self.repo.findings(run_id)
         facts = self.repo.structured_facts(run_id)
         # A repeated quote/number is overlap context, not another discovery event.
-        unique_findings = {(item.exact_quote, item.amount): item for item in findings}.values()
-        findings = list(unique_findings)
+        finding_groups = defaultdict(list)
+        for item in findings:
+            finding_groups[(item.exact_quote, item.amount)].append(item)
+        findings = [items[0] for items in finding_groups.values()]
+
+        def all_finding_ids(items):
+            """Keep every persisted citation visible without double-counting its verdict."""
+            return [duplicate.finding_id for item in items
+                    for duplicate in finding_groups[(item.exact_quote, item.amount)]]
         by_metric = defaultdict(list)
         for fact in facts:
             by_metric[fact.metric].append(fact)
@@ -78,13 +85,14 @@ class EvaluationService:
             for period, period_facts in sorted(by_period.items()):
                 candidates = [item for item in findings if self._metric_for_finding(item) == metric]
                 if len(period_facts) > 1:
+                    candidate_ids = all_finding_ids(candidates)
                     comparisons.append(FactComparison(
                         comparison_id=self._comparison_id('ambiguous_duplicate', None,
-                                                          [item.finding_id for item in candidates]),
+                                                          candidate_ids),
                         metric=metric, fact_id=None,
-                        finding_ids=[item.finding_id for item in candidates],
+                        finding_ids=candidate_ids,
                         state='ambiguous_duplicate'))
-                    consumed.update(item.finding_id for item in candidates)
+                    consumed.update(candidate_ids)
                     continue
                 fact = period_facts[0]
                 same_value = [item for item in candidates if item.amount == fact.value
@@ -108,25 +116,27 @@ class EvaluationService:
                     state, matched = 'period_match_value_mismatch', period_value_mismatches
                 else:
                     state, matched = 'structured_fact_missed', []
-                consumed.update(item.finding_id for item in matched)
+                matched_ids = all_finding_ids(matched)
+                consumed.update(matched_ids)
                 comparisons.append(FactComparison(
                     comparison_id=self._comparison_id(state, fact.fact_id,
-                                                      [item.finding_id for item in matched]),
+                                                      matched_ids),
                     metric=metric, fact_id=fact.fact_id,
-                    finding_ids=[item.finding_id for item in matched], state=state,
+                    finding_ids=matched_ids, state=state,
                     requests_before_match=self._requests_before_match(run_id) if matched else None,
                     source_lines_before_match=min((item.source_range.start_line - 1 for item in matched),
                                                   default=None)))
 
         for finding in findings:
+            finding_ids = all_finding_ids([finding])
             if finding.finding_id in consumed:
                 continue
             metric = self._metric_for_finding(finding)
             state = ('unsupported' if metric is None
                      else 'additional_visible_value')
             comparisons.append(FactComparison(
-                comparison_id=self._comparison_id(state, None, [finding.finding_id]),
-                metric=metric, finding_ids=[finding.finding_id], state=state))
+                comparison_id=self._comparison_id(state, None, finding_ids),
+                metric=metric, finding_ids=finding_ids, state=state))
         comparisons.sort(key=lambda item: (item.metric or '', item.state, item.comparison_id))
         summary = self._summary(run_id, comparisons, facts)
         self.repo.save_comparisons(run_id, comparisons)
