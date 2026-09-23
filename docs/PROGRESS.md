@@ -125,6 +125,12 @@ Commands/results:
   it does not infer from an abbreviated quote. `uv run pytest tests/task_gates/test_t22.py
   tests/task_gates/test_t28.py -q`: **4 passed** in 1.32s; `uv run ruff check .` and
   `git diff --check` passed.
+- Retrieval/type inspection follow-up: finding cards now show the highest source chunk
+  retrieval label and score across the same three finite finding types beside the
+  later Jev type classification. The page loads only score records for its bounded
+  finding page. `uv run pytest tests/task_gates/test_t20.py tests/task_gates/test_t23.py
+  tests/task_gates/test_t28.py -q`: **6 passed** in 1.70s; `uv run ruff check .` and
+  `git diff --check` passed.
 - Browser automation was not run per task policy. No live SEC or Jev calls were made;
   manual browser and live-provider verification remain pending.
 

@@ -71,13 +71,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         data_stages = {'outline', 'section_score', 'chunk', 'chunk_score', 'findings', 'facts', 'evaluate'}
         outline = pipeline.repo.outline_sections(run_id, page=page) if stage in data_stages else []
         chunks = pipeline.repo.chunks(run_id, page=page) if stage in {'chunk', 'chunk_score', 'findings'} else []
+        findings = pipeline.repo.findings(run_id, page=page) if stage in {'findings', 'evaluate'} else []
+        finding_scores = pipeline.repo.scores_for_items(
+            run_id, 'chunk_score', [item.source_chunk_id for item in findings if item.source_chunk_id])
+        finding_score_lookup = {}
+        finding_types = {'annual_profit', 'diluted_eps', 'diluted_shares'}
+        for score in finding_scores:
+            candidates = [(value, label) for label, value in score.target_scores.items()
+                          if label in finding_types]
+            if candidates:
+                value, label = max(candidates, key=lambda item: (item[0], item[1]))
+                finding_score_lookup[score.item_id] = {'label': label, 'score': value}
         result = {**state, 'selected': selected, 'page': page, 'canonical_refs': pipeline.repo.canonical_refs(run_id),
                   'outline_sections': outline, 'section_lookup': {x.section_id: x for x in outline},
                   'section_scores': pipeline.repo.scores(run_id, 'section_score', page=page) if stage == 'section_score' else [],
                   'section_actions': [], 'chunks': chunks,
                   'chunk_scores': pipeline.repo.scores(run_id, 'chunk_score', page=page) if stage == 'chunk_score' else [],
                   'chunk_score_summary': pipeline.repo.chunk_score_summary(run_id) if stage == 'chunk_score' else None,
-                  'chunk_actions': [], 'findings': pipeline.repo.findings(run_id, page=page) if stage in {'findings', 'evaluate'} else [],
+                  'chunk_actions': [], 'findings': findings, 'finding_score_lookup': finding_score_lookup,
                   'finding_summary': pipeline.repo.finding_summary(run_id) if stage == 'findings' else None,
                   'finding_actions': [], 'structured_facts': pipeline.repo.structured_facts(run_id, page=page) if stage in {'facts', 'evaluate'} else [],
                   'fact_summary': pipeline.repo.fact_summary(run_id) if stage == 'facts' else None,

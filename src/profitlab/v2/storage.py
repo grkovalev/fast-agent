@@ -499,6 +499,20 @@ class V2Repository:
                 rows = db.execute(query, (run_id, score_kind)).fetchall()
         return [ScoredItem.model_validate_json(row['payload']) for row in rows]
 
+    def scores_for_items(self, run_id: str, score_kind: str, item_ids: list[str]):
+        """Fetch score metadata only for the bounded items rendered on a page."""
+        from .contracts import ScoredItem
+
+        item_ids = list(dict.fromkeys(item_ids))[:100]
+        if not item_ids:
+            return []
+        placeholders = ', '.join('?' for _ in item_ids)
+        with self.connect() as db:
+            rows = db.execute(f'''SELECT payload FROM scores WHERE run_id=? AND score_kind=?
+                AND item_id IN ({placeholders}) ORDER BY item_id''',
+                              (run_id, score_kind, *item_ids)).fetchall()
+        return [ScoredItem.model_validate_json(row['payload']) for row in rows]
+
     def chunk_score_batch(self, source_range_hash: str, prompt_version: str,
                           configuration_hash: str, actual_model: str):
         with self.connect() as db:

@@ -79,4 +79,5 @@ def test_offline_findings_are_persisted_deduplicated_and_rendered(tmp_path):
         page = client.get('/v2/runs/workspace-t20?stage=findings')
     assert page.status_code == 200
     assert 'Quote-backed findings' in page.text
+    assert 'Chunk retrieval signal:' in page.text
     assert 'Open exact source quote' in page.text
