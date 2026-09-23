@@ -49,6 +49,7 @@ def test_comparison_has_exact_decimal_states_and_never_mutates_discovery(tmp_pat
         quote = f'{source.text[:1]} {identifier}'
         return Finding(finding_id=identifier, exact_quote=quote, source_range=source_range,
                        target=target, amount=Decimal(value), period=period, unit=unit,
+                       finding_type=target if target in {'annual_profit', 'diluted_eps', 'diluted_shares'} else 'unresolved',
                        validation_state='validated')
     findings = [finding('finding-exact', 'annual_profit', '10', 'FY 2025', 'USD'),
                 finding('finding-mismatch', 'diluted_eps', '3', '2025', 'USD/shares'),

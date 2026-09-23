@@ -77,10 +77,16 @@ class Settings(BaseSettings):
     chunk_score_overlap_dedupe_ratio: float = Field(.65, ge=0, le=1)
     # Findings receive only the small retained visible-evidence set.  One repair is
     # intentionally permitted for a malformed citation; uncited prose is rejected.
-    findings_prompt_version: str = 'findings-v4-required-amount'
+    findings_prompt_version: str = 'findings-v5-jev-types'
     findings_max_requests: int = Field(2, ge=1, le=10)
     findings_total_timeout: float = Field(300, gt=0, le=1800)
     findings_request_char_budget: int = Field(60000, ge=1000, le=1000000)
+    finding_type_max_requests: int = Field(12, ge=0, le=100)
+    finding_type_request_char_budget: int = Field(30000, ge=1000, le=60000)
+    finding_type_prompt_version: str = 'finding-type-v2-outline-context'
+    evaluation_scale_prompt_version: str = 'evaluation-scale-v1'
+    evaluation_scale_max_pairs: int = Field(12, ge=0, le=100)
+    evaluation_scale_request_char_budget: int = Field(12000, ge=1000, le=30000)
 
     def redactor(self):
         from profitlab.trace import Redactor

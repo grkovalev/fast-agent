@@ -18,6 +18,7 @@ StageStatus = Literal[
     'queued', 'running', 'completed', 'partial', 'failed', 'cancelled', 'interrupted',
 ]
 Hash = Annotated[str, Field(pattern=r'^[0-9a-f]{64}$')]
+FindingType = Literal['annual_profit', 'diluted_eps', 'diluted_shares', 'unresolved']
 
 
 class V2Contract(BaseModel):
@@ -122,6 +123,7 @@ class Finding(V2Contract):
     amount: Decimal
     source_chunk_id: StableID | None = None
     target: str | None = None
+    finding_type: FindingType = 'unresolved'
     unit: str | None = None
     period: str | None = None
     attribution: str | None = None
@@ -151,9 +153,14 @@ class FactComparison(V2Contract):
     finding_ids: list[StableID] = Field(default_factory=list)
     state: Literal[
         'exact_match', 'value_match_period_unresolved', 'period_match_value_mismatch',
+        'period_match_unit_mismatch',
         'structured_fact_missed', 'additional_visible_value', 'unsupported',
-        'ambiguous_duplicate',
+        'ambiguous_duplicate', 'scale_aware_equivalent', 'jev_rejected', 'jev_inconclusive',
     ]
+    deterministic_state: str | None = None
+    jev_verdict: bool | None = None
+    jev_model: str | None = None
+    jev_prompt_version: str | None = None
     requests_before_match: int | None = Field(default=None, ge=0)
     source_lines_before_match: int | None = Field(default=None, ge=0)
 

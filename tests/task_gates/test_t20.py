@@ -55,6 +55,26 @@ def test_offline_findings_are_persisted_deduplicated_and_rendered(tmp_path):
     request = pipeline.repo.exploration_actions('workspace-t20', 'findings')[0]['request']
     assert 'contextRef' not in str(request) and 'us-gaap:' not in str(request)
     assert 'structured_facts' not in request
+    type_requests = [item['request'] for item in pipeline.repo.exploration_actions('workspace-t20', 'findings')
+                     if 'request' in item and 'allowed_finding_types' in item['request'].get('state', {})]
+    assert type_requests
+    assert all(item['state']['allowed_finding_types'] == [
+        'annual_profit', 'diluted_eps', 'diluted_shares'] for item in type_requests)
+    assert all(item['state']['validated_outline'] and
+               item['state']['finding']['retained_chunk']['core_evidence_lines'] and
+               item['state']['filing_metadata']['current_report_year'] == '2025'
+               for item in type_requests)
+    assert all('structured_fact' not in str(item) and 'us-gaap:' not in str(item).lower()
+               for item in type_requests)
+    # Fixture Jev intentionally cannot assign a real semantic type: ambiguity remains explicit.
+    assert all(item.finding_type == 'unresolved' for item in findings)
+    document = pipeline.repo.canonical_document(
+        'workspace-t20', pipeline.repo.canonical_refs('workspace-t20')[0].document_id)
+    asyncio.run(FindingsService(settings, pipeline.repo).build(
+        'workspace-t20', document, pipeline.repo.chunks('workspace-t20'),
+        pipeline.repo.scores('workspace-t20', 'chunk_score'), offline=True))
+    replay = pipeline.repo.finding_summary('workspace-t20')
+    assert replay['cached'] is True and replay['classification_calls'] == 0
     with TestClient(create_app(settings)) as client:
         page = client.get('/v2/runs/workspace-t20?stage=findings')
     assert page.status_code == 200

@@ -100,7 +100,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get('/v2/runs/{run_id}/pipeline/{stage}/trace')
     def trace(request: Request, run_id: str, stage: str):
-        if stage not in {'section_score', 'chunk_score', 'findings'}:
+        if stage not in {'section_score', 'chunk_score', 'findings', 'evaluate'}:
             raise HTTPException(404, 'No provider trace for this stage')
         return templates.TemplateResponse(request=request, name='v2_trace.html', context={
             'run_id': run_id, 'stage': stage, 'actions': pipeline.repo.exploration_actions(run_id, stage, limit=100)})

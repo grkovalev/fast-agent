@@ -3,11 +3,12 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T27 adds the validated outline and requested current fiscal year
-  to the bounded findings request and requires one exact core-line citation; only
-  the fresh V2 workspace is supported.
-- Next task: **T28 — Scale-aware Jev evaluation verdicts.**
-- Latest verified task: T27 local acceptance; manual browser inspection and live
+- Implementation status: T28 adds a bounded post-seal Jev boolean evaluation pass
+  for visibly supported scale/unit equivalence and a finite, Jev-assigned finding type
+  sealed before facts retrieval, while preserving the exact-Decimal comparison as a
+  separate baseline; only the fresh V2 workspace is supported.
+- Next task: **T29 — Readable evaluation comparison cards.**
+- Latest verified task: T28 local acceptance; manual browser inspection and live
   SEC/LLM comparison remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
@@ -47,7 +48,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T24 | Provider, persistence, and resume optimization | DONE | Offline replay passed; live verification pending |
 | T25 | Remove obsolete execution paths and tests | DONE | Not applicable |
 | T27 | Outline-aware findings inputs | DONE | Offline request/input acceptance passed; live/manual inspection pending |
-| T28 | Scale-aware Jev evaluation verdicts | TODO | Not run |
+| T28 | Scale-aware Jev evaluation verdicts | DONE | Manual browser and live Jev verification pending |
 | T29 | Readable evaluation comparison cards | TODO | Not run |
 | T30 | Random eligible ticker picker | TODO | Not run |
 | T31 | Retrieval benchmark and baselines | TODO | Not run |
@@ -68,6 +69,77 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T28 — Scale-aware Jev evaluation verdicts.
+Implemented: exact-Decimal comparison remains the persisted deterministic baseline.
+Only same-fiscal-period value mismatches become bounded evaluation candidates after
+both findings and Company Facts are sealed. The new Jev request contains the finding
+amount/optional period/unit, its declared core line, separately labelled retained
+context, and one candidate fact amount/unit/period; it asks a single boolean question
+and requires explicitly visible scale or unit support. A `true` verdict becomes
+`scale_aware_equivalent`; a false verdict remains visible as `jev_rejected`, with the
+original deterministic state, immutable input IDs, prompt version, and model identity.
+The pair request is hash-cached, calls are bounded, and sanitized evaluation traces are
+available on demand. No discovery service reads this post-seal material.
+
+Commands/results:
+
+- Timed predecessor boundary: `uv run pytest tests/task_gates/test_t22.py
+  tests/task_gates/test_t27.py -q`: **6 passed** in 1.57s, with one existing
+  Starlette/AnyIO deprecation warning.
+- Added `tests/task_gates/test_t28.py`: controlled `237,789` versus `237,789,000`
+  evidence with visible “in thousands” confirms scale-aware equivalence, while a
+  genuine mismatch with no visible scale support is rejected. It also verifies the
+  exact baseline remains non-exact, traces are persisted, and replay uses the pair
+  cache without another fixture provider call.
+- Final acceptance: `uv run pytest tests/task_gates/test_t14.py
+  tests/task_gates/test_t15.py tests/task_gates/test_t16.py
+  tests/task_gates/test_t17.py tests/task_gates/test_t18.py
+  tests/task_gates/test_t19.py tests/task_gates/test_t20.py
+  tests/task_gates/test_t21.py tests/task_gates/test_t22.py
+  tests/task_gates/test_t23.py tests/task_gates/test_t24.py
+  tests/task_gates/test_t25.py tests/task_gates/test_t27.py
+  tests/task_gates/test_t28.py -q`: **32 passed** in 4.36s, with the same warning;
+  `uv run ruff check .` and `git diff --check` passed.
+- Follow-up classification redesign: removed the prose-regex workaround. Findings now
+  receive one Jev-visible-only finite-type classification—annual profit, diluted EPS,
+  diluted shares, or unresolved—before the findings checkpoint is sealed. Evaluation
+  uses only that sealed type and never reinterprets the quote. The later scale-aware
+  judge receives the type but no XBRL concept mapping; the existing application-owned
+  Company Facts mapping remains post-seal. Fixture Jev marks types unresolved rather
+  than fabricating semantic certainty. `uv run pytest tests/task_gates/test_t14.py
+  tests/task_gates/test_t15.py tests/task_gates/test_t16.py tests/task_gates/test_t17.py
+  tests/task_gates/test_t18.py tests/task_gates/test_t19.py tests/task_gates/test_t20.py
+  tests/task_gates/test_t21.py tests/task_gates/test_t22.py tests/task_gates/test_t23.py
+  tests/task_gates/test_t24.py tests/task_gates/test_t25.py tests/task_gates/test_t27.py
+  tests/task_gates/test_t28.py -q`: **33 passed** in 4.83s; `uv run ruff check .` and
+  `git diff --check` passed.
+- Type-classification cache follow-up: the exact persisted findings request now caches
+  its sealed Jev type verdict alongside the validated proposals. `uv run pytest
+  tests/task_gates/test_t20.py tests/task_gates/test_t22.py tests/task_gates/test_t24.py
+  tests/task_gates/test_t27.py tests/task_gates/test_t28.py -q`: **13 passed** in
+  2.42s; `uv run ruff check .` and `git diff --check` passed.
+- Evaluation-context follow-up: same-value/same-period unit-label differences now enter
+  the bounded Jev judgment rather than becoming both a missed fact and an additional
+  finding. The judge receives the complete retained chunk core plus overlap context;
+  it does not infer from an abbreviated quote. `uv run pytest tests/task_gates/test_t22.py
+  tests/task_gates/test_t28.py -q`: **4 passed** in 1.32s; `uv run ruff check .` and
+  `git diff --check` passed.
+- Browser automation was not run per task policy. No live SEC or Jev calls were made;
+  manual browser and live-provider verification remain pending.
+
+With `uv run profitlab serve` running, create an offline `DEMO` run and open
+**Pipeline → Findings** and confirm each fixture item is visibly **unresolved** rather
+than fabricated as a semantic type; open the sanitized findings trace to inspect the
+finite visible-only Jev type question. Then open **Pipeline → Evaluate**. Confirm exact Decimal results remain labelled separately.
+For a controlled saved comparison whose finding is `237,789`, fact is `237,789,000`,
+and retained source context says “in thousands,” confirm the state is **scale aware
+equivalent** while the baseline says **period match value mismatch**. Open **Inspect
+sanitized evaluation provider trace** to verify the boolean request and fixture/model
+provenance. With configured live credentials, repeat this on a real visible scale label;
+that live check remains pending.
+
+Next: T29 — Readable evaluation comparison cards.
 
 Task: T27 — Outline-aware findings inputs.
 Implemented: the single bounded findings request now includes the complete persisted

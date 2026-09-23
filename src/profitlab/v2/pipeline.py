@@ -323,7 +323,8 @@ class V2PipelineService:
                 continue
             if name == 'evaluate' and implement_source:
                 try:
-                    result = await asyncio.to_thread(EvaluationService(self.repo).compare, run_id)
+                    result = await EvaluationService(self.settings, self.repo).compare_with_scale_verdicts(
+                        run_id, offline=run.mode == 'offline')
                 except Exception as error:  # noqa: BLE001 - evaluation must not alter sealed inputs
                     failed = running.model_copy(update={
                         'status': 'failed', 'finished_at': datetime.now(UTC),
@@ -342,7 +343,8 @@ class V2PipelineService:
                     'elapsed_seconds': monotonic() - tick,
                     'summary': (f"Compared {result.summary['expected_facts']} independent expected fact(s): "
                                 f"{result.summary['exact_matches']} exact match(es), "
-                                f"{result.summary['misses']} miss(es)."),
+                                f"{result.summary['misses']} miss(es), "
+                                f"{result.summary.get('scale_aware_equivalences', 0)} scale-aware equivalent(s)."),
                     'limitation': ('Saved synthetic facts and fixture findings only; live filing and '
                                    'provider comparison remains unverified.' if run.mode == 'offline' else None),
                     'output_hash': hashlib.sha256(''.join(item.comparison_id for item in result.comparisons).encode()).hexdigest(),

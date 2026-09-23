@@ -25,7 +25,7 @@ class V2Repository:
         self.db_path = self.root / 'profitlab-v2.sqlite3'
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 2, 3, 4, 5, 6, 7, 8, 9, 10):
+            if version not in (0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11):
                 raise ValueError(f'Unsupported V2 storage schema version: {version}')
             if version == 0:
                 db.executescript(self._schema())
@@ -38,6 +38,7 @@ class V2Repository:
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
+                db.executescript(self._migrate_10_to_11())
             elif version == 3:
                 db.executescript(self._migrate_3_to_4())
                 db.executescript(self._migrate_4_to_5())
@@ -46,6 +47,7 @@ class V2Repository:
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
+                db.executescript(self._migrate_10_to_11())
             elif version == 4:
                 db.executescript(self._migrate_4_to_5())
                 db.executescript(self._migrate_5_to_6())
@@ -53,26 +55,34 @@ class V2Repository:
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
+                db.executescript(self._migrate_10_to_11())
             elif version == 5:
                 db.executescript(self._migrate_5_to_6())
                 db.executescript(self._migrate_6_to_7())
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
+                db.executescript(self._migrate_10_to_11())
             elif version == 6:
                 db.executescript(self._migrate_6_to_7())
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
+                db.executescript(self._migrate_10_to_11())
             elif version == 7:
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
+                db.executescript(self._migrate_10_to_11())
             elif version == 8:
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
+                db.executescript(self._migrate_10_to_11())
             elif version == 9:
                 db.executescript(self._migrate_9_to_10())
+                db.executescript(self._migrate_10_to_11())
+            elif version == 10:
+                db.executescript(self._migrate_10_to_11())
 
     @staticmethod
     def _schema():
@@ -151,10 +161,14 @@ class V2Repository:
                 actual_model TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL,
                 PRIMARY KEY(source_range_hash, prompt_version, configuration_hash, actual_model));
             CREATE TABLE performance_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
+            CREATE TABLE evaluation_scale_verdicts (pair_hash TEXT NOT NULL,
+                prompt_version TEXT NOT NULL, configuration_hash TEXT NOT NULL,
+                actual_model TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL,
+                PRIMARY KEY(pair_hash, prompt_version, configuration_hash, actual_model));
             CREATE INDEX scores_run_kind_item ON scores(run_id, score_kind, item_id);
             CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
             CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
-            PRAGMA user_version=10;
+            PRAGMA user_version=11;
         '''
 
     @staticmethod
@@ -238,6 +252,16 @@ class V2Repository:
             CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
             CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
             PRAGMA user_version=10;
+        '''
+
+    @staticmethod
+    def _migrate_10_to_11():
+        return '''
+            CREATE TABLE evaluation_scale_verdicts (pair_hash TEXT NOT NULL,
+                prompt_version TEXT NOT NULL, configuration_hash TEXT NOT NULL,
+                actual_model TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL,
+                PRIMARY KEY(pair_hash, prompt_version, configuration_hash, actual_model));
+            PRAGMA user_version=11;
         '''
 
     @contextmanager
@@ -638,6 +662,24 @@ class V2Repository:
             row = db.execute('SELECT payload FROM comparison_summaries WHERE run_id=?',
                              (run_id,)).fetchone()
         return json.loads(row['payload']) if row else None
+
+    def evaluation_scale_verdict(self, pair_hash: str, prompt_version: str,
+                                 configuration_hash: str, actual_model: str):
+        with self.connect() as db:
+            row = db.execute('''SELECT payload FROM evaluation_scale_verdicts WHERE pair_hash=?
+                AND prompt_version=? AND configuration_hash=? AND actual_model=?''',
+                             (pair_hash, prompt_version, configuration_hash, actual_model)).fetchone()
+        return json.loads(row['payload']) if row else None
+
+    def save_evaluation_scale_verdict(self, pair_hash: str, prompt_version: str,
+                                      configuration_hash: str, actual_model: str, payload: dict):
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('''INSERT OR REPLACE INTO evaluation_scale_verdicts
+                (pair_hash, prompt_version, configuration_hash, actual_model, payload, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)''',
+                       (pair_hash, prompt_version, configuration_hash, actual_model,
+                        json.dumps(payload, sort_keys=True), datetime.now(UTC).isoformat()))
 
     def finding_batch(self, request_hash: str, prompt_version: str,
                       configuration_hash: str, actual_model: str):

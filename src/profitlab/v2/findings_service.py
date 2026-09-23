@@ -9,6 +9,8 @@ from decimal import Decimal, InvalidOperation
 import httpx
 from openai import AsyncOpenAI
 
+from profitlab.providers.jev import JevRequest, NoulQuestion
+
 from .canonical import CanonicalDocument
 from .contracts import Finding, SourceRange
 from .section_scoring import TARGETS, SectionScoringService
@@ -26,6 +28,7 @@ class FindingsService:
     """Never permit generated prose to become a finding without a source quote."""
     prompt_version = 'findings-v1'
     _NUMBER = re.compile(r'(?<!\w)(?:\$?\s*\(?[\d,]+(?:\.\d+)?\)?)(?!\w)')
+    FINDING_TYPES = ('annual_profit', 'diluted_eps', 'diluted_shares')
 
     def __init__(self, settings, repository):
         self.settings, self.repo = settings, repository
@@ -83,7 +86,7 @@ class FindingsService:
     @staticmethod
     def _prompt(state, repair=None):
         instruction = '''Return JSON only: {"findings":[...]}. Each finding object may contain only
-exact_quote, source_chunk_id, source_line, target, amount, unit, period, attribution,
+exact_quote, source_chunk_id, source_line, amount, unit, period, attribution,
 limitations. amount is required: provide it as a plain decimal string without currency,
 commas, units, or scale. It must equal a visible numeric value in exact_quote. period is
 optional. source_line must be a line_number
@@ -199,6 +202,62 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             limitations=limitations, validation_state='validated', model=model,
             repair_attempted=repaired), None
 
+    def _classification_request(self, run_id, finding, document, chunks, offline):
+        chunk = next((item for item in chunks if item.chunk_id == finding.source_chunk_id), None)
+        if chunk is None:
+            raise ValueError('Finding-type classification requires its retained source chunk.')
+        context = [line for source_range in chunk.context_ranges
+                   for line in self._lines(document, source_range)]
+        # The classification is oriented exactly like findings extraction: full validated
+        # navigation plus one retained evidence chunk.  The outline is orientation only.
+        filing = self.repo.filing(run_id)
+        state = {
+            'filing_metadata': {'ticker': self.repo.get_run(run_id).ticker,
+                                'filing_id': document.ref.filing_id,
+                                'current_report_date': filing['report_date'],
+                                'current_report_year': str(date.fromisoformat(filing['report_date']).year)},
+            'validated_outline': [self._outline_entry(item) for item in self.repo.outline_sections(run_id)],
+            'finding': {'finding_id': finding.finding_id, 'amount': str(finding.amount),
+                        'period': finding.period, 'unit': finding.unit,
+                        'declared_core_evidence_line': self._lines(document, finding.source_range)[0],
+                        'retained_chunk': {'chunk_id': chunk.chunk_id, 'outline_section_id': chunk.section_id,
+                                           'core_evidence_lines': self._lines(document, chunk.core_range),
+                                           'context_lines': context}},
+            'allowed_finding_types': list(self.FINDING_TYPES),
+            'finding_type_definitions': {
+                'annual_profit': 'Annual net income, profit, or loss attributable to shareholders.',
+                'diluted_eps': 'Annual diluted earnings or net income per common share.',
+                'diluted_shares': 'Annual diluted weighted-average common shares outstanding.',
+            },
+            'rule': ('Choose a type only when the visible core line and retained chunk support it. '
+                     'A number can be annual profit, diluted EPS, or diluted shares; do not infer. '
+                     'If no single type is visibly supported, every answer must be false.'),
+        }
+        SectionScoringService._guard(state)
+        request = JevRequest(model='fixture-finding-type-v1' if offline else self.settings.typesafe_model,
+            state=state, questions={item: NoulQuestion(instructions=(
+                f'Is this visible finding unambiguously {item.replace("_", " ")}?'))
+                for item in self.FINDING_TYPES})
+        if len(json.dumps(request.model_dump(mode='json'))) > self.settings.finding_type_request_char_budget:
+            raise ValueError('Finding-type request exceeds the configured visible-context budget.')
+        return request
+
+    async def _classify(self, run_id, document, chunks, findings, *, offline):
+        """Assign one finite type from visible evidence, or persist unresolved."""
+        if len(findings) > self.settings.finding_type_max_requests:
+            raise ValueError('Finding-type provider-call budget would be exceeded.')
+        client = SectionScoringService(self.settings, self.repo)._client(run_id, offline, stage='findings')
+        typed, calls = [], 0
+        for finding in findings:
+            request = self._classification_request(run_id, finding, document, chunks, offline)
+            response = await client.evaluate(request)
+            calls += 1
+            supported = [name for name in self.FINDING_TYPES
+                         if response.answers[name].noul >= self.settings.chunk_score_keep_threshold]
+            finding_type = supported[0] if len(supported) == 1 else 'unresolved'
+            typed.append(finding.model_copy(update={'finding_type': finding_type}))
+        return typed, calls
+
     async def build(self, run_id, document, chunks, scores, *, offline):
         state = self._request_data(run_id, document, chunks, scores)
         if not state['retained_chunks']:
@@ -213,7 +272,11 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             return FindingsResult([], 0, False, 0)
         model = 'fixture-findings-v1' if offline else self.settings.llm_model
         config = hashlib.sha256(json.dumps({'base_url': self.settings.llm_base_url,
-                                            'request_budget': self.settings.findings_request_char_budget},
+                                            'request_budget': self.settings.findings_request_char_budget,
+                                            'finding_type_model': ('fixture-finding-type-v1' if offline
+                                                                   else self.settings.typesafe_model),
+                                            'finding_type_request_budget': self.settings.finding_type_request_char_budget,
+                                            'finding_type_prompt_version': self.settings.finding_type_prompt_version},
                                            sort_keys=True).encode()).hexdigest()
         request_hash = hashlib.sha256(json.dumps(state, sort_keys=True).encode()).hexdigest()
         cached_payload = self.repo.finding_batch(request_hash, self.prompt_version, config, model)
@@ -254,9 +317,22 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
         for finding in findings:
             unique.setdefault((finding.exact_quote, finding.amount), finding)
         findings = list(unique.values())
+        cached_types = cached_payload.get('finding_types', {}) if cached_payload else {}
+        if cached_types and all(item.finding_id in cached_types for item in findings):
+            findings = [item.model_copy(update={'finding_type': cached_types[item.finding_id]})
+                        for item in findings]
+            classification_calls = 0
+        else:
+            findings, classification_calls = await self._classify(run_id, document, chunks, findings,
+                                                                   offline=offline)
+            self.repo.save_finding_batch(request_hash, self.prompt_version, config, model,
+                                         {'findings': proposals, 'model': actual_model,
+                                          'finding_types': {item.finding_id: item.finding_type
+                                                            for item in findings}})
         self.repo.save_findings(run_id, findings)
         self.repo.save_finding_summary(run_id, {
-            'calls': calls, 'cached': cached, 'rejected': len(rejected), 'model': actual_model,
+            'calls': calls, 'classification_calls': classification_calls, 'cached': cached,
+            'rejected': len(rejected), 'model': actual_model,
             'outline_context_characters': len(json.dumps(state['validated_outline'], ensure_ascii=False)),
             'retained_evidence_characters': sum(
                 sum(len(line['text']) for line in item['core_evidence_lines'])
