@@ -1,6 +1,8 @@
 """The bounded reader UI for fresh V2 runs."""
 import asyncio
+import logging
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from time import monotonic
 
@@ -15,6 +17,7 @@ from profitlab.v2 import STAGE_NAMES, V2PipelineService
 from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
 
 WEB_DIR = Path(__file__).parent
+logger = logging.getLogger(__name__)
 
 
 def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
@@ -25,8 +28,37 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
     def start(run_id):
         if (task := tasks.get(run_id)) and not task.done():
             raise ValueError('V2 run is already active.')
-        task = asyncio.create_task(pipeline.run(run_id, delay=.05, implement_source=True))
-        task.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+
+        async def guarded_run():
+            try:
+                return await pipeline.run(run_id, delay=.05, implement_source=True)
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:  # noqa: BLE001 - persist unexpected worker failures
+                # A provider/parser/storage exception must not leave a run looking active.
+                # The pipeline already persists expected domain failures; this is the
+                # last-resort boundary for failures outside those narrower handlers.
+                message = settings.redactor().text(str(error)) or error.__class__.__name__
+                logger.exception('V2 worker failed for run %s', run_id)
+                try:
+                    stage = pipeline.repo.stage(run_id, pipeline.repo.get_run(run_id).selected_stage)
+                    if stage and stage.status == 'running':
+                        failed = stage.model_copy(update={
+                            'status': 'failed',
+                            'finished_at': datetime.now(UTC),
+                            'summary': 'V2 worker failed unexpectedly.',
+                            'error': message,
+                        })
+                        pipeline.repo.update_stage(failed, event_kind='stage_finished',
+                                                   event_summary=failed.summary)
+                    pipeline.repo.update_run(run_id, status='failed',
+                                             summary='V2 worker failed unexpectedly.',
+                                             kind='run_finished')
+                except Exception:  # noqa: BLE001 - do not mask the original worker failure
+                    logger.exception('Could not persist V2 worker failure for run %s', run_id)
+                return None
+
+        task = asyncio.create_task(guarded_run())
         tasks[run_id] = task
 
     @asynccontextmanager
