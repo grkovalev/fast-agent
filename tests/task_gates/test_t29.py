@@ -3,6 +3,7 @@ import asyncio
 from datetime import date
 from decimal import Decimal
 
+import pytest
 from fastapi.testclient import TestClient
 
 from profitlab.settings import Settings
@@ -106,3 +107,50 @@ def test_evaluation_keeps_each_persisted_overlapping_finding_visible(tmp_path):
 
     assert page.status_code == 200
     assert page.text.count('Open source quote') == 2
+
+
+def test_remove_run_button_deletes_only_its_owned_data(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
+    pipeline = V2PipelineService(settings)
+    pipeline.create(run_id='remove-t29')
+    pipeline.create(run_id='keep-t29')
+    asyncio.run(pipeline.run('remove-t29', implement_source=True))
+
+    with TestClient(create_app(settings)) as client:
+        home = client.get('/')
+        removed = client.post('/v2/runs/remove-t29/remove', follow_redirects=False)
+        after = client.get('/')
+
+    assert 'Remove run' in home.text
+    assert removed.status_code == 303 and removed.headers['location'] == '/'
+    assert 'remove-t29' not in after.text
+    assert 'keep-t29' in after.text
+    with pytest.raises(FileNotFoundError):
+        pipeline.repo.get_run('remove-t29')
+    assert pipeline.repo.get_run('keep-t29').run_id == 'keep-t29'
+
+
+def test_clear_shared_cache_button_preserves_runs(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
+    pipeline = V2PipelineService(settings)
+    pipeline.create(run_id='cache-t29')
+    asyncio.run(pipeline.run('cache-t29', implement_source=True))
+    with pipeline.repo.connect() as db:
+        before = db.execute('SELECT COUNT(*) FROM outline_batches').fetchone()[0]
+    assert before > 0
+
+    with TestClient(create_app(settings)) as client:
+        home = client.get('/')
+        cleared = client.post('/v2/cache/clear', follow_redirects=False)
+        static = client.get('/static/v2.css')
+
+    assert 'Clear shared provider cache' in home.text
+    assert home.headers['cache-control'] == static.headers['cache-control'] == 'no-store'
+    assert cleared.status_code == 303 and cleared.headers['location'] == '/'
+    assert pipeline.repo.get_run('cache-t29').run_id == 'cache-t29'
+    assert pipeline.repo.canonical_refs('cache-t29')
+    with pipeline.repo.connect() as db:
+        assert all(db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0] == 0 for table in (
+            'outline_batches', 'section_score_batches', 'chunk_score_batches',
+            'finding_batches', 'evaluation_scale_verdicts',
+        ))

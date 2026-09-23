@@ -101,6 +101,19 @@ Commands/results:
   identical persisted findings; `uv run pytest tests/task_gates/test_t29.py
   tests/task_gates/test_t22.py tests/task_gates/test_t28.py -q`: **6 passed** in
   1.77s, with the same warning; `uv run ruff check .` and `git diff --check` passed.
+- Run-removal follow-up: Runs and the workspace expose a POST-only **Remove run**
+  control. It cancels a still-running in-memory task, then atomically deletes only the
+  selected run and its run-owned SQLite rows; shared provider caches remain intact.
+  `uv run pytest tests/task_gates/test_t29.py tests/task_gates/test_t14.py
+  tests/task_gates/test_t23.py -q`: **8 passed** in 1.97s, with the same warning;
+  `uv run ruff check .` and `git diff --check` passed.
+- Shared-cache/frontend-cache follow-up: Runs now exposes **Clear shared provider
+  cache**, which removes reusable outline, section/chunk score, finding, and
+  scale-verdict cache entries without touching runs or their source/results. Every app
+  response, including static frontend assets, now sends `Cache-Control: no-store`.
+  `uv run pytest tests/task_gates/test_t29.py tests/task_gates/test_t14.py
+  tests/task_gates/test_t23.py -q`: **9 passed** in 2.09s, with the same warning;
+  `uv run ruff check .` and `git diff --check` passed.
 - Browser automation was not run per task policy. No live SEC or provider calls were
   made; manual browser and live-provider inspection remain pending.
 

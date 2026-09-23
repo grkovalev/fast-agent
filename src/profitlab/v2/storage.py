@@ -320,6 +320,34 @@ class V2Repository:
                               (min(limit, 100),)).fetchall()
         return [V2Run.model_validate(dict(row)) for row in rows]
 
+    def remove_run(self, run_id: str):
+        """Delete exactly one run and all of its run-owned persisted output."""
+        run_owned_tables = (
+            'chunk_ranges', 'chunks', 'comparisons', 'structured_facts', 'findings',
+            'scores', 'outline_sections', 'canonical_documents', 'filings',
+            'exploration_actions', 'chunk_score_summaries', 'finding_summaries',
+            'company_fact_datasets', 'fact_summaries', 'comparison_summaries',
+            'performance_summaries',
+        )
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if not db.execute('SELECT 1 FROM runs WHERE run_id=?', (run_id,)).fetchone():
+                raise FileNotFoundError(run_id)
+            for table in run_owned_tables:
+                db.execute(f'DELETE FROM {table} WHERE run_id=?', (run_id,))
+            # Stages and events are foreign-key owned and cascade with the run.
+            db.execute('DELETE FROM runs WHERE run_id=?', (run_id,))
+
+    def clear_shared_caches(self):
+        """Remove reusable provider results without touching any run-owned data."""
+        cache_tables = (
+            'outline_batches', 'section_score_batches', 'chunk_score_batches',
+            'finding_batches', 'evaluation_scale_verdicts',
+        )
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            return {table: db.execute(f'DELETE FROM {table}').rowcount for table in cache_tables}
+
     def stages(self, run_id: str):
         self.get_run(run_id)
         with self.connect() as db:

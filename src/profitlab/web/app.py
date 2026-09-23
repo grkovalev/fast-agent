@@ -39,6 +39,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     templates = Jinja2Templates(directory=WEB_DIR / 'templates')
     app.mount('/static', StaticFiles(directory=WEB_DIR / 'static'), name='static')
 
+    @app.middleware('http')
+    async def disable_browser_cache(request, call_next):
+        response = await call_next(request)
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+
     def home_context(**extra):
         return {'v2_runs': pipeline.repo.recent(), 'readiness': settings.readiness(), **extra}
 
@@ -240,5 +246,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except (FileNotFoundError, ValueError):
             raise HTTPException(404, 'V2 run cannot be resumed') from None
         return RedirectResponse(f'/v2/runs/{run_id}', status_code=303)
+
+    @app.post('/v2/runs/{run_id}/remove')
+    def remove(run_id: str):
+        task = tasks.pop(run_id, None)
+        if task and not task.done():
+            task.cancel()
+        try:
+            pipeline.repo.remove_run(run_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V2 run not found') from None
+        return RedirectResponse('/', status_code=303)
+
+    @app.post('/v2/cache/clear')
+    def clear_cache():
+        pipeline.repo.clear_shared_caches()
+        return RedirectResponse('/', status_code=303)
 
     return app
