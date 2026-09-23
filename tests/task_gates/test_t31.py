@@ -2,6 +2,7 @@
 import asyncio
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
@@ -14,9 +15,39 @@ from profitlab.v2.benchmark import (
     RetrievalBenchmarkService,
     ReviewedRange,
 )
-from profitlab.v2.contracts import Finding, SourceRange, StructuredFact
-from profitlab.v2.evaluation_service import EvaluationService
+from profitlab.v2.contracts import FactComparison, Finding, SourceRange, StructuredFact
+from profitlab.v2.evaluation_service import EvaluationService, cross_run_scorecard
 from profitlab.web.app import create_app
+
+
+def test_cross_run_scorecard_combines_evaluations_and_keeps_mismatch_invariant():
+    class Repo:
+        def runs(self):
+            return [SimpleNamespace(run_id='included', ticker='ONE'),
+                    SimpleNamespace(run_id='pending', ticker='TWO')]
+
+        def stage(self, run_id, _stage):
+            return SimpleNamespace(status='completed' if run_id == 'included' else 'running')
+
+        def comparisons(self, run_id):
+            if run_id != 'included':
+                return []
+            return [
+                FactComparison(comparison_id='exact', fact_id='fact-exact', state='exact_match'),
+                FactComparison(comparison_id='scale', fact_id='fact-scale',
+                               state='scale_aware_equivalent', deterministic_state='period_match_value_mismatch',
+                               jev_verdict=True),
+                FactComparison(comparison_id='missed', fact_id='fact-missed', state='structured_fact_missed'),
+                FactComparison(comparison_id='additional', state='additional_visible_value'),
+            ]
+
+    scorecard = cross_run_scorecard(Repo())
+    assert scorecard['counts'] == {'heuristic_matches': 1, 'jev_matches': 2,
+                                   'additional_values': 1, 'missed_values': 1, 'mismatches': 2}
+    assert scorecard['denominator'] == 4
+    assert scorecard['percentages']['heuristic_matches'] == 25
+    assert scorecard['percentages']['jev_matches'] == scorecard['percentages']['mismatches'] == 50
+    assert len(scorecard['included_runs']) == len(scorecard['excluded_runs']) == 1
 
 
 def test_benchmark_replays_pinned_strategies_and_renders_clickable_misses(tmp_path):
@@ -67,8 +98,8 @@ def test_benchmark_replays_pinned_strategies_and_renders_clickable_misses(tmp_pa
     assert rerun.status_code == 303
     assert recalculate.status_code == 303
     assert 'Cross-run evaluation' in page.text
-    assert 'Jev Section Chunk' in page.text
-    assert 'Automatic labels' in page.text
-    assert 'Reviewed recall' not in page.text and 'Not reviewed' not in page.text
-    assert 'Exact-value accuracy' in page.text and 'Provider calls' in page.text
-    assert 'no labels are sent to Jev or the findings model' in page.text
+    assert 'Evaluation scorecard' in page.text
+    assert 'Heuristic matches' in page.text and 'Jev matches' in page.text
+    assert 'Mismatches' in page.text and 'Additional values' in page.text and 'Missed values' in page.text
+    assert 'Count' in page.text and 'Percent' in page.text
+    assert 'Jev Section Chunk' not in page.text

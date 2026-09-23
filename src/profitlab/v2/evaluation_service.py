@@ -26,6 +26,43 @@ class EvaluationResult:
     summary: dict
 
 
+def cross_run_scorecard(repo) -> dict:
+    """Aggregate sealed evaluation comparisons without re-running an evaluator.
+
+    A missed value is an expected fact without a matching finding. This includes a
+    visible-but-wrong value, because it still misses the expected value. An
+    additional value has no expected fact, so mismatches always equal additional
+    values plus missed values.
+    """
+    counts = {'heuristic_matches': 0, 'jev_matches': 0,
+              'additional_values': 0, 'missed_values': 0}
+    included_runs, excluded_runs = [], []
+    for run in repo.runs():
+        evaluation = repo.stage(run.run_id, 'evaluate')
+        comparisons = repo.comparisons(run.run_id)
+        if not evaluation or evaluation.status != 'completed' or not comparisons:
+            reason = ('evaluation is not completed' if not evaluation or evaluation.status != 'completed'
+                      else 'evaluation produced no comparable values')
+            excluded_runs.append({'run': run, 'reason': reason})
+            continue
+        included_runs.append(run)
+        for comparison in comparisons:
+            heuristic_match = (comparison.deterministic_state or comparison.state) == 'exact_match'
+            jev_match = comparison.state in {'exact_match', 'scale_aware_equivalent'}
+            if comparison.fact_id:
+                counts['heuristic_matches'] += heuristic_match
+                counts['jev_matches'] += jev_match
+                counts['missed_values'] += not jev_match
+            elif comparison.state == 'additional_visible_value':
+                counts['additional_values'] += 1
+    counts['mismatches'] = counts['additional_values'] + counts['missed_values']
+    denominator = counts['jev_matches'] + counts['mismatches']
+    percentages = {key: (value / denominator * 100 if denominator else None)
+                   for key, value in counts.items()}
+    return {'counts': counts, 'percentages': percentages, 'denominator': denominator,
+            'included_runs': included_runs, 'excluded_runs': excluded_runs}
+
+
 class EvaluationService:
     """Compare; never recover, rewrite, or otherwise improve discovery output."""
 

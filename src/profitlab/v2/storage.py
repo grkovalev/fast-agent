@@ -369,6 +369,12 @@ class V2Repository:
                               (min(limit, 100),)).fetchall()
         return [V2Run.model_validate(dict(row)) for row in rows]
 
+    def runs(self) -> list[V2Run]:
+        """Return every persisted run for cross-run reporting."""
+        with self.connect() as db:
+            rows = db.execute('SELECT * FROM runs ORDER BY created_at DESC').fetchall()
+        return [V2Run.model_validate(dict(row)) for row in rows]
+
     def processed_tickers(self):
         with self.connect() as db:
             rows = db.execute('SELECT DISTINCT ticker FROM runs').fetchall()

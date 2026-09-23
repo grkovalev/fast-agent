@@ -15,6 +15,7 @@ from profitlab.sec.ticker_picker import RandomEligibleTickerPicker
 from profitlab.settings import Settings
 from profitlab.v2 import STAGE_NAMES, V2PipelineService
 from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
+from profitlab.v2.evaluation_service import cross_run_scorecard
 
 WEB_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
@@ -93,12 +94,10 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
 
     @app.get('/v2/benchmark')
     def benchmark_overview(request: Request):
-        rows = []
-        for run in pipeline.repo.recent():
-            evaluation = pipeline.repo.stage(run.run_id, 'evaluate')
-            result = pipeline.repo.retrieval_benchmark(run.run_id)
-            rows.append({'run': run, 'evaluation': evaluation, 'result': result})
-        return templates.TemplateResponse(request=request, name='v2_benchmark.html', context={'rows': rows})
+        return templates.TemplateResponse(
+            request=request, name='v2_benchmark.html',
+            context={'scorecard': cross_run_scorecard(pipeline.repo)},
+        )
 
     @app.post('/v2/benchmark/regenerate')
     def regenerate_benchmarks():
