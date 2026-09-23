@@ -3,12 +3,13 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T29 presents the persisted independent comparison as compact,
-  status-specific cards, retaining the exact-Decimal baseline and any bounded Jev
-  scale-aware verdict as distinct decisions; only the fresh V2 workspace is supported.
-- Next task: **T30 — Random eligible ticker picker.**
-- Latest verified task: T29 local acceptance; manual browser inspection and live
-  SEC/LLM comparison remain pending.
+- Implementation status: T30 adds a bounded live-SEC random-run control. It validates
+  a recent eligible 10-K, prefers a ticker absent from prior V2 runs, then immediately
+  creates and opens that live run. The UI now submits Live SEC only; offline mode
+  remains an internal test/fixture path pending T34.
+- Next task: **T31 — Retrieval benchmark and baselines.**
+- Latest verified task: T30 local acceptance; manual browser inspection and live SEC
+  picker verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -49,7 +50,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T27 | Outline-aware findings inputs | DONE | Offline request/input acceptance passed; live/manual inspection pending |
 | T28 | Scale-aware Jev evaluation verdicts | DONE | Manual browser and live Jev verification pending |
 | T29 | Readable evaluation comparison cards | DONE | Manual browser inspection pending |
-| T30 | Random eligible ticker picker | TODO | Not run |
+| T30 | Random eligible ticker picker | DONE | Manual browser and live SEC picker verification pending |
 | T31 | Retrieval benchmark and baselines | TODO | Not run |
 | T32 | Final real-data demonstration | TODO | Not run |
 | T33 | Fresh-only storage schema; remove migrations | TODO | Not run |
@@ -68,6 +69,43 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T30 — Random eligible ticker picker.
+Implemented: added a **Start random eligible run** control beside the existing ticker
+field. It calls a bounded picker endpoint that requires a configured SEC contact,
+loads the existing SEC directory/cache, deduplicates normalized ticker symbols, and
+confirms a one-year eligible 10-K through the existing discovery rules. It retries at
+most five candidates (configurable, capped at 12), preferentially samples symbols not
+already present in V2 runs, then creates and opens a `mode=live` run immediately.
+When unavailable/exhausted it returns a clear error without creating a run. Compact
+selection provenance remains stored for support purposes but is no longer rendered in
+the UI. The form no longer exposes source mode and always posts `mode=live`; the
+retained offline API is only for fixture/test workflows until T34.
+
+Tests inspected: `tests/task_gates/test_t29.py` and `tests/task_gates/test_t14.py`
+were the closest UI/storage coverage and passed in 1.77 seconds before the change; no
+obsolete tests were removed. Added `tests/task_gates/test_t30.py` for injected
+deterministic selection, duplicate symbols, an ineligible-then-eligible retry,
+bounded exhaustion, an immediate successful live-run redirect, and preference for an
+unprocessed ticker.
+
+Commands/results:
+
+- `time uv run pytest tests/task_gates/test_t29.py tests/task_gates/test_t14.py -q`:
+  **7 passed** in 1.77 seconds (2.17 seconds wall time).
+- `time uv run pytest tests/task_gates/test_t30.py tests/task_gates/test_t29.py tests/task_gates/test_t14.py -q`:
+  **11 passed** in 1.83 seconds (2.17 seconds wall time).
+- `time uv run pytest -q`: **41 passed** in 5.92 seconds (6.31 seconds wall time),
+  with one pre-existing Starlette/AnyIO deprecation warning.
+- `uv run ruff check .` and `git diff --check`: passed.
+
+Live SEC selection was not attempted because this environment has no verified SEC
+contact/configuration. Browser automation was not run per task policy. Manual
+verification: start `uv run profitlab serve` if needed, open `/`, click **Start random
+eligible run**, and confirm it redirects directly to a newly created live-run workspace.
+Click again and confirm it favors a ticker not shown in prior V2 runs. With no SEC
+contact or no eligible response, confirm the page gives the remediation message and
+creates no run. Next task: T31.
 
 Task: T29 — Readable evaluation comparison cards.
 Implemented: replaced the dense evaluation table with a bounded page of compact cards:

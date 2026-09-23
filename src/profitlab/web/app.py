@@ -9,13 +9,14 @@ from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from profitlab.sec.ticker_picker import RandomEligibleTickerPicker
 from profitlab.settings import Settings
 from profitlab.v2 import STAGE_NAMES, V2PipelineService
 
 WEB_DIR = Path(__file__).parent
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, ticker_picker_factory=None) -> FastAPI:
     settings = settings or Settings()
     pipeline, tasks = V2PipelineService(settings), {}
 
@@ -67,6 +68,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return templates.TemplateResponse(request=request, name='home.html', status_code=400,
                 context=home_context(error=settings.redactor().text(str(error))))
         return RedirectResponse(f'/v2/runs/{run.run_id}', status_code=303)
+
+    @app.post('/v2/ticker-picker')
+    async def pick_ticker(request: Request):
+        picker = (ticker_picker_factory(pipeline.repo) if ticker_picker_factory
+                  else RandomEligibleTickerPicker(settings, pipeline.repo))
+        selection = await asyncio.to_thread(picker.pick)
+        if selection.ticker:
+            try:
+                run = pipeline.create(selection.ticker, mode='live')
+                start(run.run_id)
+            except ValueError as error:
+                return templates.TemplateResponse(request=request, name='home.html', status_code=400,
+                    context=home_context(error=settings.redactor().text(str(error))))
+            return RedirectResponse(f'/v2/runs/{run.run_id}', status_code=303)
+        return templates.TemplateResponse(request=request, name='home.html', status_code=503,
+                                          context=home_context(error=selection.message))
 
     def context(run_id, stage, page):
         if stage not in STAGE_NAMES:

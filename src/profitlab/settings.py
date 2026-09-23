@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     sec_retries: int = Field(2, ge=0, le=4)
     sec_max_history_files: int = Field(20, ge=1, le=100)
     sec_max_response_bytes: int = Field(20000000, ge=1024)
+    random_ticker_attempts: int = Field(5, ge=1, le=12)
     typesafe_api_key: SecretStr = SecretStr("")
     typesafe_base_url: str = 'https://api.typesafe.ai'
     typesafe_model: str = 'jev-latest'

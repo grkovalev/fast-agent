@@ -25,7 +25,7 @@ class V2Repository:
         self.db_path = self.root / 'profitlab-v2.sqlite3'
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11):
+            if version not in (0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12):
                 raise ValueError(f'Unsupported V2 storage schema version: {version}')
             if version == 0:
                 db.executescript(self._schema())
@@ -39,6 +39,7 @@ class V2Repository:
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
+                db.executescript(self._migrate_11_to_12())
             elif version == 3:
                 db.executescript(self._migrate_3_to_4())
                 db.executescript(self._migrate_4_to_5())
@@ -48,6 +49,7 @@ class V2Repository:
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
+                db.executescript(self._migrate_11_to_12())
             elif version == 4:
                 db.executescript(self._migrate_4_to_5())
                 db.executescript(self._migrate_5_to_6())
@@ -56,6 +58,7 @@ class V2Repository:
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
+                db.executescript(self._migrate_11_to_12())
             elif version == 5:
                 db.executescript(self._migrate_5_to_6())
                 db.executescript(self._migrate_6_to_7())
@@ -63,26 +66,34 @@ class V2Repository:
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
+                db.executescript(self._migrate_11_to_12())
             elif version == 6:
                 db.executescript(self._migrate_6_to_7())
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
+                db.executescript(self._migrate_11_to_12())
             elif version == 7:
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
+                db.executescript(self._migrate_11_to_12())
             elif version == 8:
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
+                db.executescript(self._migrate_11_to_12())
             elif version == 9:
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
+                db.executescript(self._migrate_11_to_12())
             elif version == 10:
                 db.executescript(self._migrate_10_to_11())
+                db.executescript(self._migrate_11_to_12())
+            elif version == 11:
+                db.executescript(self._migrate_11_to_12())
 
     @staticmethod
     def _schema():
@@ -165,10 +176,15 @@ class V2Repository:
                 prompt_version TEXT NOT NULL, configuration_hash TEXT NOT NULL,
                 actual_model TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL,
                 PRIMARY KEY(pair_hash, prompt_version, configuration_hash, actual_model));
+            CREATE TABLE ticker_selections (
+                selection_id INTEGER PRIMARY KEY AUTOINCREMENT, ticker TEXT,
+                selected_at TEXT NOT NULL, directory_provenance TEXT NOT NULL,
+                directory_version TEXT NOT NULL, cache_status TEXT NOT NULL,
+                eligibility TEXT NOT NULL, message TEXT NOT NULL);
             CREATE INDEX scores_run_kind_item ON scores(run_id, score_kind, item_id);
             CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
             CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
-            PRAGMA user_version=11;
+            PRAGMA user_version=12;
         '''
 
     @staticmethod
@@ -264,6 +280,17 @@ class V2Repository:
             PRAGMA user_version=11;
         '''
 
+    @staticmethod
+    def _migrate_11_to_12():
+        return '''
+            CREATE TABLE ticker_selections (
+                selection_id INTEGER PRIMARY KEY AUTOINCREMENT, ticker TEXT,
+                selected_at TEXT NOT NULL, directory_provenance TEXT NOT NULL,
+                directory_version TEXT NOT NULL, cache_status TEXT NOT NULL,
+                eligibility TEXT NOT NULL, message TEXT NOT NULL);
+            PRAGMA user_version=12;
+        '''
+
     @contextmanager
     def connect(self):
         db = sqlite3.connect(self.db_path, timeout=30)
@@ -319,6 +346,25 @@ class V2Repository:
             rows = db.execute('SELECT * FROM runs ORDER BY created_at DESC LIMIT ?',
                               (min(limit, 100),)).fetchall()
         return [V2Run.model_validate(dict(row)) for row in rows]
+
+    def processed_tickers(self):
+        with self.connect() as db:
+            rows = db.execute('SELECT DISTINCT ticker FROM runs').fetchall()
+        return {row['ticker'] for row in rows}
+
+    def record_ticker_selection(self, selection):
+        with self.connect() as db:
+            db.execute('''INSERT INTO ticker_selections
+                (ticker, selected_at, directory_provenance, directory_version, cache_status, eligibility, message)
+                VALUES (?, ?, ?, ?, ?, ?, ?)''', (
+                    selection.ticker, selection.selected_at.isoformat(), selection.directory_provenance,
+                    selection.directory_version, selection.cache_status, selection.eligibility,
+                    selection.message))
+
+    def latest_ticker_selection(self):
+        with self.connect() as db:
+            row = db.execute('SELECT * FROM ticker_selections ORDER BY selection_id DESC LIMIT 1').fetchone()
+        return dict(row) if row else None
 
     def remove_run(self, run_id: str):
         """Delete exactly one run and all of its run-owned persisted output."""
