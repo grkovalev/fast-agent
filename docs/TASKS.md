@@ -179,7 +179,7 @@ If a task is too large for one session, finish a coherent working slice, keep it
 **Implement:**
 
 1. Supply only retained chunks, filing metadata, and the target definition to the LLM; never supply expected XBRL values.
-2. Require typed findings containing concise narrative, exact quotes, source chunk/range, observed raw numbers, proposed Decimal normalization, visible scale/unit, period, attribution, and limitations.
+2. Require typed findings with an exact quote, source chunk/range, and required Decimal amount matched to the quote. Period, visible scale/unit, attribution, and limitations are optional; do not request narrative prose.
 3. Validate every quote as an exact substring inside the referenced chunk, then resolve it to line/character coordinates and an HTML anchor inside that source range.
 4. Allow one bounded quote-repair attempt. Reject a finding if its quote remains invalid; never publish an uncited fallback.
 5. Treat unclear period, scale, or attribution as unresolved instead of guessing. Deduplicate the same quoted number across overlapping chunks.

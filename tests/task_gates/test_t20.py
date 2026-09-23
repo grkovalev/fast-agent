@@ -25,6 +25,7 @@ def test_findings_reject_invalid_quote_and_resolve_valid_quote_to_exact_anchor(t
         'source_chunk_id': chunks[0].chunk_id,
         'source_line': chunks[0].core_range.start_line,
         'exact_quote': 'invented oracle value',
+        'amount': '1',
     }, 'controlled')
     assert rejected is None and 'exact substring' in reason
 
@@ -50,7 +51,7 @@ def test_offline_findings_are_persisted_deduplicated_and_rendered(tmp_path):
     summary = pipeline.repo.finding_summary('workspace-t20')
     assert pipeline.repo.stage('workspace-t20', 'findings').status == 'completed'
     assert findings and summary['rejected'] == 0
-    assert len({(item.exact_quote, item.raw_number) for item in findings}) == len(findings)
+    assert len({(item.exact_quote, item.amount) for item in findings}) == len(findings)
     request = pipeline.repo.exploration_actions('workspace-t20', 'findings')[0]['request']
     assert 'contextRef' not in str(request) and 'us-gaap:' not in str(request)
     assert 'structured_facts' not in request

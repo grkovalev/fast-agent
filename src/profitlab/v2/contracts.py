@@ -117,13 +117,11 @@ class ScoredItem(V2Contract):
 
 class Finding(V2Contract):
     finding_id: StableID
-    narrative: str = Field(min_length=1)
     exact_quote: str = Field(min_length=1)
     source_range: SourceRange
+    amount: Decimal
     source_chunk_id: StableID | None = None
     target: str | None = None
-    raw_number: str | None = None
-    normalized_value: Decimal | None = None
     unit: str | None = None
     period: str | None = None
     attribution: str | None = None

@@ -52,7 +52,7 @@ class EvaluationService:
         findings = self.repo.findings(run_id)
         facts = self.repo.structured_facts(run_id)
         # A repeated quote/number is overlap context, not another discovery event.
-        unique_findings = {(item.exact_quote, item.raw_number): item for item in findings}.values()
+        unique_findings = {(item.exact_quote, item.amount): item for item in findings}.values()
         findings = list(unique_findings)
         by_metric = defaultdict(list)
         for fact in facts:
@@ -76,13 +76,13 @@ class EvaluationService:
                     consumed.update(item.finding_id for item in candidates)
                     continue
                 fact = period_facts[0]
-                same_value = [item for item in candidates if item.normalized_value == fact.value
+                same_value = [item for item in candidates if item.amount == fact.value
                               and self._unit_matches(item, fact)]
                 exact = [item for item in same_value if self._year(item.period) == fact.period_end.year]
                 unresolved = [item for item in same_value if self._year(item.period) is None]
                 period_value_mismatches = [item for item in candidates
                     if self._year(item.period) == fact.period_end.year
-                    and item.normalized_value is not None and item.normalized_value != fact.value
+                    and item.amount != fact.value
                     and self._unit_matches(item, fact)]
                 if exact:
                     state, matched = 'exact_match', exact

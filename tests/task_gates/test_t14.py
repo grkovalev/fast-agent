@@ -23,11 +23,10 @@ def settings(tmp_path, monkeypatch):
 def test_contracts_and_fresh_v2_storage(settings):
     source_range = SourceRange(document_id='doc', source_hash='a' * 64,
                                start_line=2, end_line=4)
-    finding = Finding(finding_id='finding', narrative='Observed earnings.',
-                      exact_quote='Net income was $1.00.', source_range=source_range,
-                      raw_number='$1.00', normalized_value=Decimal('1.00'),
+    finding = Finding(finding_id='finding', exact_quote='Net income was $1.00.',
+                      source_range=source_range, amount=Decimal('1.00'),
                       validation_state='validated')
-    assert json.loads(finding.model_dump_json())['normalized_value'] == '1.00'
+    assert json.loads(finding.model_dump_json())['amount'] == '1.00'
     with pytest.raises(ValueError):
         SourceRange(document_id='doc', source_hash='a' * 64, start_line=4, end_line=2)
 

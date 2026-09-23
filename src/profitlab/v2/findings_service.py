@@ -25,6 +25,7 @@ class FindingsResult:
 class FindingsService:
     """Never permit generated prose to become a finding without a source quote."""
     prompt_version = 'findings-v1'
+    _NUMBER = re.compile(r'(?<!\w)(?:\$?\s*\(?[\d,]+(?:\.\d+)?\)?)(?!\w)')
 
     def __init__(self, settings, repository):
         self.settings, self.repo = settings, repository
@@ -82,18 +83,19 @@ class FindingsService:
     @staticmethod
     def _prompt(state, repair=None):
         instruction = '''Return JSON only: {"findings":[...]}. Each finding object may contain only
-narrative, exact_quote, source_chunk_id, source_line, target, raw_number,
-normalized_value, unit, period, attribution, limitations. source_line must be a line_number
+exact_quote, source_chunk_id, source_line, target, amount, unit, period, attribution,
+limitations. amount is required: provide it as a plain decimal string without currency,
+commas, units, or scale. It must equal a visible numeric value in exact_quote. period is
+optional. source_line must be a line_number
 from the selected chunk's core_evidence_lines. exact_quote must be copied verbatim from that
 one source_line only; context_lines may never be cited. limitations must be a JSON array of
 strings. Do not infer a period, scale, unit, or attribution: use null and add a limitation
-when unclear. raw_number must be visible inside exact_quote. normalized_value is an optional
-decimal proposal, never an oracle value. The requested value period is the
-filing_metadata.current_report_year: seek values for that current fiscal-reporting year, not
-comparative years. The validated_outline is navigation metadata only, not evidence.
-exact_quote proves the numeric finding only: period, unit, scale, and attribution may come
-from separate visible lines in the same retained chunk. Use null and explain the limitation
-when that chunk does not make a field clear. Create no finding without an exact quote.\n\nInputs:\n'''
+when unclear. The requested value period is the filing_metadata.current_report_year: seek
+values for that current fiscal-reporting year, not comparative years. The validated_outline
+is navigation metadata only, not evidence. exact_quote proves the numeric finding only:
+period, unit, scale, and attribution may come from separate visible lines in the same
+retained chunk. Use null and explain the limitation when that chunk does not make a field
+clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
         if repair:
             instruction += '\nRepair only the invalid citations below; retain no invalid item.\n' + json.dumps(repair)
         return instruction + json.dumps(state, ensure_ascii=False)
@@ -105,13 +107,13 @@ when that chunk does not make a field clear. Create no finding without an exact 
             evidence = next((line for line in lines if re.search(r'\d', line['text'])),
                             lines[0] if lines else {'line_number': None, 'text': ''})
             quote = evidence['text']
-            number = re.search(r'(?<!\w)(?:\$?\(?[\d,]+(?:\.\d+)?\)?)(?!\w)', quote)
-            output.append({'narrative': 'Visible filing evidence retained for review.',
-                           'exact_quote': quote, 'source_chunk_id': item['chunk_id'],
+            number = next(iter(self._amounts(quote)), None)
+            if number is None:
+                continue
+            output.append({'exact_quote': quote, 'source_chunk_id': item['chunk_id'],
                            'source_line': evidence['line_number'],
                            'target': item['targets'][0] if item['targets'] else None,
-                           'raw_number': number.group(0) if number else None,
-                           'normalized_value': None, 'unit': None, 'period': None,
+                           'amount': str(number), 'unit': None, 'period': None,
                            'attribution': None,
                            'limitations': ['Offline fixture output; period, scale, unit, and attribution require review.']})
         return output, 'fixture-findings-v1'
@@ -133,15 +135,27 @@ when that chunk does not make a field clear. Create no finding without an exact 
         return parsed['findings'], (response.model or self.settings.llm_model)
 
     @staticmethod
-    def _decimal(value):
-        if value is None:
-            return None
+    def _amount(value):
         if not isinstance(value, str):
-            raise TypeError('normalized_value must be a decimal string or null')
+            raise TypeError('amount must be a decimal string')
         try:
-            return Decimal(value)
+            amount = Decimal(value)
         except InvalidOperation as error:
-            raise ValueError('normalized_value is not a Decimal proposal') from error
+            raise ValueError('amount is not a Decimal string') from error
+        if not amount.is_finite():
+            raise ValueError('amount must be finite')
+        return amount
+
+    @classmethod
+    def _amounts(cls, text):
+        for match in cls._NUMBER.finditer(text):
+            raw = match.group(0).strip().replace('$', '').replace(',', '').replace(' ', '')
+            if raw.startswith('(') and raw.endswith(')'):
+                raw = '-' + raw[1:-1]
+            try:
+                yield Decimal(raw)
+            except InvalidOperation:
+                continue
 
     def _validate(self, document, chunks, proposal, model, *, repaired=False):
         if not isinstance(proposal, dict):
@@ -162,15 +176,12 @@ when that chunk does not make a field clear. Create no finding without an exact 
         location = SourceRange(document_id=document.ref.document_id,
             source_hash=document.ref.source_hash, start_line=source_line,
             end_line=source_line, start_character=offset, end_character=offset + len(quote))
-        raw = proposal.get('raw_number')
-        if raw is not None and (not isinstance(raw, str) or raw not in quote):
-            return None, 'raw number is not visible in the exact quote'
         try:
-            normalized = self._decimal(proposal.get('normalized_value'))
+            amount = self._amount(proposal.get('amount'))
         except (TypeError, ValueError) as error:
             return None, str(error)
-        if normalized is not None and raw is None:
-            return None, 'normalized number must retain its visible raw number'
+        if amount not in set(self._amounts(quote)):
+            return None, 'amount is not visible in the exact quote'
         limitations = proposal.get('limitations', [])
         if isinstance(limitations, str):
             limitations = [limitations]
@@ -181,13 +192,10 @@ when that chunk does not make a field clear. Create no finding without an exact 
         if unknown:
             return None, 'unit, period, and attribution must be strings or null'
         return Finding(finding_id='finding-' + hashlib.sha256(
-            f'{chunk.chunk_id}:{quote}:{proposal.get("target")}'.encode()).hexdigest()[:16],
-            narrative=proposal.get('narrative') if isinstance(proposal.get('narrative'), str)
-            and proposal['narrative'].strip() else 'Visible filing evidence.', exact_quote=quote,
-            source_range=location, source_chunk_id=chunk.chunk_id,
+            f'{chunk.chunk_id}:{quote}:{amount}:{proposal.get("target")}'.encode()).hexdigest()[:16],
+            exact_quote=quote, source_range=location, amount=amount, source_chunk_id=chunk.chunk_id,
             target=proposal.get('target') if proposal.get('target') in TARGETS else None,
-            raw_number=raw, normalized_value=normalized, unit=proposal.get('unit'),
-            period=proposal.get('period'), attribution=proposal.get('attribution'),
+            unit=proposal.get('unit'), period=proposal.get('period'), attribution=proposal.get('attribution'),
             limitations=limitations, validation_state='validated', model=model,
             repair_attempted=repaired), None
 
@@ -244,7 +252,7 @@ when that chunk does not make a field clear. Create no finding without an exact 
         # Overlap may repeat a quoted number. Preserve one source-validated finding.
         unique = {}
         for finding in findings:
-            unique.setdefault((finding.exact_quote, finding.raw_number), finding)
+            unique.setdefault((finding.exact_quote, finding.amount), finding)
         findings = list(unique.values())
         self.repo.save_findings(run_id, findings)
         self.repo.save_finding_summary(run_id, {

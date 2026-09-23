@@ -54,14 +54,16 @@ def test_current_year_period_may_use_separate_retained_chunk_context(tmp_path):
     document_ref = pipeline.repo.canonical_refs('period-proof-t27')[0]
     document = pipeline.repo.canonical_document('period-proof-t27', document_ref.document_id)
     chunk = next(item for item in pipeline.repo.chunks('period-proof-t27') if any(
-        '2025' not in line.text and line.text for line in document.lines[
+        '2025' not in line.text and next(FindingsService._amounts(line.text), None)
+        for line in document.lines[
             item.core_range.start_line - 1:item.core_range.end_line]))
     source = next(line for line in document.lines[chunk.core_range.start_line - 1:
-                                                  chunk.core_range.end_line]
-                  if '2025' not in line.text and line.text)
+                                                      chunk.core_range.end_line]
+                  if '2025' not in line.text and next(FindingsService._amounts(line.text), None))
     finding, reason = FindingsService(settings, pipeline.repo)._validate(document, [chunk], {
         'source_chunk_id': chunk.chunk_id, 'source_line': source.line_number,
-        'exact_quote': source.text, 'period': '2025',
+        'exact_quote': source.text, 'amount': str(next(FindingsService._amounts(source.text))),
+        'period': '2025',
     }, 'controlled')
 
     assert reason is None
@@ -86,7 +88,38 @@ def test_finding_citation_cannot_use_context_or_another_core_line(tmp_path):
     finding, reason = FindingsService(settings, pipeline.repo)._validate(document, [chunk], {
         'source_chunk_id': chunk.chunk_id, 'source_line': context_line.line_number,
         'exact_quote': context_line.text,
+        'amount': '1',
     }, 'controlled')
 
     assert finding is None
     assert reason == 'source line is outside the chunk core evidence range'
+
+
+def test_finding_amount_is_required_and_must_match_its_quote(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None,
+                        chunk_target_tokens=100, chunk_overlap_tokens=40,
+                        chunk_question_overhead=500, chunk_request_budget=1000,
+                        outline_window_lines=100, section_score_batch_size=2)
+    pipeline = V2PipelineService(settings)
+    pipeline.create(run_id='amount-proof-t27')
+    asyncio.run(pipeline.run('amount-proof-t27', implement_source=True))
+    document_ref = pipeline.repo.canonical_refs('amount-proof-t27')[0]
+    document = pipeline.repo.canonical_document('amount-proof-t27', document_ref.document_id)
+    chunk = next(item for item in pipeline.repo.chunks('amount-proof-t27') if any(
+        next(FindingsService._amounts(line.text), None) for line in document.lines[
+            item.core_range.start_line - 1:item.core_range.end_line]))
+    source = next(line for line in document.lines[chunk.core_range.start_line - 1:
+                                                  chunk.core_range.end_line]
+                  if next(FindingsService._amounts(line.text), None))
+    proposal = {'source_chunk_id': chunk.chunk_id, 'source_line': source.line_number,
+                'exact_quote': source.text}
+    finding, reason = FindingsService(settings, pipeline.repo)._validate(document, [chunk],
+                                                                           proposal, 'controlled')
+    assert finding is None
+    assert reason == 'amount must be a decimal string'
+
+    proposal['amount'] = '999999999'
+    finding, reason = FindingsService(settings, pipeline.repo)._validate(document, [chunk],
+                                                                           proposal, 'controlled')
+    assert finding is None
+    assert reason == 'amount is not visible in the exact quote'

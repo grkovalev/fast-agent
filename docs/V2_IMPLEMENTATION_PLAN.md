@@ -38,7 +38,7 @@ Statuses are `queued`, `running`, `completed`, `partial`, `failed`, `cancelled`,
 - `OutlineSection`: generated topic, exact source title, primary range, parent hint, and boundary warnings.
 - `TextChunk`: section ID, core range, context ranges, request estimate, and lineage.
 - `ScoredItem`: item ID, target score vector, model/call identity, policy decision, and reason. Reuse it for sections and chunks.
-- `Finding`: narrative, exact quote spans, observed raw/normalized numbers, period/attribution hypotheses, limitations, and validation state.
+- `Finding`: exact quote span, required Decimal amount, optional period/attribution hypotheses, limitations, and validation state.
 - `StructuredFact`: concept, metric mapping, exact Decimal value, unit, period, accession, form, and filed date.
 - `FactComparison`: expected fact, matching findings, comparison state, and discovery-cost measures.
 
@@ -74,7 +74,7 @@ Score exact chunk text with visible heading and filing metadata. Enforce request
 
 ## 8. Quote-backed findings
 
-Supply only retained chunks, filing metadata, and target definitions to the findings LLM. Require typed narrative, exact quotes, source range, observed raw numbers, normalized Decimal proposals, visible unit/scale, period, attribution, and limitations.
+Supply only retained chunks, filing metadata, and target definitions to the findings LLM. Require an exact quote, source range, and required Decimal amount mechanically matched to that quote; period, visible unit/scale, attribution, and limitations remain optional.
 
 Every published finding must contain at least one exact quote validated inside its referenced chunk and canonical source. Permit one bounded quote-repair attempt; otherwise reject the finding. Unclear scale, period, or attribution remains unresolved. Deduplicate repeated quotes/numbers introduced by overlap.
 

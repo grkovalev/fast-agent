@@ -76,6 +76,9 @@ be cited. Trusted filing `report_date` metadata supplies the requested current
 fiscal-reporting year; the findings prompt asks for that year's values and treats both
 the outline and year as orientation rather than evidence. The exact quote validates the
 numeric value; period, unit, and scale may use separately retained visible chunk context.
+Findings are structured values rather than model-written narrative: every published item
+has a required Decimal amount mechanically matched to its quote, while period remains
+optional.
 Findings diagnostics and the workspace now report the requested year plus separate
 outline-context and retained-evidence character counts. String `limitations` values are
 normalized to a one-item list before validation. The findings prompt version is
@@ -99,6 +102,12 @@ Commands/results:
   `uv run ruff check .` and `git diff --check` passed.
 - Citation-boundary follow-up: the same affected command now reports **13 passed** in
   2.41s, with the same warning; `uv run ruff check .` and `git diff --check` passed.
+- Required-amount follow-up: findings no longer accept model-written narrative. They
+  require an `amount` Decimal that matches a numeric token in the declared core-line
+  quote; `period` remains optional. `uv run pytest tests/task_gates/test_t20.py
+  tests/task_gates/test_t27.py -q` reported **6 passed** in 1.42s, with the same
+  warning; the broader contract/findings/evaluation/UI boundary reported **12 passed**
+  in 2.07s. `uv run ruff check .` and `git diff --check` passed.
 - Browser automation was not run per task policy. No live SEC or LLM calls were made;
   manual and live inspection remain pending.
 
