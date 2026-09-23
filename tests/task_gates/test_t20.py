@@ -81,3 +81,21 @@ def test_offline_findings_are_persisted_deduplicated_and_rendered(tmp_path):
     assert 'Quote-backed findings' in page.text
     assert 'Chunk retrieval signal:' in page.text
     assert 'Open exact source quote' in page.text
+
+
+def test_findings_context_budget_falls_back_without_failing_the_run(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None,
+                        findings_request_char_budget=1000, chunk_target_tokens=100,
+                        chunk_overlap_tokens=40, chunk_question_overhead=500,
+                        chunk_request_budget=1000, outline_window_lines=100,
+                        section_score_batch_size=2)
+    pipeline = V2PipelineService(settings)
+    pipeline.create(run_id='fallback-t20')
+
+    asyncio.run(pipeline.run('fallback-t20', implement_source=True))
+
+    stage = pipeline.repo.stage('fallback-t20', 'findings')
+    summary = pipeline.repo.finding_summary('fallback-t20')
+    assert stage.status == 'completed'
+    assert summary['context_fallback'] is True
+    assert 'Request budget fallback' in stage.summary

@@ -12,11 +12,13 @@ from fastapi.templating import Jinja2Templates
 from profitlab.sec.ticker_picker import RandomEligibleTickerPicker
 from profitlab.settings import Settings
 from profitlab.v2 import STAGE_NAMES, V2PipelineService
+from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
 
 WEB_DIR = Path(__file__).parent
 
 
-def create_app(settings: Settings | None = None, *, ticker_picker_factory=None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
+               benchmark_dataset=None) -> FastAPI:
     settings = settings or Settings()
     pipeline, tasks = V2PipelineService(settings), {}
 
@@ -56,6 +58,22 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None) 
     @app.get('/')
     def home(request: Request):
         return templates.TemplateResponse(request=request, name='home.html', context=home_context())
+
+    @app.get('/v2/benchmark')
+    def benchmark_overview(request: Request):
+        rows = []
+        for run in pipeline.repo.recent():
+            evaluation = pipeline.repo.stage(run.run_id, 'evaluate')
+            result = pipeline.repo.retrieval_benchmark(run.run_id)
+            rows.append({'run': run, 'evaluation': evaluation, 'result': result})
+        return templates.TemplateResponse(request=request, name='v2_benchmark.html', context={'rows': rows})
+
+    @app.post('/v2/benchmark/regenerate')
+    def regenerate_benchmarks():
+        for run in pipeline.repo.recent(100):
+            if pipeline.repo.stage(run.run_id, 'evaluate').status == 'completed':
+                RetrievalBenchmarkService(pipeline.repo, settings).evaluate_automatic(run.run_id)
+        return RedirectResponse('/v2/benchmark', status_code=303)
 
     @app.post('/v2/runs')
     async def create(request: Request):
@@ -263,6 +281,23 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None) 
         except (FileNotFoundError, ValueError):
             raise HTTPException(404, 'V2 run cannot be resumed') from None
         return RedirectResponse(f'/v2/runs/{run_id}', status_code=303)
+
+    @app.post('/v2/runs/{run_id}/benchmark')
+    def benchmark(run_id: str):
+        try:
+            run = pipeline.repo.get_run(run_id)
+            filing = pipeline.repo.filing(run_id)
+            document = pipeline.repo.canonical_document(run_id, filing['document_id'])
+            dataset = benchmark_dataset or load_dataset()
+            case = dataset.case_for(ticker=run.ticker, accession=filing.get('accession'),
+                                    source_hash=document.ref.source_hash)
+            if not case:
+                raise ValueError('No immutable reviewed benchmark case matches this company, accession, and source hash.')
+            RetrievalBenchmarkService(pipeline.repo, settings).evaluate(
+                run_id, case, provider_identity='replayed persisted provider output')
+        except (FileNotFoundError, ValueError) as error:
+            raise HTTPException(400, str(error)) from None
+        return RedirectResponse(f'/v2/runs/{run_id}/pipeline?stage=evaluate', status_code=303)
 
     @app.post('/v2/runs/{run_id}/remove')
     def remove(run_id: str):

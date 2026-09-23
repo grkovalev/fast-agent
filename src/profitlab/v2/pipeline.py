@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from profitlab.sec.service import normalize_ticker
 
+from .benchmark import RetrievalBenchmarkService
 from .chunk_scoring import ChunkScoringService
 from .chunking import SourceRangeChunker
 from .contracts import STAGE_NAMES, V2Run
@@ -283,7 +284,9 @@ class V2PipelineService:
                     'total_work': len(result.findings), 'finished_at': datetime.now(UTC),
                     'elapsed_seconds': monotonic() - tick,
                     'summary': (f'Published {len(result.findings)} exact quote-validated findings; '
-                                f'{result.rejected} invalid citation(s) rejected.'),
+                                f'{result.rejected} invalid citation(s) rejected.' +
+                                (' Request budget fallback retained only highest-scored evidence.'
+                                 if result.context_fallback else '')),
                     'limitation': ('Fixture findings only; configure LLM_API_KEY for live visible-number '
                                    'extraction.' if run.mode == 'offline' else None),
                     'input_hash': document.ref.source_hash,
@@ -325,6 +328,7 @@ class V2PipelineService:
                 try:
                     result = await EvaluationService(self.settings, self.repo).compare_with_scale_verdicts(
                         run_id, offline=run.mode == 'offline')
+                    RetrievalBenchmarkService(self.repo, self.settings).evaluate_automatic(run_id)
                 except Exception as error:  # noqa: BLE001 - evaluation must not alter sealed inputs
                     failed = running.model_copy(update={
                         'status': 'failed', 'finished_at': datetime.now(UTC),

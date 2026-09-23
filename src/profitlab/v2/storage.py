@@ -25,7 +25,7 @@ class V2Repository:
         self.db_path = self.root / 'profitlab-v2.sqlite3'
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12):
+            if version not in (0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13):
                 raise ValueError(f'Unsupported V2 storage schema version: {version}')
             if version == 0:
                 db.executescript(self._schema())
@@ -40,6 +40,7 @@ class V2Repository:
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
                 db.executescript(self._migrate_11_to_12())
+                db.executescript(self._migrate_12_to_13())
             elif version == 3:
                 db.executescript(self._migrate_3_to_4())
                 db.executescript(self._migrate_4_to_5())
@@ -50,6 +51,7 @@ class V2Repository:
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
                 db.executescript(self._migrate_11_to_12())
+                db.executescript(self._migrate_12_to_13())
             elif version == 4:
                 db.executescript(self._migrate_4_to_5())
                 db.executescript(self._migrate_5_to_6())
@@ -59,6 +61,7 @@ class V2Repository:
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
                 db.executescript(self._migrate_11_to_12())
+                db.executescript(self._migrate_12_to_13())
             elif version == 5:
                 db.executescript(self._migrate_5_to_6())
                 db.executescript(self._migrate_6_to_7())
@@ -67,6 +70,7 @@ class V2Repository:
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
                 db.executescript(self._migrate_11_to_12())
+                db.executescript(self._migrate_12_to_13())
             elif version == 6:
                 db.executescript(self._migrate_6_to_7())
                 db.executescript(self._migrate_7_to_8())
@@ -74,26 +78,34 @@ class V2Repository:
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
                 db.executescript(self._migrate_11_to_12())
+                db.executescript(self._migrate_12_to_13())
             elif version == 7:
                 db.executescript(self._migrate_7_to_8())
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
                 db.executescript(self._migrate_11_to_12())
+                db.executescript(self._migrate_12_to_13())
             elif version == 8:
                 db.executescript(self._migrate_8_to_9())
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
                 db.executescript(self._migrate_11_to_12())
+                db.executescript(self._migrate_12_to_13())
             elif version == 9:
                 db.executescript(self._migrate_9_to_10())
                 db.executescript(self._migrate_10_to_11())
                 db.executescript(self._migrate_11_to_12())
+                db.executescript(self._migrate_12_to_13())
             elif version == 10:
                 db.executescript(self._migrate_10_to_11())
                 db.executescript(self._migrate_11_to_12())
+                db.executescript(self._migrate_12_to_13())
             elif version == 11:
                 db.executescript(self._migrate_11_to_12())
+                db.executescript(self._migrate_12_to_13())
+            elif version == 12:
+                db.executescript(self._migrate_12_to_13())
 
     @staticmethod
     def _schema():
@@ -181,10 +193,12 @@ class V2Repository:
                 selected_at TEXT NOT NULL, directory_provenance TEXT NOT NULL,
                 directory_version TEXT NOT NULL, cache_status TEXT NOT NULL,
                 eligibility TEXT NOT NULL, message TEXT NOT NULL);
+            CREATE TABLE retrieval_benchmarks (run_id TEXT PRIMARY KEY REFERENCES runs(run_id) ON DELETE CASCADE,
+                payload TEXT NOT NULL);
             CREATE INDEX scores_run_kind_item ON scores(run_id, score_kind, item_id);
             CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
             CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
-            PRAGMA user_version=12;
+            PRAGMA user_version=13;
         '''
 
     @staticmethod
@@ -289,6 +303,14 @@ class V2Repository:
                 directory_version TEXT NOT NULL, cache_status TEXT NOT NULL,
                 eligibility TEXT NOT NULL, message TEXT NOT NULL);
             PRAGMA user_version=12;
+        '''
+
+    @staticmethod
+    def _migrate_12_to_13():
+        return '''
+            CREATE TABLE retrieval_benchmarks (run_id TEXT PRIMARY KEY REFERENCES runs(run_id) ON DELETE CASCADE,
+                payload TEXT NOT NULL);
+            PRAGMA user_version=13;
         '''
 
     @contextmanager
@@ -880,6 +902,18 @@ class V2Repository:
     def performance_summary(self, run_id: str):
         with self.connect() as db:
             row = db.execute('SELECT payload FROM performance_summaries WHERE run_id=?', (run_id,)).fetchone()
+        return json.loads(row['payload']) if row else None
+
+    def save_retrieval_benchmark(self, run_id: str, payload: dict):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('INSERT OR REPLACE INTO retrieval_benchmarks (run_id, payload) VALUES (?, ?)',
+                       (run_id, json.dumps(payload, sort_keys=True)))
+
+    def retrieval_benchmark(self, run_id: str):
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM retrieval_benchmarks WHERE run_id=?', (run_id,)).fetchone()
         return json.loads(row['payload']) if row else None
 
     def record_route_measurement(self, run_id: str, *, route: str, latency_ms: float,

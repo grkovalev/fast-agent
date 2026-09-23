@@ -7,7 +7,10 @@
   a recent eligible 10-K, prefers a ticker absent from prior V2 runs, then immediately
   creates and opens that live run. The UI now submits Live SEC only; offline mode
   remains an internal test/fixture path pending T34.
-- Next task: **T31 — Retrieval benchmark and baselines.**
+- Current task: **T31 — Retrieval benchmark and baselines** — an inspectable
+  comparison of deterministic and Jev retrieval strategies, including retained-source
+  budgets and clickable misses.
+- Next task: **T32 — Final real-data demonstration.**
 - Latest verified task: T30 local acceptance; manual browser inspection and live SEC
   picker verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -54,7 +57,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T28 | Scale-aware Jev evaluation verdicts | DONE | Manual browser and live Jev verification pending |
 | T29 | Readable evaluation comparison cards | DONE | Manual browser inspection pending |
 | T30 | Random eligible ticker picker | DONE | Manual browser and live SEC picker verification pending |
-| T31 | Retrieval benchmark and baselines | TODO | Not run |
+| T31 | Retrieval benchmark and baselines | IN_PROGRESS | Not run |
 | T32 | Final real-data demonstration | TODO | Not run |
 | T33 | Fresh-only storage schema; remove migrations | TODO | Not run |
 | T34 | Remove offline fixture source mode | TODO | Not run |
@@ -75,6 +78,79 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
 
 ## Latest task handoff
+
+Task: T31 — Retrieval benchmark and baselines (coherent implementation slice; remains IN_PROGRESS).
+Implemented: added an immutable, source-hash-bound benchmark manifest contract with
+development/held-out case splits, reviewed source ranges, and required-fact source
+locations. `RetrievalBenchmarkService` replays seven strategies after a run is sealed:
+keep-all, heading/keyword, structural, Jev-section (Jev-only and application-policy),
+and Jev-section-plus-chunk (Jev-only and application-policy). It reports relevant-range
+recall, structured-fact coverage, exact-value accuracy, retained source percentage,
+misleading-range retention, calls, latency, and first matching source line. Results pin
+the score prompt/question/model identities, persist independently of discovery, clearly
+label replayed provider identity, expose missed source ranges as links, and never invoke
+or modify Jev/findings retrieval.
+
+Tests inspected: `tests/task_gates/test_t22.py` and `tests/task_gates/test_t29.py` were
+the closest comparison/UI contracts. Added `tests/task_gates/test_t31.py`, covering a
+held-out immutable case, all strategies, exact fact/value accounting, persistence/UI,
+and the non-leak guarantee that replay adds no section-scoring provider actions. No
+obsolete tests were removed.
+
+Commands/results:
+
+- `time uv run pytest tests/task_gates/test_t31.py tests/task_gates/test_t29.py tests/task_gates/test_t22.py -q`:
+  **7 passed** in 1.78 seconds (2.07 seconds wall time), with one pre-existing
+  Starlette/AnyIO deprecation warning.
+- `uv run ruff check .` and `git diff --check`: passed.
+- `time uv run pytest -q`: **43 passed** in 6.01 seconds (6.31 seconds wall time),
+  with the same warning.
+
+Live verification and the held-out acceptance targets remain unrun: the checked-in
+`fixtures/benchmark/v1.json` has no reviewed real company/accession cases, because no
+saved real SEC source/provenance exists in this workspace to review honestly. The UI
+therefore says it cannot extrapolate a benchmark to an unreviewed filing. Add immutable
+reviewed cases (including their exact source hashes) before using the benchmark endpoint.
+Browser automation was not run per task policy.
+
+Follow-up UI correction: benchmark results now live on the separate cross-run
+`/v2/benchmark` page, linked from Runs and every pipeline workspace; per-run Evaluate
+pages no longer render an empty benchmark notice. The page lists every run's evaluation
+and review status, then renders only persisted benchmark comparisons.
+
+Follow-up automatic generation: each newly completed Evaluate stage now creates an
+**automatic post-run replay** from that run's sealed findings, comparisons, Company
+Facts, and persisted retrieval decisions. Existing completed runs can be populated with
+the **Recalculate completed runs** control on `/v2/benchmark`; it makes no SEC, Jev, or
+LLM requests. The page labels these as automatic operational metrics—not reviewed or
+held-out truth—and retains reviewed cases as a distinct later mode. The automatic
+generation/recalculation contract plus adjacent evaluation tests passed **7 tests** in
+2.07 seconds; final `uv run ruff check .`, `git diff --check`, and full suite passed
+with **43 tests** in 6.57 seconds (the existing Starlette/AnyIO warning remains).
+
+Follow-up findings resilience: when assembled findings context exceeds the configured
+request budget, Findings now keeps complete retained chunks in descending score order
+until full-context capacity is reached. If needed it drops non-citable overlap and
+unneeded outline navigation before returning an explicit empty limited result; it never
+fabricates a finding or fails the entire run for that budget condition. The Findings
+stage summary records the fallback. Added a controlled 1,000-character-budget contract;
+the focused T20/T27 subset passed **7 tests** in 1.88 seconds and the final suite passed
+**44 tests** in 6.74 seconds, with Ruff and diff checks clean.
+
+Follow-up scorecard correction: automatic scorecards no longer report relevant-range
+recall. Their old labels were derived from the same run's findings, making recall
+circular and often 1.0. The cross-run page now calls this **Reviewed recall** and shows
+**Not reviewed** for automatic runs; only immutable independently reviewed cases may
+report recall and target achievement. Focused benchmark coverage and the final suite
+passed (**44 tests** in 6.62 seconds), with Ruff and diff checks clean.
+
+Manual verification once a matching reviewed case exists: start `uv run profitlab serve`
+if needed, finish that exact run, POST to `/v2/runs/<run-id>/benchmark`, then open
+`/v2/benchmark`. Confirm all strategy rows show their split, provider identity, pinned
+configuration, targets met/not met, and any **Miss: lines** link opens the canonical
+source range. The follow-up focused UI/test subset passed **10 tests** in 1.54 seconds;
+Ruff and diff checks passed. Next remaining T31 work: add and review immutable
+development and held-out real SEC cases, then record their measured target results.
 
 Task: T30 — Random eligible ticker picker.
 Implemented: added a **Start random eligible run** control beside the existing ticker
