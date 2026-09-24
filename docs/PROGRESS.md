@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T37 — Sequential random-report batch runner** — **DONE**.
-- Next task: **T38 — Versioned run timing and evaluation cohorts.**
+- Current task: **T38 — Versioned run timing and evaluation cohorts** — **DONE**.
+- Next task: **T39 — Jev-directed adaptive source context.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -208,7 +208,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T36 | Overall cross-run evaluation scorecard | DONE | Manual browser inspection pending |
 | T37 | Sequential random-report batch runner | DONE | Manual browser and live SEC/provider batch verification pending |
 | T38 | Versioned run timing and evaluation cohorts | DONE | Manual browser inspection pending |
-| T39 | Context-aware Jev scoring and compact findings evidence | TODO | Not run |
+| T39 | Jev-directed adaptive source context and target eligibility | TODO | Not run |
 
 ## T32 final evidence
 

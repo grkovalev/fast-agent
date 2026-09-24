@@ -41,4 +41,4 @@ uv run ruff check .
 
 See [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the
 [V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md). The next task is
-T35: diagnose and redesign exact-match evaluation.
+T39: Jev-directed adaptive source context and target eligibility.

@@ -722,64 +722,88 @@ evaluation denominators contain exactly one selected run version; cross-version 
 are visibly accounted for but never silently pooled; timing/version data require no
 provider calls to inspect.
 
-## T39 — Context-aware Jev scoring and compact findings evidence
+## T39 — Jev-directed adaptive source context and target eligibility
 
-**Goal:** test whether separating evidence-bearing source content from scoped visible
-context improves retrieval and quote-backed findings without weakening citation
-validation, recall, or the non-leak boundary.
+**Goal:** test whether Jev-directed, source-range-bound context expansion improves
+retrieval and quote-backed findings without weakening citation validation, recall, or
+the non-leak boundary. Do not assume that a larger fixed context window is useful:
+measure it against the current flat-chunk baseline.
 
 **Read:** V2 plan sections 7, 8, 15, 16, and 18. Dependency: T38.
 
+**Implementation-first scope:** build the complete lean vertical slice before a broad
+benchmarking or review program. Use the already persisted live filing sources and their
+flat-chunk outputs as the initial development cohort; run the new Jev calls against
+those sources and inspect the resulting failure modes. Do not build a separate offline
+source mode, a comprehensive annotation tool, or held-out-study machinery in this
+task. Preserve only the provenance, versioning, non-leak, exact-citation, bounded-call,
+and explicit-partial-state contracts needed to learn safely from the first results.
+
 **Research, decide, and implement:**
 
-1. Define a persisted, source-range-bound classification for canonical source blocks
-   (including table rows), distinguishing **evidence-bearing** content from
-   **contextual** content. Contextual content may include table column headers,
-   units/scales, row labels, section/subsection headings, table footers, and repeated
-   boilerplate. It is scoped to its section/table/chunk; do not treat a label as
-   universally generic merely because its text repeats.
-2. Use Jev to classify every canonical source block/row in bounded, source-order
-   batches with a typed, constrained response. Each decision must identify whether the
-   row is evidence-bearing or contextual and, for contextual rows, the evidence
-   range(s) it explains. Give Jev only the row, chunk type (for example table row,
-   heading, paragraph, list item, or footer), a bounded preceding/following source
-   window, table/section identity where known, and filing metadata. The surrounding
-   window is interpretation context, not an independently classifiable or citable
-   replacement for the row.
-3. Never let Jev use XBRL, Company Facts, gold ranges, findings, or evaluation
-   outputs. Record no fabricated deterministic classification or fallback: an
-   unavailable, malformed, or incomplete provider result is an explicit partial state.
-4. For detailed Jev scoring, send each candidate's evidence-bearing core together
-   with its smallest necessary scoped context and clear field boundaries. Score the
-   core for target relevance; context supplies interpretation only. Preserve the full
-   canonical source ranges and the existing exact-text scoring baseline for an
-   apples-to-apples comparison.
-5. For findings, supply retained evidence cores, their associated scoped context, and
-   the existing validated outline. Allow compact requests only when the omitted text
-   is neither citable evidence nor required to interpret period, unit/scale, metric,
-   attribution, or limitations. An exact finding quote must still resolve to one
-   retained evidence-core line in canonical source; contextual lines may support it
-   but cannot substitute for the quote.
-6. Compare baseline full-chunk requests with Jev-classified context on immutable
-   development and held-out reviewed cases. Report reviewed classification errors,
-   relevant-range recall, required-fact coverage, exact-value accuracy, wrong-value
-   rate, retained/requested text, Jev/LLM calls and usage, latency, quote-validation
-   failures, and cases where supplied or omitted context changed interpretation. Adopt
-   the contextual strategy only if it meets the same recall/accuracy floor while
-   providing a measured precision, cost, latency, or retained-text benefit.
-7. Version classification, scoring, and findings configurations; persist the exact
-   core/context ranges and rationale shown in the chunk, score, and finding inspectors.
-   Add controlled tests for a table header/unit, a repeated footer, an ambiguous row,
-   and a finding whose valid quote depends on nearby context.
+1. Define a persisted, source-range-bound Jev decision for canonical source blocks.
+   Its finite fields distinguish **evidence**, **contextual**, **neither**, and
+   **uncertain** roles; direct target eligibility from merely related content; whether
+   the supplied context is sufficient; unresolved interpretation fields (metric,
+   period, unit/scale, attribution, or qualifier); and a reason/rationale suitable for
+   inspection. This applies equally to prose, headings, lists, footnotes, table rows,
+   captions, and repeated boilerplate. Do not introduce a deterministic table parser
+   or global generic-label heuristic.
+2. Use Jev to classify all canonical blocks in bounded source-order batches. Give it
+   the exact block, its source element kind when available, a small two-sided visible
+   source neighborhood, filing metadata, and local section identity. The block remains
+   the only independently classifiable/citable candidate; the neighborhood is
+   interpretation context only. Every response must be typed and constrained to ranges
+   supplied in that request.
+3. For a potentially relevant block whose first decision says context is insufficient,
+   perform bounded, Jev-directed source expansion rather than assuming a fixed larger
+   window helps: re-judge it with successively wider visible source rings and then, if
+   required, its bounded enclosing source section. Stop when Jev declares sufficient
+   context, declares the evidence ineligible, or the configured expansion budget is
+   exhausted. Preserve an explicit unresolved/partial result; never fabricate a
+   deterministic classification or fallback.
+4. Never let Jev use XBRL, Company Facts, gold ranges, findings, or evaluation
+   outputs. Source position/range management, response validation, expansion limits,
+   and persisted provenance are application responsibilities; Jev alone makes semantic
+   role, target-eligibility, and context-sufficiency judgments.
+5. Replace broad detailed relevance as the retention gate with separate Jev decisions
+   for (a) relevance and (b) direct eligibility for each configured target. Retain only
+   direct, sufficiently interpretable evidence; preserve uncertain candidates for
+   inspection without presenting them as target evidence. The existing exact-text
+   scoring path remains available as a baseline.
+6. For findings, send each retained citable core with only the Jev-selected source
+   context that established its interpretation. An exact finding quote must resolve to
+   a retained evidence-core line; contextual ranges may establish period, unit/scale,
+   metric, attribution, or limitations but cannot replace the quote. Visible scale
+   conversion remains deterministic only after its exact supporting source range is
+   established; unresolved scale stays unresolved.
+7. Version the current flat-chunk baseline and the adaptive strategy. On the saved live
+   development cohort, report the initial side-by-side outcomes needed to guide the
+   next iteration: relevant-range retention, required-fact coverage, exact-value
+   accuracy, wrong-value rate, adjusted/pro-forma and narrative-rate rejection,
+   retained/requested text, Jev/LLM calls and usage, latency, quote-validation failures,
+   and interpretation changes. A fixed-larger-context comparison and held-out review
+   are follow-up work only if these results leave the adaptive mechanism ambiguous.
+8. Version the classification, expansion, scoring, and findings configurations.
+   Persist the exact core/context ranges, expansion pass, decision, confidence, and
+   rationale shown in the chunk, score, and finding inspectors. Add only focused
+   contract tests for forbidden-data rejection, range validation, bounded expansion,
+   explicit provider/uncertainty partial state, and the invariant that a finding quote
+   resolves to its evidence core rather than context. Diagnose other behavior from the
+   persisted live results first; add a controlled regression only after a failure mode
+   is understood.
 
-**Manual verification handoff:** inspect a retained financial-table row and confirm
-the UI separately shows its citable evidence core and its scoped header/unit/footer
-context, with source jumps for both. Compare the baseline and contextual strategy on
-one reviewed case; confirm a published finding cites an evidence-core line rather than
-a header or footer.
+**Manual verification handoff:** inspect a retained source block and its decision
+history: initial context, every expansion pass, final role/eligibility, and source
+jumps. Verify a published finding cites its evidence core rather than contextual text.
+On the saved development runs, compare the versioned flat-chunk baseline with adaptive
+context and confirm expansion occurs only after Jev records an unresolved interpretation
+field. Inspect at least one adjusted/pro-forma or narrative-rate rejection and one
+unresolved source-context case.
 
-**Acceptance gate:** every scored source row has a source-range-bound, inspectable Jev
-classification record; contextual data never replaces the exact citable evidence line;
-no discovery request contains evaluation/XBRL data; reported held-out metrics expose
-classification quality, retrieval quality, and cost; and the contextual strategy is
-adopted only when the recorded comparison supports it.
+**Acceptance gate:** every classified source block has a source-range-bound,
+inspectable Jev decision; expansions are bounded and occur only after a recorded
+insufficiency decision; contextual data never replaces the exact citable evidence
+line; no discovery request contains evaluation/XBRL data; versioned development-run
+results expose the first failure modes and baseline comparison; and no strategy is
+declared superior beyond what those recorded results support.
