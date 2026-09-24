@@ -3,14 +3,11 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: T30 adds a bounded live-SEC random-run control. It validates
-  a recent eligible 10-K, prefers a ticker absent from prior V2 runs, then immediately
-  creates and opens that live run. The UI now submits Live SEC only; offline mode
-  remains an internal test/fixture path pending T34.
-- Current task: **T33 — Fresh-only storage schema; remove migrations** — **DONE**.
-  V2 storage now has one clean-schema creation path and refuses pre-existing
-  incompatible databases without modifying them.
-- Next task: **T34 — Remove offline fixture source mode.**
+- Implementation status: V2 has one product path: a ticker creates a live SEC filing
+  run, followed by configured LLM and Jev provider calls. Synthetic source and provider
+  paths no longer exist in V2 runtime code or UI.
+- Current task: **T34 — Remove offline fixture source mode** — **DONE**.
+- Next task: **T35 — Diagnose and redesign exact-match evaluation.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -60,7 +57,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T31 | Retrieval benchmark and baselines | DONE | Not run |
 | T32 | Final real-data demonstration | DONE | Eight live filings recorded; browser automation not run |
 | T33 | Fresh-only storage schema; remove migrations | DONE | Not applicable |
-| T34 | Remove offline fixture source mode | TODO | Not run |
+| T34 | Remove offline fixture source mode | DONE | Live run not repeated; local prerequisite and source-contract checks passed |
 | T35 | Diagnose and redesign exact-match evaluation | TODO | Not run |
 | T36 | Overall cross-run evaluation scorecard | TODO | Not run |
 | T37 | Sequential random-report batch runner | TODO | Not run |
@@ -153,6 +150,39 @@ Commands/results:
 
 The authorized local reset was performed: removed `data/v2` (264 MB, containing the
 former V2 SQLite files). It is intentionally not recoverable through ProfitLab.
+
+## T34 handoff
+
+Implemented: V2 runs no longer have a source mode. The run contract and fresh schema
+no longer persist one; the home page has only the SEC ticker workflow; and source,
+outline, section/chunk scoring, findings, Company Facts, and scale evaluation always
+use their live adapters. Removed the synthetic source, fake provider, and synthetic
+Company Facts runtime branches. Creating a run now requires a ticker and an
+`SEC_USER_AGENT` containing a contact email before any run is persisted. The home page
+returns the same actionable remediation when that setting is absent.
+
+Tests: removed the obsolete fixture-pipeline acceptance suite, which asserted a
+product path no longer offered. Added `tests/task_gates/test_t34.py` covering missing
+SEC-contact refusal without persistence, successful live-contract creation, no mode
+field/selector, and the retained canonical-source invariant.
+
+Commands/results:
+
+- `uv run pytest -q` — **5 passed** in 0.68 seconds, with the existing
+  Starlette/AnyIO deprecation warning.
+- `uv run ruff check .` and `git diff --check` passed.
+- Static V2/UI search found no offline mode, synthetic source, or fixture-provider
+  branch. The benchmark fixture remains a retrieval-evaluation dataset, not a V2
+  source workflow.
+
+Live status: not repeated; no external SEC or provider request was made for this
+cleanup. Browser automation was not run per task policy.
+
+Manual verification: run `uv run profitlab serve`, open `http://127.0.0.1:8000/`,
+and confirm the form contains only a ticker and live SEC wording. Without
+`SEC_USER_AGENT`, submit a ticker and confirm the page explains the contact-email
+requirement. With SEC and provider credentials configured, create a ticker run and
+confirm the Source stage identifies SEC primary filing HTML provenance. Next task: T35.
 
 Follow-up source-parser fix: a newly observed live filing contained an element whose
 `style` attribute was exposed as `None`, causing canonical source cleanup to fail before

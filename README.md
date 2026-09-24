@@ -24,8 +24,8 @@ uv run profitlab serve
 ```
 
 Open http://127.0.0.1:8000/. Enter a ticker and configure `SEC_USER_AGENT` with a real
-contact email before creating a live SEC filing run. Live outline/findings and Jev scoring also require `LLM_API_KEY` and
-`TYPESAFE_API_KEY`; no provider call is made until a live run is created.
+contact email before creating a SEC filing run. Outline/findings and Jev scoring also require `LLM_API_KEY` and
+`TYPESAFE_API_KEY`; no provider call is made until a run is created.
 
 Open **Pipeline → Findings** to inspect every published quote and jump to its canonical
 visible source line. Open **Evaluate** to compare that discovery output with Company
@@ -41,4 +41,4 @@ uv run ruff check .
 
 See [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the
 [V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md). The next task is
-T34: remove the offline fixture source mode.
+T35: diagnose and redesign exact-match evaluation.

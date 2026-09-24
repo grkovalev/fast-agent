@@ -4,9 +4,8 @@ import json
 import re
 from collections import defaultdict
 from dataclasses import dataclass
-from decimal import Decimal, DecimalException
 
-from profitlab.providers.jev import JevRequest, JevResponse, NoulAnswer, NoulQuestion, TokenUsage
+from profitlab.providers.jev import JevRequest, NoulQuestion
 
 from .contracts import FactComparison, Finding, StructuredFact
 from .section_scoring import SectionScoringService
@@ -245,7 +244,7 @@ class EvaluationService:
         return {'declared_core_evidence_line': {'line_number': finding.source_range.start_line, 'text': core},
                 'retained_chunk_core_lines': retained_core, 'retained_context_lines': contexts}
 
-    def _request(self, finding: Finding, fact: StructuredFact, context: dict, offline: bool):
+    def _request(self, finding: Finding, fact: StructuredFact, context: dict):
         state = {
             'finding': {'finding_id': finding.finding_id, 'amount': str(finding.amount),
                         'period': finding.period, 'unit': finding.unit,
@@ -255,28 +254,14 @@ class EvaluationService:
             'rule': ('Answer true only when the visible core/context explicitly states a scale or unit that '
                      'proves these are the same annual metric and value. Otherwise answer false. Never infer a conversion.'),
         }
-        request = JevRequest(model='fixture-evaluation-scale-v1' if offline else self.settings.typesafe_model,
+        request = JevRequest(model=self.settings.typesafe_model,
             state=state, questions={'same_visible_scaled_value': NoulQuestion(
                 instructions='Are these the same annual metric/value after an explicitly visible scale or unit?')})
         if len(json.dumps(request.model_dump(mode='json'))) > self.settings.evaluation_scale_request_char_budget:
             raise ValueError('Evaluation scale request exceeds the configured visible-context budget.')
         return request
 
-    @staticmethod
-    def _fixture_verdict(request: JevRequest):
-        """Controlled offline judge: conversion is allowed only for a visible thousands label."""
-        finding, fact = request.state['finding'], request.state['structured_fact']
-        visible = ' '.join(item['text'] for item in finding['retained_context_lines']).lower()
-        try:
-            equivalent = ('thousand' in visible and
-                          Decimal(fact['amount']) == Decimal(finding['amount']) * 1000)
-        except (DecimalException, ValueError):  # malformed values must never become affirmative
-            equivalent = False
-        return JevResponse(model='fixture-evaluation-scale-v1', answers={
-            'same_visible_scaled_value': NoulAnswer(type='noul', noul=.99 if equivalent else .01)},
-            usage=TokenUsage(input_tokens=0, output_tokens=0))
-
-    async def compare_with_scale_verdicts(self, run_id: str, *, offline: bool):
+    async def compare_with_scale_verdicts(self, run_id: str):
         """Apply bounded, post-seal Jev verdicts without changing either input source."""
         if self.settings is None:
             raise ValueError('Scale-aware evaluation requires settings.')
@@ -293,13 +278,13 @@ class EvaluationService:
         configuration = hashlib.sha256(json.dumps({
             'max_pairs': self.settings.evaluation_scale_max_pairs,
             'request_budget': self.settings.evaluation_scale_request_char_budget}, sort_keys=True).encode()).hexdigest()
-        configured_model = 'fixture-evaluation-scale-v1' if offline else self.settings.typesafe_model
-        client = SectionScoringService(self.settings, self.repo)._client(run_id, offline, stage='evaluate')
+        configured_model = self.settings.typesafe_model
+        client = SectionScoringService(self.settings, self.repo)._client(run_id, stage='evaluate')
         updated, calls, cached, usage = [], 0, 0, {'input_tokens': 0, 'output_tokens': 0}
         by_id = {item.comparison_id: item for item in result.comparisons}
         for comparison, finding, fact in candidates:
             context = self._scale_context(run_id, finding)
-            request = self._request(finding, fact, context, offline)
+            request = self._request(finding, fact, context)
             pair_hash = hashlib.sha256(json.dumps(request.model_dump(mode='json'), sort_keys=True).encode()).hexdigest()
             saved = self.repo.evaluation_scale_verdict(pair_hash, self.settings.evaluation_scale_prompt_version,
                                                        configuration, configured_model)
@@ -307,12 +292,7 @@ class EvaluationService:
                 verdict, model = bool(saved['verdict']), saved['model']
                 cached += 1
             else:
-                response = self._fixture_verdict(request) if offline else await client.evaluate(request)
-                if offline:
-                    self.repo.save_exploration_action(run_id, f'evaluation-scale-{pair_hash}', 'evaluate',
-                                                      calls + 1, {'request': request.model_dump(mode='json'),
-                                                                  'response': response.model_dump(mode='json'),
-                                                                  'provider': 'fake-jev', 'synthetic': True})
+                response = await client.evaluate(request)
                 calls += 1
                 usage['input_tokens'] += response.usage.input_tokens
                 usage['output_tokens'] += response.usage.output_tokens

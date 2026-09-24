@@ -25,19 +25,6 @@ FACT_TARGETS = (
 )
 
 
-def offline_company_facts():
-    """Saved, labeled fixture only; it does not represent a live SEC response."""
-    annual = {'start': '2025-01-01', 'end': '2025-12-31', 'accn': '0001234567-25-000001',
-              'form': '10-K', 'filed': '2026-02-15', 'fy': 2025, 'fp': 'FY'}
-    return {'cik': 1234567, 'entityName': 'Synthetic Demo Corporation', 'facts': {'us-gaap': {
-        'NetIncomeLoss': {'units': {'USD': [{**annual, 'val': 180000000},
-                                           {**annual, 'val': 179999999, 'frame': 'CY2025'}]}},
-        'EarningsPerShareDiluted': {'units': {'USD/shares': [{**annual, 'val': '2.00'}]}},
-        'WeightedAverageNumberOfDilutedSharesOutstanding': {
-            'units': {'shares': [{**annual, 'val': 90000000}]}},
-    }}}
-
-
 class CompanyFactsService:
     def __init__(self, settings, repository):
         self.settings, self.repo = settings, repository
@@ -51,19 +38,16 @@ class CompanyFactsService:
         cik = str(filing.get('cik', '')).zfill(10)
         if len(cik) != 10 or not cik.isdigit():
             raise ValueError('Discovered filing lacks a valid company CIK for Company Facts.')
-        if run.mode == 'offline':
-            dataset, source_url = offline_company_facts(), 'saved synthetic Company Facts fixture'
-        else:
-            if not self.settings.sec_contact_ready():
-                raise ValueError('Configure SEC_USER_AGENT with a real contact email before live Company Facts retrieval.')
-            client = SECClient(self.settings, _V2Trace(self.settings.redactor()))
-            try:
-                dataset = client.company_facts(cik)
-                source_url = f'{COMPANY_FACTS}CIK{cik}.json'
-            except SECError as error:
-                raise ValueError(str(error)) from None
-            finally:
-                client.close()
+        if not self.settings.sec_contact_ready():
+            raise ValueError('SEC_USER_AGENT is required before Company Facts retrieval.')
+        client = SECClient(self.settings, _V2Trace(self.settings.redactor()))
+        try:
+            dataset = client.company_facts(cik)
+            source_url = f'{COMPANY_FACTS}CIK{cik}.json'
+        except SECError as error:
+            raise ValueError(str(error)) from None
+        finally:
+            client.close()
         raw = json.dumps(dataset, sort_keys=True, separators=(',', ':')).encode()
         source_hash = hashlib.sha256(raw).hexdigest()
         facts, alternatives = self.normalize(dataset, filing)
@@ -75,8 +59,7 @@ class CompanyFactsService:
             'supported_facts': len(facts), 'alternatives': alternatives,
             'mapping': [{'metric': metric, 'concept': concept, 'unit': unit, 'label': label}
                         for metric, concept, unit, label in FACT_TARGETS],
-            'provenance': ('saved synthetic Company Facts fixture' if run.mode == 'offline'
-                           else 'SEC Company Facts JSON'),
+            'provenance': 'SEC Company Facts JSON',
         })
         return facts, alternatives, source_hash
 

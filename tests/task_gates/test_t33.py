@@ -29,3 +29,19 @@ def test_existing_incompatible_database_is_refused_without_modification(tmp_path
         V2Repository(tmp_path)
 
     assert database.read_bytes() == original
+
+
+def test_previous_live_mode_schema_is_refused_without_reading_runs(tmp_path):
+    database = tmp_path / 'v2' / 'profitlab-v2.sqlite3'
+    database.parent.mkdir()
+    with sqlite3.connect(database) as db:
+        db.execute('CREATE TABLE runs (run_id TEXT PRIMARY KEY, ticker TEXT NOT NULL, mode TEXT NOT NULL, '
+                   'status TEXT NOT NULL, selected_stage TEXT NOT NULL, cancellation_requested INTEGER NOT NULL, '
+                   'created_at TEXT NOT NULL, updated_at TEXT NOT NULL, summary TEXT NOT NULL)')
+        db.execute('PRAGMA application_id=0x50524F46')
+    original = database.read_bytes()
+
+    with pytest.raises(ValueError, match='remove .*v2.*restart'):
+        V2Repository(tmp_path)
+
+    assert database.read_bytes() == original

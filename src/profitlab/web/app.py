@@ -111,7 +111,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         from urllib.parse import parse_qs
         fields = parse_qs((await request.body()).decode())
         try:
-            run = pipeline.create(fields.get('ticker', ['DEMO'])[0], mode=fields.get('mode', ['offline'])[0])
+            run = pipeline.create(fields.get('ticker', [''])[0])
             start(run.run_id)
         except ValueError as error:
             return templates.TemplateResponse(request=request, name='home.html', status_code=400,
@@ -125,7 +125,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         selection = await asyncio.to_thread(picker.pick)
         if selection.ticker:
             try:
-                run = pipeline.create(selection.ticker, mode='live')
+                run = pipeline.create(selection.ticker)
                 start(run.run_id)
             except ValueError as error:
                 return templates.TemplateResponse(request=request, name='home.html', status_code=400,

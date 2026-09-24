@@ -25,12 +25,12 @@ class V2PipelineService:
         self.settings = settings
         self.repo = V2Repository(settings.data_dir)
 
-    def create(self, ticker='DEMO', mode='offline', run_id=None):
+    def create(self, ticker, run_id=None):
         ticker = normalize_ticker(ticker)
-        if mode not in ('offline', 'live'):
-            raise ValueError('Use V2 mode offline or live.')
+        if not self.settings.sec_contact_ready():
+            raise ValueError('SEC_USER_AGENT is required and must include a real contact email before creating a run.')
         now = datetime.now(UTC)
-        run = V2Run(run_id=run_id or 'v2-' + uuid4().hex[:12], ticker=ticker, mode=mode,
+        run = V2Run(run_id=run_id or 'v2-' + uuid4().hex[:12], ticker=ticker,
                     created_at=now, updated_at=now,
                     summary='Eight-stage V2 pipeline is queued.')
         self.repo.create_run(run)
@@ -98,7 +98,7 @@ class V2PipelineService:
                     document = self.repo.canonical_refs(run_id)[0]
                     canonical = self.repo.canonical_document(run_id, document.document_id)
                     sections, warnings, models, cached_count = await OutlineService(
-                        self.settings, self.repo).build(canonical, offline=run.mode == 'offline')
+                        self.settings, self.repo).build(canonical)
                     self.repo.save_outline_sections(run_id, sections)
                 except Exception as error:  # noqa: BLE001 - persist provider failures before ending the run
                     failed = running.model_copy(update={
@@ -121,8 +121,7 @@ class V2PipelineService:
                     'status': 'completed', 'completed_work': len(sections),
                     'total_work': len(sections), 'finished_at': datetime.now(UTC),
                     'elapsed_seconds': monotonic() - tick, 'summary': summary,
-                    'limitation': ('Offline fixture outline generator; configure LLM_API_KEY for live '
-                                   'model inference.' if run.mode == 'offline' else None),
+                    'limitation': None,
                     'input_hash': canonical.ref.source_hash,
                     'output_hash': hashlib.sha256(''.join(item.section_id for item in sections).encode()).hexdigest(),
                 })
@@ -143,7 +142,7 @@ class V2PipelineService:
                         self.repo.update_stage(snapshot, event_kind='stage_started',
                                                event_summary=snapshot.summary)
                     result = await SectionScoringService(self.settings, self.repo).score(
-                        run_id, document, sections, offline=run.mode == 'offline',
+                        run_id, document, sections,
                         on_progress=score_progress)
                 except Exception as error:  # noqa: BLE001 - preserve provider failures for inspection
                     failed = running.model_copy(update={
@@ -166,8 +165,7 @@ class V2PipelineService:
                     'summary': (f'Jev scored {len(result.scores)} visible outline sections in '
                                 f'{result.calls} batch(es): {selected} selected, '
                                 f'{uncertain} uncertain; {result.cached_batches} cached batch(es) reused.'),
-                    'limitation': ('Fixture Jev scores only; configure TYPESAFE_API_KEY for live '
-                                   'section discovery.' if run.mode == 'offline' else None),
+                    'limitation': None,
                     'input_hash': document.ref.source_hash,
                     'output_hash': hashlib.sha256(''.join(
                         f'{item.item_id}:{item.target_scores}' for item in result.scores).encode()).hexdigest(),
@@ -205,8 +203,7 @@ class V2PipelineService:
                     'elapsed_seconds': monotonic() - tick,
                     'summary': (f'Built {len(chunks)} bounded chunks from {len(selected_sections)} '
                                 f'selected sections ({core_lines} primary canonical lines).'),
-                    'limitation': ('Offline fixture source and Jev section scores; live source-range '
-                                   'chunking has not yet been inspected.' if run.mode == 'offline' else None),
+                    'limitation': None,
                     'input_hash': document.ref.source_hash,
                     'output_hash': hashlib.sha256(''.join(item.chunk_id for item in chunks).encode()).hexdigest(),
                 })
@@ -228,7 +225,7 @@ class V2PipelineService:
                         self.repo.update_stage(snapshot, event_kind='stage_started',
                                                event_summary=snapshot.summary)
                     result = await ChunkScoringService(self.settings, self.repo).score(
-                        run_id, document, sections, chunks, offline=run.mode == 'offline',
+                        run_id, document, sections, chunks,
                         on_progress=score_progress)
                 except Exception as error:  # noqa: BLE001 - preserve bounded provider failure state
                     failed = running.model_copy(update={
@@ -251,8 +248,7 @@ class V2PipelineService:
                     'summary': (f'Jev scored {len(result.scores)} detailed chunks: {selected} retained, '
                                 f'{uncertain} uncertain; {result.calls} live batch(es), '
                                 f'{result.cached_batches} cached batch(es).'),
-                    'limitation': ('Fixture Jev scores only; configure TYPESAFE_API_KEY for live '
-                                   'detailed chunk discovery.' if run.mode == 'offline' else None),
+                    'limitation': None,
                     'input_hash': document.ref.source_hash,
                     'output_hash': hashlib.sha256(''.join(
                         f'{item.item_id}:{item.target_scores}' for item in result.scores).encode()).hexdigest(),
@@ -266,7 +262,7 @@ class V2PipelineService:
                     document = self.repo.canonical_document(run_id, document_ref.document_id)
                     result = await FindingsService(self.settings, self.repo).build(
                         run_id, document, self.repo.chunks(run_id),
-                        self.repo.scores(run_id, 'chunk_score'), offline=run.mode == 'offline')
+                        self.repo.scores(run_id, 'chunk_score'))
                 except Exception as error:  # noqa: BLE001 - citation failures must be durable and inspectable
                     failed = running.model_copy(update={
                         'status': 'failed', 'finished_at': datetime.now(UTC),
@@ -287,8 +283,7 @@ class V2PipelineService:
                                 f'{result.rejected} invalid citation(s) rejected.' +
                                 (' Request budget fallback retained only highest-scored evidence.'
                                  if result.context_fallback else '')),
-                    'limitation': ('Fixture findings only; configure LLM_API_KEY for live visible-number '
-                                   'extraction.' if run.mode == 'offline' else None),
+                    'limitation': None,
                     'input_hash': document.ref.source_hash,
                     'output_hash': hashlib.sha256(''.join(item.finding_id for item in result.findings).encode()).hexdigest(),
                 })
@@ -317,8 +312,7 @@ class V2PipelineService:
                     'elapsed_seconds': monotonic() - tick,
                     'summary': (f'Normalized {len(facts)} independent annual SEC Company Facts; '
                                 f'{sum(map(len, alternatives.values()))} duplicate alternative(s) retained.'),
-                    'limitation': ('Saved synthetic Company Facts fixture only; configure SEC contact '
-                                   'details for live SEC retrieval.' if run.mode == 'offline' else None),
+                    'limitation': None,
                     'output_hash': source_hash,
                 })
                 self.repo.update_stage(finished, event_kind='stage_finished',
@@ -327,7 +321,7 @@ class V2PipelineService:
             if name == 'evaluate' and implement_source:
                 try:
                     result = await EvaluationService(self.settings, self.repo).compare_with_scale_verdicts(
-                        run_id, offline=run.mode == 'offline')
+                        run_id)
                     RetrievalBenchmarkService(self.repo, self.settings).evaluate_automatic(run_id)
                 except Exception as error:  # noqa: BLE001 - evaluation must not alter sealed inputs
                     failed = running.model_copy(update={
@@ -349,8 +343,7 @@ class V2PipelineService:
                                 f"{result.summary['exact_matches']} exact match(es), "
                                 f"{result.summary['misses']} miss(es), "
                                 f"{result.summary.get('scale_aware_equivalences', 0)} scale-aware equivalent(s)."),
-                    'limitation': ('Saved synthetic facts and fixture findings only; live filing and '
-                                   'provider comparison remains unverified.' if run.mode == 'offline' else None),
+                    'limitation': None,
                     'output_hash': hashlib.sha256(''.join(item.comparison_id for item in result.comparisons).encode()).hexdigest(),
                 })
                 self.repo.update_stage(finished, event_kind='stage_finished',
@@ -378,7 +371,7 @@ class V2PipelineService:
             'cache': {'chunk_score_batches': chunk.get('cached_batches', 0),
                       'findings_reused': findings.get('cached', False)},
             'database_bytes': self.repo.db_path.stat().st_size if self.repo.db_path.exists() else 0,
-            'measurement': 'offline fixture or live replay; cached and live requests are counted separately',
+            'measurement': 'live SEC and provider requests; cached and live requests are counted separately',
         })
         return self.repo.get_run(run_id)
 

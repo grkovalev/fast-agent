@@ -141,24 +141,6 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             instruction += '\nRepair only the invalid citations below; retain no invalid item.\n' + json.dumps(repair)
         return instruction + json.dumps(state, ensure_ascii=False)
 
-    def _fixture(self, state):
-        output = []
-        for item in state['retained_chunks']:
-            lines = item['core_evidence_lines']
-            evidence = next((line for line in lines if re.search(r'\d', line['text'])),
-                            lines[0] if lines else {'line_number': None, 'text': ''})
-            quote = evidence['text']
-            number = next(iter(self._amounts(quote)), None)
-            if number is None:
-                continue
-            output.append({'exact_quote': quote, 'source_chunk_id': item['chunk_id'],
-                           'source_line': evidence['line_number'],
-                           'target': item['targets'][0] if item['targets'] else None,
-                           'amount': str(number), 'unit': None, 'period': None,
-                           'attribution': None,
-                           'limitations': ['Offline fixture output; period, scale, unit, and attribution require review.']})
-        return output, 'fixture-findings-v1'
-
     async def _live(self, state, repair=None):
         if not self.settings.llm_api_key.get_secret_value():
             raise ValueError('LLM_API_KEY is missing; configure it for a live findings run.')
@@ -240,7 +222,7 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             limitations=limitations, validation_state='validated', model=model,
             repair_attempted=repaired), None
 
-    def _classification_request(self, run_id, finding, document, chunks, offline):
+    def _classification_request(self, run_id, finding, document, chunks):
         chunk = next((item for item in chunks if item.chunk_id == finding.source_chunk_id), None)
         if chunk is None:
             raise ValueError('Finding-type classification requires its retained source chunk.')
@@ -272,7 +254,7 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
                      'If no single type is visibly supported, every answer must be false.'),
         }
         SectionScoringService._guard(state)
-        request = JevRequest(model='fixture-finding-type-v1' if offline else self.settings.typesafe_model,
+        request = JevRequest(model=self.settings.typesafe_model,
             state=state, questions={item: NoulQuestion(instructions=(
                 f'Is this visible finding unambiguously {item.replace("_", " ")}?'))
                 for item in self.FINDING_TYPES})
@@ -280,15 +262,15 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             raise ValueError('Finding-type request exceeds the configured visible-context budget.')
         return request
 
-    async def _classify(self, run_id, document, chunks, findings, *, offline):
+    async def _classify(self, run_id, document, chunks, findings):
         """Assign one finite type from visible evidence, or persist unresolved."""
         if len(findings) > self.settings.finding_type_max_requests:
             raise ValueError('Finding-type provider-call budget would be exceeded.')
-        client = SectionScoringService(self.settings, self.repo)._client(run_id, offline, stage='findings')
+        client = SectionScoringService(self.settings, self.repo)._client(run_id, stage='findings')
         typed, calls, budget_limited = [], 0, 0
         for finding in findings:
             try:
-                request = self._classification_request(run_id, finding, document, chunks, offline)
+                request = self._classification_request(run_id, finding, document, chunks)
             except ValueError as error:
                 # Classification is post-extraction metadata.  A bounded Jev payload
                 # must never discard an already quote-validated finding or fail the
@@ -306,7 +288,7 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             typed.append(finding.model_copy(update={'finding_type': finding_type}))
         return typed, calls, budget_limited
 
-    async def build(self, run_id, document, chunks, scores, *, offline):
+    async def build(self, run_id, document, chunks, scores):
         state = self._request_data(run_id, document, chunks, scores)
         if not state['retained_chunks']:
             self.repo.save_findings(run_id, [])
@@ -320,11 +302,10 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
                 'current_report_year': state['filing_metadata']['current_report_year'],
             })
             return FindingsResult([], 0, False, 0, state['context_fallback'], 0)
-        model = 'fixture-findings-v1' if offline else self.settings.llm_model
+        model = self.settings.llm_model
         config = hashlib.sha256(json.dumps({'base_url': self.settings.llm_base_url,
                                             'request_budget': self.settings.findings_request_char_budget,
-                                            'finding_type_model': ('fixture-finding-type-v1' if offline
-                                                                   else self.settings.typesafe_model),
+                                            'finding_type_model': self.settings.typesafe_model,
                                             'finding_type_request_budget': self.settings.finding_type_request_char_budget,
                                             'finding_type_prompt_version': self.settings.finding_type_prompt_version},
                                            sort_keys=True).encode()).hexdigest()
@@ -333,10 +314,6 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
         calls, cached = 0, bool(cached_payload)
         if cached_payload:
             proposals, actual_model = cached_payload['findings'], cached_payload['model']
-        elif offline:
-            proposals, actual_model = self._fixture(state)
-            self.repo.save_finding_batch(request_hash, self.prompt_version, config, model,
-                                         {'findings': proposals, 'model': actual_model})
         else:
             proposals, actual_model = await self._live(state)
             calls = 1
@@ -349,8 +326,8 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
                 findings.append(finding)
             else:
                 rejected.append({'proposal': proposal, 'reason': error})
-        # One bounded repair call is allowed only for invalid live citations.
-        if rejected and not offline and calls < self.settings.findings_max_requests:
+        # One bounded repair call is allowed only for invalid citations.
+        if rejected and calls < self.settings.findings_max_requests:
             repaired, repair_model = await self._live(state, rejected)
             calls += 1
             findings, rejected = [], []
@@ -374,7 +351,7 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             classification_calls, classification_budget_limited = 0, 0
         else:
             findings, classification_calls, classification_budget_limited = await self._classify(
-                run_id, document, chunks, findings, offline=offline)
+                run_id, document, chunks, findings)
             self.repo.save_finding_batch(request_hash, self.prompt_version, config, model,
                                          {'findings': proposals, 'model': actual_model,
                                           'finding_types': {item.finding_id: item.finding_type

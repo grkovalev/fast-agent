@@ -97,7 +97,6 @@ class Settings(BaseSettings):
 
     def readiness(self) -> dict[str, bool]:
         return {
-            "Offline demo and interface": True,
             "SEC contact configured": self.sec_contact_ready(),
             "Jev key configured": bool(self.typesafe_api_key.get_secret_value()),
             "LLM configuration present": bool(

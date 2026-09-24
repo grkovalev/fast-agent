@@ -64,23 +64,6 @@ must be exact copied substrings from those lines. Do not summarize source as a q
 Propose navigational topics and ranges only within this window.\n\nPrior context:\n''' + \
             json.dumps(continuation, ensure_ascii=False) + '\n\nNumbered filing lines:\n' + lines
 
-    @staticmethod
-    def _fixture_proposals(document: CanonicalDocument, start: int, end: int,
-                           continuation: list[dict]) -> list[dict]:
-        headings = [line for line in document.lines[start - 1:end] if line.element_type == 'heading']
-        parent = continuation[-1]['generated_topic'] if continuation else 'Filing overview'
-        proposals = []
-        for line in headings:
-            level = int(line.dom_reference.rsplit('/', 1)[-1][1]) if line.dom_reference.rsplit('/', 1)[-1][:1] == 'h' else 2
-            if level == 1:
-                parent = f'Heading: {line.text}'
-            proposals.append({'generated_topic': f'Heading: {line.text}', 'exact_source_title': line.text,
-                'start_line': line.line_number, 'end_line': line.line_number,
-                'exact_representative_quote': line.text, 'section_type': 'heading',
-                'parent_topic_hint': parent, 'continues_previous': bool(
-                    continuation and line.line_number == start and level != 1)})
-        return proposals
-
     async def _live_proposals(self, document: CanonicalDocument, start: int, end: int,
                               continuation: list[dict], client=None):
         if not self.settings.llm_api_key.get_secret_value():
@@ -125,32 +108,24 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
                 'parent_topic_hint': proposal.get('parent_topic_hint') if isinstance(proposal.get('parent_topic_hint'), str) else None,
                 'continues_previous': proposal.get('continues_previous') is True}, None
 
-    async def _batch(self, document: CanonicalDocument, start: int, end: int, continuation: list[dict], *, offline: bool, client=None):
+    async def _batch(self, document: CanonicalDocument, start: int, end: int, continuation: list[dict], *, client=None):
         source_hash, config_hash = self._range_hash(document, start, end, continuation), self._configuration_hash()
-        model = 'fixture-outline-v2' if offline else self.settings.outline_model
+        model = self.settings.outline_model
         cached = self.repo.outline_batch(source_hash, self.prompt_version, config_hash, model)
         if cached:
             return OutlineBatch(cached['proposals'], model, True)
-        if offline:
-            proposals, actual_model = self._fixture_proposals(document, start, end, continuation), model
-        else:
-            proposals, actual_model = await self._live_proposals(document, start, end, continuation, client)
+        proposals, actual_model = await self._live_proposals(document, start, end, continuation, client)
         self.repo.save_outline_batch(source_hash, self.prompt_version, config_hash, actual_model,
                                      {'proposals': proposals})
         return OutlineBatch(proposals, actual_model, False)
 
-    async def build(self, document: CanonicalDocument, *, offline: bool):
+    async def build(self, document: CanonicalDocument):
         accepted, warnings, models, cached_count, continuation = [], [], set(), 0, []
-        client_context = httpx.AsyncClient(timeout=self.settings.provider_timeout) if not offline else None
-        if client_context:
-            await client_context.__aenter__()
+        client_context = httpx.AsyncClient(timeout=self.settings.provider_timeout)
+        await client_context.__aenter__()
         try:
             for start, end in self.windows(document):
-                if client_context:
-                    batch = await self._batch(document, start, end, continuation, offline=False,
-                                              client=client_context)
-                else:
-                    batch = await self._batch(document, start, end, continuation, offline=True)
+                batch = await self._batch(document, start, end, continuation, client=client_context)
                 models.add(batch.actual_model)
                 cached_count += batch.cached
                 for proposal in batch.proposals:
@@ -165,8 +140,7 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
                                  'parent_topic_hint': item['parent_topic_hint']}
                                 for item in accepted[-8:]]
         finally:
-            if client_context:
-                await client_context.aclose()
+            await client_context.aclose()
         # Explicit visible headings take precedence. Duplicate overlap proposals collapse by range/title.
         unique = {}
         for item in accepted:

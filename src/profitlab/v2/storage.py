@@ -55,12 +55,19 @@ class V2Repository:
             "SELECT name FROM sqlite_master WHERE type='table'")}
         if not required_tables <= actual_tables:
             raise ValueError(self._unsupported_database_message())
+        run_columns = {row['name'] for row in db.execute('PRAGMA table_info(runs)')}
+        expected_run_columns = {
+            'run_id', 'ticker', 'status', 'selected_stage', 'cancellation_requested',
+            'created_at', 'updated_at', 'summary',
+        }
+        if run_columns != expected_run_columns:
+            raise ValueError(self._unsupported_database_message())
 
     @staticmethod
     def _schema():
         return '''
             CREATE TABLE runs (
-                run_id TEXT PRIMARY KEY, ticker TEXT NOT NULL, mode TEXT NOT NULL,
+                run_id TEXT PRIMARY KEY, ticker TEXT NOT NULL,
                 status TEXT NOT NULL, selected_stage TEXT NOT NULL,
                 cancellation_requested INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL, updated_at TEXT NOT NULL, summary TEXT NOT NULL);
@@ -166,8 +173,8 @@ class V2Repository:
             db.execute('BEGIN IMMEDIATE')
             if db.execute('SELECT 1 FROM runs WHERE run_id=?', (run.run_id,)).fetchone():
                 raise ValueError(f'V2 run {run.run_id} already exists; choose a fresh run ID.')
-            db.execute('INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', (
-                run.run_id, run.ticker, run.mode, run.status, run.selected_stage,
+            db.execute('INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?)', (
+                run.run_id, run.ticker, run.status, run.selected_stage,
                 run.cancellation_requested, run.created_at.isoformat(), run.updated_at.isoformat(),
                 run.summary,
             ))

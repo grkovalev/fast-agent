@@ -3,7 +3,6 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from profitlab.sec.client import SECClient, SECError
-from profitlab.sec.fixtures import FIXTURES
 from profitlab.sec.service import DiscoveryService
 
 from .canonical import canonicalize_html
@@ -26,18 +25,11 @@ class V2SourceService:
 
     def acquire(self, run):
         """Store one primary visible filing in the V2 workspace."""
-        if run.mode == 'offline':
-            filing_id = 'filing-synthetic-2025'
-            raw_html = (FIXTURES / 'annual-2025.html').read_bytes()
-            filing = {'filing_id': filing_id, 'form': '10-K', 'report_date': '2025-12-31',
-                      'cik': '0001234567',
-                      'source_url': 'synthetic:annual-2025.html', 'provenance': 'saved synthetic fixture'}
-        else:
-            if not self.settings.sec_contact_ready():
-                raise ValueError('Configure SEC_USER_AGENT with a real contact email before live source retrieval.')
-            trace = _V2Trace(self.settings.redactor())
-            client = SECClient(self.settings, trace)
-            try:
+        if not self.settings.sec_contact_ready():
+            raise ValueError('SEC_USER_AGENT is required and must include a real contact email (for example, "ProfitLab you@example.com").')
+        trace = _V2Trace(self.settings.redactor())
+        client = SECClient(self.settings, trace)
+        try:
                 # Reuse the well-tested selection rules, but keep all resulting data in V2.
                 result = DiscoveryService(self.settings).discover(client, run.ticker, 1, synthetic=False)
                 if result.outcome != 'found' or not result.filings:
@@ -52,10 +44,10 @@ class V2SourceService:
                           'cik': result.company.cik,
                           'source_url': selected.primary_document_url,
                           'provenance': 'SEC primary filing HTML'}
-            except SECError as error:
-                raise ValueError(str(error)) from None
-            finally:
-                client.close()
+        except SECError as error:
+            raise ValueError(str(error)) from None
+        finally:
+            client.close()
         document_id = 'document-' + filing_id.removeprefix('filing-')
         document, visible_html = canonicalize_html(raw_html, document_id=document_id,
                                                     filing_id=filing_id)

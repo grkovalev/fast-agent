@@ -52,7 +52,6 @@ class StageSnapshot(V2Contract):
 class V2Run(V2Contract):
     run_id: StableID
     ticker: str = Field(pattern=r'^[A-Z0-9][A-Z0-9.-]{0,19}$')
-    mode: Literal['offline', 'live']
     status: StageStatus = 'queued'
     selected_stage: StageName = 'source'
     cancellation_requested: bool = False
