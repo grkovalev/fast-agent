@@ -33,7 +33,9 @@ def _local_name(value) -> str:
 
 
 def _is_hidden(node) -> bool:
-    style = node.get('style', '')
+    # SEC HTML occasionally uses a bare ``style`` attribute, which lxml exposes
+    # as None rather than an empty string.
+    style = node.get('style') or ''
     return (node.get('hidden') is not None or node.get('aria-hidden') == 'true' or
             bool(re.search(r'(?:display\s*:\s*none|visibility\s*:\s*hidden)', style,
                            re.IGNORECASE)))

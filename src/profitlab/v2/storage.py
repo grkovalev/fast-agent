@@ -19,93 +19,42 @@ from .contracts import (
 
 
 class V2Repository:
+    _APPLICATION_ID = 0x50524F46  # "PROF" identifies a fresh ProfitLab V2 database.
+
     def __init__(self, data_dir: Path):
         self.root = data_dir / 'v2'
         self.root.mkdir(parents=True, exist_ok=True)
         self.db_path = self.root / 'profitlab-v2.sqlite3'
-        with self.connect() as db:
-            version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13):
-                raise ValueError(f'Unsupported V2 storage schema version: {version}')
-            if version == 0:
-                db.executescript(self._schema())
-            elif version == 2:
-                db.executescript(self._migrate_2_to_3())
-                db.executescript(self._migrate_3_to_4())
-                db.executescript(self._migrate_4_to_5())
-                db.executescript(self._migrate_5_to_6())
-                db.executescript(self._migrate_6_to_7())
-                db.executescript(self._migrate_7_to_8())
-                db.executescript(self._migrate_8_to_9())
-                db.executescript(self._migrate_9_to_10())
-                db.executescript(self._migrate_10_to_11())
-                db.executescript(self._migrate_11_to_12())
-                db.executescript(self._migrate_12_to_13())
-            elif version == 3:
-                db.executescript(self._migrate_3_to_4())
-                db.executescript(self._migrate_4_to_5())
-                db.executescript(self._migrate_5_to_6())
-                db.executescript(self._migrate_6_to_7())
-                db.executescript(self._migrate_7_to_8())
-                db.executescript(self._migrate_8_to_9())
-                db.executescript(self._migrate_9_to_10())
-                db.executescript(self._migrate_10_to_11())
-                db.executescript(self._migrate_11_to_12())
-                db.executescript(self._migrate_12_to_13())
-            elif version == 4:
-                db.executescript(self._migrate_4_to_5())
-                db.executescript(self._migrate_5_to_6())
-                db.executescript(self._migrate_6_to_7())
-                db.executescript(self._migrate_7_to_8())
-                db.executescript(self._migrate_8_to_9())
-                db.executescript(self._migrate_9_to_10())
-                db.executescript(self._migrate_10_to_11())
-                db.executescript(self._migrate_11_to_12())
-                db.executescript(self._migrate_12_to_13())
-            elif version == 5:
-                db.executescript(self._migrate_5_to_6())
-                db.executescript(self._migrate_6_to_7())
-                db.executescript(self._migrate_7_to_8())
-                db.executescript(self._migrate_8_to_9())
-                db.executescript(self._migrate_9_to_10())
-                db.executescript(self._migrate_10_to_11())
-                db.executescript(self._migrate_11_to_12())
-                db.executescript(self._migrate_12_to_13())
-            elif version == 6:
-                db.executescript(self._migrate_6_to_7())
-                db.executescript(self._migrate_7_to_8())
-                db.executescript(self._migrate_8_to_9())
-                db.executescript(self._migrate_9_to_10())
-                db.executescript(self._migrate_10_to_11())
-                db.executescript(self._migrate_11_to_12())
-                db.executescript(self._migrate_12_to_13())
-            elif version == 7:
-                db.executescript(self._migrate_7_to_8())
-                db.executescript(self._migrate_8_to_9())
-                db.executescript(self._migrate_9_to_10())
-                db.executescript(self._migrate_10_to_11())
-                db.executescript(self._migrate_11_to_12())
-                db.executescript(self._migrate_12_to_13())
-            elif version == 8:
-                db.executescript(self._migrate_8_to_9())
-                db.executescript(self._migrate_9_to_10())
-                db.executescript(self._migrate_10_to_11())
-                db.executescript(self._migrate_11_to_12())
-                db.executescript(self._migrate_12_to_13())
-            elif version == 9:
-                db.executescript(self._migrate_9_to_10())
-                db.executescript(self._migrate_10_to_11())
-                db.executescript(self._migrate_11_to_12())
-                db.executescript(self._migrate_12_to_13())
-            elif version == 10:
-                db.executescript(self._migrate_10_to_11())
-                db.executescript(self._migrate_11_to_12())
-                db.executescript(self._migrate_12_to_13())
-            elif version == 11:
-                db.executescript(self._migrate_11_to_12())
-                db.executescript(self._migrate_12_to_13())
-            elif version == 12:
-                db.executescript(self._migrate_12_to_13())
+        new_database = not self.db_path.exists()
+        try:
+            with self.connect() as db:
+                if new_database:
+                    db.executescript(self._schema())
+                elif db.execute('PRAGMA application_id').fetchone()[0] != self._APPLICATION_ID:
+                    raise ValueError(self._unsupported_database_message())
+                else:
+                    self._assert_current_schema(db)
+        except sqlite3.DatabaseError as error:
+            raise ValueError(self._unsupported_database_message()) from error
+
+    def _unsupported_database_message(self) -> str:
+        return (f'Unsupported existing V2 data at {self.root}. ProfitLab only opens newly '
+                f'created V2 databases; remove {self.root} and restart to create fresh data.')
+
+    def _assert_current_schema(self, db):
+        required_tables = {
+            'runs', 'stages', 'events', 'filings', 'canonical_documents', 'outline_sections',
+            'outline_batches', 'scores', 'exploration_actions', 'chunks', 'chunk_ranges',
+            'findings', 'structured_facts', 'comparisons', 'chunk_score_batches',
+            'chunk_score_summaries', 'finding_batches', 'finding_summaries',
+            'company_fact_datasets', 'fact_summaries', 'comparison_summaries',
+            'section_score_batches', 'performance_summaries', 'evaluation_scale_verdicts',
+            'ticker_selections', 'retrieval_benchmarks',
+        }
+        actual_tables = {row['name'] for row in db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}
+        if not required_tables <= actual_tables:
+            raise ValueError(self._unsupported_database_message())
 
     @staticmethod
     def _schema():
@@ -198,119 +147,7 @@ class V2Repository:
             CREATE INDEX scores_run_kind_item ON scores(run_id, score_kind, item_id);
             CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
             CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
-            PRAGMA user_version=13;
-        '''
-
-    @staticmethod
-    def _migrate_2_to_3():
-        return '''
-            CREATE TABLE canonical_documents (
-                run_id TEXT NOT NULL, document_id TEXT NOT NULL, filing_id TEXT NOT NULL,
-                source_hash TEXT NOT NULL, line_count INTEGER NOT NULL, raw_html BLOB NOT NULL,
-                visible_html BLOB NOT NULL, canonical_json TEXT NOT NULL,
-                PRIMARY KEY(run_id, document_id), UNIQUE(run_id, filing_id));
-            CREATE INDEX canonical_documents_run_filing ON canonical_documents(run_id, filing_id);
-            PRAGMA user_version=3;
-        '''
-
-    @staticmethod
-    def _migrate_3_to_4():
-        return '''
-            CREATE TABLE outline_batches (
-                source_range_hash TEXT NOT NULL, prompt_version TEXT NOT NULL,
-                configuration_hash TEXT NOT NULL, actual_model TEXT NOT NULL,
-                payload TEXT NOT NULL, created_at TEXT NOT NULL,
-                PRIMARY KEY(source_range_hash, prompt_version, configuration_hash, actual_model));
-            PRAGMA user_version=4;
-        '''
-
-    @staticmethod
-    def _migrate_4_to_5():
-        return '''
-            CREATE INDEX chunk_ranges_run_chunk ON chunk_ranges(run_id, chunk_id, range_kind, ordinal);
-            PRAGMA user_version=5;
-        '''
-
-    @staticmethod
-    def _migrate_5_to_6():
-        return '''
-            CREATE TABLE chunk_score_batches (source_range_hash TEXT NOT NULL,
-                prompt_version TEXT NOT NULL, configuration_hash TEXT NOT NULL,
-                actual_model TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL,
-                PRIMARY KEY(source_range_hash, prompt_version, configuration_hash, actual_model));
-            CREATE TABLE chunk_score_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
-            PRAGMA user_version=6;
-        '''
-
-    @staticmethod
-    def _migrate_6_to_7():
-        return '''
-            CREATE TABLE finding_batches (request_hash TEXT NOT NULL, prompt_version TEXT NOT NULL,
-                configuration_hash TEXT NOT NULL, actual_model TEXT NOT NULL, payload TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                PRIMARY KEY(request_hash, prompt_version, configuration_hash, actual_model));
-            CREATE TABLE finding_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
-            PRAGMA user_version=7;
-        '''
-
-    @staticmethod
-    def _migrate_7_to_8():
-        return '''
-            CREATE TABLE company_fact_datasets (run_id TEXT PRIMARY KEY,
-                cik TEXT NOT NULL, source_url TEXT NOT NULL, source_hash TEXT NOT NULL,
-                retrieved_at TEXT NOT NULL, payload BLOB NOT NULL);
-            CREATE TABLE fact_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
-            PRAGMA user_version=8;
-        '''
-
-    @staticmethod
-    def _migrate_8_to_9():
-        return '''
-            CREATE TABLE comparison_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
-            PRAGMA user_version=9;
-        '''
-
-    @staticmethod
-    def _migrate_9_to_10():
-        return '''
-            CREATE TABLE section_score_batches (source_range_hash TEXT NOT NULL,
-                prompt_version TEXT NOT NULL, configuration_hash TEXT NOT NULL,
-                actual_model TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL,
-                PRIMARY KEY(source_range_hash, prompt_version, configuration_hash, actual_model));
-            CREATE TABLE performance_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
-            CREATE INDEX scores_run_kind_item ON scores(run_id, score_kind, item_id);
-            CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
-            CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
-            PRAGMA user_version=10;
-        '''
-
-    @staticmethod
-    def _migrate_10_to_11():
-        return '''
-            CREATE TABLE evaluation_scale_verdicts (pair_hash TEXT NOT NULL,
-                prompt_version TEXT NOT NULL, configuration_hash TEXT NOT NULL,
-                actual_model TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL,
-                PRIMARY KEY(pair_hash, prompt_version, configuration_hash, actual_model));
-            PRAGMA user_version=11;
-        '''
-
-    @staticmethod
-    def _migrate_11_to_12():
-        return '''
-            CREATE TABLE ticker_selections (
-                selection_id INTEGER PRIMARY KEY AUTOINCREMENT, ticker TEXT,
-                selected_at TEXT NOT NULL, directory_provenance TEXT NOT NULL,
-                directory_version TEXT NOT NULL, cache_status TEXT NOT NULL,
-                eligibility TEXT NOT NULL, message TEXT NOT NULL);
-            PRAGMA user_version=12;
-        '''
-
-    @staticmethod
-    def _migrate_12_to_13():
-        return '''
-            CREATE TABLE retrieval_benchmarks (run_id TEXT PRIMARY KEY REFERENCES runs(run_id) ON DELETE CASCADE,
-                payload TEXT NOT NULL);
-            PRAGMA user_version=13;
+            PRAGMA application_id=0x50524F46;
         '''
 
     @contextmanager

@@ -7,10 +7,10 @@
   a recent eligible 10-K, prefers a ticker absent from prior V2 runs, then immediately
   creates and opens that live run. The UI now submits Live SEC only; offline mode
   remains an internal test/fixture path pending T34.
-- Current task: **T32 — Final real-data demonstration** — **DONE**. Eight persisted
-  real SEC/provider runs demonstrate the full staged pipeline, including visible
-  misses and bounded failures. See [T32_DEMONSTRATION.md](T32_DEMONSTRATION.md).
-- Next task: **T33 — Fresh-only storage schema; remove migrations.**
+- Current task: **T33 — Fresh-only storage schema; remove migrations** — **DONE**.
+  V2 storage now has one clean-schema creation path and refuses pre-existing
+  incompatible databases without modifying them.
+- Next task: **T34 — Remove offline fixture source mode.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -59,7 +59,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T30 | Random eligible ticker picker | DONE | Manual browser and live SEC picker verification pending |
 | T31 | Retrieval benchmark and baselines | DONE | Not run |
 | T32 | Final real-data demonstration | DONE | Eight live filings recorded; browser automation not run |
-| T33 | Fresh-only storage schema; remove migrations | TODO | Not run |
+| T33 | Fresh-only storage schema; remove migrations | DONE | Not applicable |
 | T34 | Remove offline fixture source mode | TODO | Not run |
 | T35 | Diagnose and redesign exact-match evaluation | TODO | Not run |
 | T36 | Overall cross-run evaluation scorecard | TODO | Not run |
@@ -125,6 +125,49 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 6. Record actual commands, results, artifact/run IDs, and limitations below. Never invent a successful live call or browser inspection.
 7. Mark DONE only when the local acceptance criteria pass. A blocked external check stays visibly pending, and compatible later offline work may continue.
 8. Stop after the task. Tell the user what to open, what to click, what they should see, and the next task ID.
+
+## T33 handoff
+
+Implemented: replaced the V2 SQLite upgrade chain with one authoritative schema
+creation script. A new database is marked with a stable application identifier; an
+existing unmarked, malformed, or incomplete database is refused with an actionable
+message and is not converted, read for run data, or deleted. The README now states the
+fresh-only boundary and the exact reset command: `rm -rf data/v2` (or the `v2`
+subdirectory of `PROFITLAB_DATA_DIR`).
+
+Tests inspected: `tests/task_gates/test_t14.py` remained the focused clean-storage and
+pipeline integration coverage. Added `tests/task_gates/test_t33.py` for current-schema
+creation and a deliberately legacy database whose bytes remain unchanged after refusal.
+No migration-preservation tests remained; the upgrade code itself was removed.
+
+Commands/results:
+
+- Baseline: `time uv run pytest tests/task_gates/test_t14.py -q` — **4 passed** in
+  1.17 seconds (1.58 seconds wall time).
+- `time uv run pytest tests/task_gates/test_t33.py tests/task_gates/test_t14.py -q` —
+  **6 passed** in 1.20 seconds (1.59 seconds wall time), with the existing
+  Starlette/AnyIO deprecation warning.
+- `time uv run pytest -q` — **49 passed** in 7.15 seconds (7.54 seconds wall time),
+  with the same existing warning. `uv run ruff check .`, `git diff --check`, and a
+  static V2-source/test search for migration or SQLite-version-upgrade code passed.
+
+The authorized local reset was performed: removed `data/v2` (264 MB, containing the
+former V2 SQLite files). It is intentionally not recoverable through ProfitLab.
+
+Follow-up source-parser fix: a newly observed live filing contained an element whose
+`style` attribute was exposed as `None`, causing canonical source cleanup to fail before
+the pipeline reached provider stages. `_is_hidden` now treats it as an empty style value.
+Added a direct null-style regression and a canonical HTML integration case; `time uv run
+pytest tests/task_gates/test_t15.py -q` passed **4 tests** in 0.97 seconds (1.35 seconds
+wall time), with Ruff and diff checks clean.
+
+Live verification is not applicable: this task performs no SEC or provider calls.
+Browser automation was not run per task policy. Manual verification: stop a running
+server, use an empty `PROFITLAB_DATA_DIR`, run `uv run profitlab serve`, and create a
+live run from `/`; it should create the fresh database. Then leave an old V2 database
+at `PROFITLAB_DATA_DIR/v2/profitlab-v2.sqlite3`, restart, and confirm startup refuses
+with the reset instruction while the file is unchanged. Remove only that V2 directory,
+restart, and confirm a clean workspace appears. Next task: T34.
 
 ## Latest task handoff
 

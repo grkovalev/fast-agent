@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from profitlab.settings import Settings
 from profitlab.v2 import V2PipelineService, canonicalize_html
+from profitlab.v2.canonical import _is_hidden
 from profitlab.v2.contracts import SourceRange
 from profitlab.web.app import create_app
 
@@ -28,6 +29,23 @@ def test_canonical_visible_html_unwraps_xbrl_and_resolves_exact_anchors():
     altered, _ = canonicalize_html(raw.replace(b'$10', b'$11'), document_id='document-fixture',
                                    filing_id='filing-fixture')
     assert altered.ref.source_hash != document.ref.source_hash
+
+
+def test_canonical_html_tolerates_a_bare_style_attribute():
+    document, visible = canonicalize_html(
+        b'<html><body><h1 style>Results</h1><p>Net income was $10.</p></body></html>',
+        document_id='bare-style', filing_id='bare-style-filing')
+
+    assert [line.text for line in document.lines] == ['Results', 'Net income was $10.']
+    assert b'Net income was $10.' in visible
+
+
+def test_hidden_check_tolerates_a_null_style_attribute():
+    class NullStyleNode:
+        def get(self, name, default=None):
+            return None if name == 'style' else default
+
+    assert not _is_hidden(NullStyleNode())
 
 
 def test_offline_source_stage_and_paginated_viewer(tmp_path):
