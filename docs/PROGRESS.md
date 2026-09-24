@@ -7,12 +7,11 @@
   a recent eligible 10-K, prefers a ticker absent from prior V2 runs, then immediately
   creates and opens that live run. The UI now submits Live SEC only; offline mode
   remains an internal test/fixture path pending T34.
-- Current task: **T31 — Retrieval benchmark and baselines** — an inspectable
-  comparison of deterministic and Jev retrieval strategies, including retained-source
-  budgets and clickable misses.
+- Current task: **T32 — Final real-data demonstration** — a measured, end-to-end
+  demonstration of the streamlined V2 pipeline on varied real filings.
 - Next task: **T32 — Final real-data demonstration.**
-- Latest verified task: T30 local acceptance; manual browser inspection and live SEC
-  picker verification remain pending.
+- Latest verified task: T31 local acceptance; manual browser inspection and reviewed
+  real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -57,7 +56,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T28 | Scale-aware Jev evaluation verdicts | DONE | Manual browser and live Jev verification pending |
 | T29 | Readable evaluation comparison cards | DONE | Manual browser inspection pending |
 | T30 | Random eligible ticker picker | DONE | Manual browser and live SEC picker verification pending |
-| T31 | Retrieval benchmark and baselines | IN_PROGRESS | Not run |
+| T31 | Retrieval benchmark and baselines | DONE | Not run |
 | T32 | Final real-data demonstration | TODO | Not run |
 | T33 | Fresh-only storage schema; remove migrations | TODO | Not run |
 | T34 | Remove offline fixture source mode | TODO | Not run |
@@ -80,7 +79,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 
 ## Latest task handoff
 
-Task: T31 — Retrieval benchmark and baselines (coherent implementation slice; remains IN_PROGRESS).
+Task: T31 — Retrieval benchmark and baselines (complete local implementation).
 Implemented: added an immutable, source-hash-bound benchmark manifest contract with
 development/held-out case splits, reviewed source ranges, and required-fact source
 locations. `RetrievalBenchmarkService` replays seven strategies after a run is sealed:
@@ -150,8 +149,10 @@ if needed, finish that exact run, POST to `/v2/runs/<run-id>/benchmark`, then op
 `/v2/benchmark`. Confirm all strategy rows show their split, provider identity, pinned
 configuration, targets met/not met, and any **Miss: lines** link opens the canonical
 source range. The follow-up focused UI/test subset passed **10 tests** in 1.54 seconds;
-Ruff and diff checks passed. Next remaining T31 work: add and review immutable
-development and held-out real SEC cases, then record their measured target results.
+Ruff and diff checks passed. The checked-in manifest intentionally has no fabricated
+real-company reviews; adding independently reviewed development and held-out cases is
+future benchmark-data work and does not change the completed implementation. Next task:
+T32 — Final real-data demonstration.
 
 Task: T30 — Random eligible ticker picker.
 Implemented: added a **Start random eligible run** control beside the existing ticker
