@@ -285,16 +285,26 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
         if len(findings) > self.settings.finding_type_max_requests:
             raise ValueError('Finding-type provider-call budget would be exceeded.')
         client = SectionScoringService(self.settings, self.repo)._client(run_id, offline, stage='findings')
-        typed, calls = [], 0
+        typed, calls, budget_limited = [], 0, 0
         for finding in findings:
-            request = self._classification_request(run_id, finding, document, chunks, offline)
+            try:
+                request = self._classification_request(run_id, finding, document, chunks, offline)
+            except ValueError as error:
+                # Classification is post-extraction metadata.  A bounded Jev payload
+                # must never discard an already quote-validated finding or fail the
+                # whole pipeline; retain it with the explicit unresolved verdict.
+                if 'visible-context budget' not in str(error):
+                    raise
+                typed.append(finding)
+                budget_limited += 1
+                continue
             response = await client.evaluate(request)
             calls += 1
             supported = [name for name in self.FINDING_TYPES
                          if response.answers[name].noul >= self.settings.chunk_score_keep_threshold]
             finding_type = supported[0] if len(supported) == 1 else 'unresolved'
             typed.append(finding.model_copy(update={'finding_type': finding_type}))
-        return typed, calls
+        return typed, calls, budget_limited
 
     async def build(self, run_id, document, chunks, scores, *, offline):
         state = self._request_data(run_id, document, chunks, scores)
@@ -361,17 +371,18 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
         if cached_types and all(item.finding_id in cached_types for item in findings):
             findings = [item.model_copy(update={'finding_type': cached_types[item.finding_id]})
                         for item in findings]
-            classification_calls = 0
+            classification_calls, classification_budget_limited = 0, 0
         else:
-            findings, classification_calls = await self._classify(run_id, document, chunks, findings,
-                                                                   offline=offline)
+            findings, classification_calls, classification_budget_limited = await self._classify(
+                run_id, document, chunks, findings, offline=offline)
             self.repo.save_finding_batch(request_hash, self.prompt_version, config, model,
                                          {'findings': proposals, 'model': actual_model,
                                           'finding_types': {item.finding_id: item.finding_type
                                                             for item in findings}})
         self.repo.save_findings(run_id, findings)
         self.repo.save_finding_summary(run_id, {
-            'calls': calls, 'classification_calls': classification_calls, 'cached': cached,
+            'calls': calls, 'classification_calls': classification_calls,
+            'classification_budget_limited': classification_budget_limited, 'cached': cached,
             'rejected': len(rejected), 'model': actual_model,
             'context_fallback': state['context_fallback'],
             'retained_chunks_after_budget': len(state['retained_chunks']),

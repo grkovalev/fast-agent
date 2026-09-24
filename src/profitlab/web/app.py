@@ -35,7 +35,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                 return await pipeline.run(run_id, delay=.05, implement_source=True)
             except asyncio.CancelledError:
                 raise
-            except Exception as error:  # noqa: BLE001 - persist unexpected worker failures
+            except Exception as error:
                 # A provider/parser/storage exception must not leave a run looking active.
                 # The pipeline already persists expected domain failures; this is the
                 # last-resort boundary for failures outside those narrower handlers.
@@ -55,7 +55,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                     pipeline.repo.update_run(run_id, status='failed',
                                              summary='V2 worker failed unexpectedly.',
                                              kind='run_finished')
-                except Exception:  # noqa: BLE001 - do not mask the original worker failure
+                except Exception:
                     logger.exception('Could not persist V2 worker failure for run %s', run_id)
                 return None
 
@@ -306,7 +306,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         return RedirectResponse(f'/v2/runs/{run_id}', status_code=303)
 
     @app.post('/v2/runs/{run_id}/resume')
-    def resume(run_id: str):
+    async def resume(run_id: str):
         try:
             pipeline.resume(run_id); start(run_id)
         except (FileNotFoundError, ValueError):

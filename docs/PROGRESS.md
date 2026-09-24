@@ -7,9 +7,10 @@
   a recent eligible 10-K, prefers a ticker absent from prior V2 runs, then immediately
   creates and opens that live run. The UI now submits Live SEC only; offline mode
   remains an internal test/fixture path pending T34.
-- Current task: **T32 — Final real-data demonstration** — a measured, end-to-end
-  demonstration of the streamlined V2 pipeline on varied real filings.
-- Next task: **T32 — Final real-data demonstration.**
+- Current task: **T32 — Final real-data demonstration** — **DONE**. Eight persisted
+  real SEC/provider runs demonstrate the full staged pipeline, including visible
+  misses and bounded failures. See [T32_DEMONSTRATION.md](T32_DEMONSTRATION.md).
+- Next task: **T33 — Fresh-only storage schema; remove migrations.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -57,7 +58,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T29 | Readable evaluation comparison cards | DONE | Manual browser inspection pending |
 | T30 | Random eligible ticker picker | DONE | Manual browser and live SEC picker verification pending |
 | T31 | Retrieval benchmark and baselines | DONE | Not run |
-| T32 | Final real-data demonstration | TODO | Not run |
+| T32 | Final real-data demonstration | DONE | Eight live filings recorded; browser automation not run |
 | T33 | Fresh-only storage schema; remove migrations | TODO | Not run |
 | T34 | Remove offline fixture source mode | TODO | Not run |
 | T35 | Diagnose and redesign exact-match evaluation | TODO | Not run |
@@ -65,6 +66,54 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T37 | Sequential random-report batch runner | TODO | Not run |
 | T38 | Versioned run timing and evaluation cohorts | TODO | Not run |
 | T39 | Context-aware Jev scoring and compact findings evidence | TODO | Not run |
+
+## T32 final evidence
+
+- Live prerequisites were present on 2026-09-24 (SEC contact, Jev key, and LLM
+  configuration). The first real run, `v2-da452efc7988` for MSFT's 2026-06-30
+  10-K, reached all eight implemented stages. Its primary visible filing source
+  contained 1,970 canonical sanitized lines (source hash
+  `96d03620b06dc4d1c4c556a8c2c447bab9026f0835e176d15c67dd8d46e3ecba`).
+  It produced 71 validated outline sections, Jev-scored 71 sections in 18
+  batches (12 selected, 4 uncertain), built 17 chunks from 362 primary lines,
+  Jev-scored 17 chunks in five live batches (12 retained, one uncertain), and
+  published four exact quote-validated findings. Facts started only afterward
+  and normalized three annual independent Company Facts. Evaluation preserved
+  zero deterministic exact matches and recorded three separate scale-aware Jev
+  equivalences; it did not change discovery output.
+- The source-to-first-run wall time was 509.3 seconds, including a deliberate
+  resume after an observed finding-type context-size limit. Persisted evaluation
+  measurements: 10.61% retained source, 2.46 seconds to first finding after the
+  resumed findings work began, 9.30 seconds evaluation latency, five recorded
+  provider requests with 16,241 input and 3,636 output tokens, plus three
+  scale-verdict Jev calls (3,356 input/69 output tokens). The live run's local
+  performance summary reports a 275,730,432-byte database at its measurement
+  point; the shared `data/` directory was 3.1G after existing workspace data.
+- Initial live Findings exposed a bounded failure: the post-extraction
+  finding-type Jev payload exceeded its 30,000-character context budget. A
+  quote-validated finding must not be discarded for that optional classification,
+  so classification now leaves only that finding `unresolved`, records
+  `classification_budget_limited`, and permits Facts/Evaluation to continue.
+  The persisted run was successfully resumed from checkpoints. The web resume
+  route was also made asynchronous; its prior synchronous form could persist a
+  queued run before failing to schedule its worker. A queued run is resumable
+  only when it already has a stopped stage, preventing fresh queued runs from
+  being accidentally started through resume.
+- Focused validation after those fixes:
+  `time uv run pytest tests/task_gates/test_t14.py tests/task_gates/test_t20.py tests/task_gates/test_t24.py tests/task_gates/test_t27.py tests/task_gates/test_t31.py -q`
+  — **17 passed** in 3.19 seconds (3.56 seconds wall time), with the existing
+  Starlette/AnyIO deprecation warning. `uv run ruff check .` and
+  `git diff --check` passed. Browser automation was not run per task policy.
+- The existing local workspace supplied seven additional real completed filings:
+  FIX, FLR, LILA, DSGN, GDOT, MFAN, and SPGI. They span materially different
+  structures and include persisted misses, ambiguous duplicates, unsupported
+  comparisons, an additional visible value, and two invalid/quote-rejected DSGN
+  proposals. ENSC is retained as a live source failure with no fabricated later
+  output. The concise setup, measurements, source provenance, limitations, and
+  two-minute manual verification path are in `docs/T32_DEMONSTRATION.md`.
+  Durable cancellation/restart and malformed/invalid quote contracts are covered
+  by the focused tests listed above. Browser automation was not run by policy.
+  This bounded sample is not a population-accuracy estimate.
 
 ## Instruction for the implementing agent
 

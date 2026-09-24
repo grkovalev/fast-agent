@@ -400,7 +400,14 @@ class V2PipelineService:
 
     def resume(self, run_id: str):
         run = self.repo.get_run(run_id)
-        if run.status not in ('cancelled', 'interrupted', 'failed', 'partial'):
+        # A historical synchronous web-resume request could persist ``queued``
+        # before failing to schedule its worker.  It is resumable only when a
+        # stage proves that this is a stopped, partially executed run; a fresh
+        # queued run remains ineligible.
+        recoverable_queued = run.status == 'queued' and any(
+            stage.status in ('failed', 'partial', 'cancelled', 'interrupted')
+            for stage in self.repo.stages(run_id))
+        if run.status not in ('cancelled', 'interrupted', 'failed', 'partial') and not recoverable_queued:
             raise ValueError('Only a stopped V2 run can be resumed.')
         self.repo.resume(run_id)
 

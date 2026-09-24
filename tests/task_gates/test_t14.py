@@ -78,3 +78,19 @@ def test_durable_cancellation_and_restart_recovery(settings):
     V2PipelineService(settings).recover()
     assert service.repo.get_run('restart').status == 'interrupted'
     assert service.repo.stage('restart', 'source').status == 'interrupted'
+
+
+def test_resume_recovers_only_a_queued_run_with_a_stopped_stage(settings):
+    service = V2PipelineService(settings)
+    service.create(run_id='fresh-queued')
+    with pytest.raises(ValueError, match='stopped'):
+        service.resume('fresh-queued')
+
+    service.create(run_id='queued-after-failure')
+    failed = service.repo.stage('queued-after-failure', 'findings').model_copy(update={
+        'status': 'failed', 'summary': 'bounded provider payload rejected',
+    })
+    service.repo.update_stage(failed, event_kind='stage_finished', event_summary=failed.summary)
+    # This represents the persisted state from an interrupted dispatch request.
+    service.resume('queued-after-failure')
+    assert service.repo.get_run('queued-after-failure').status == 'queued'

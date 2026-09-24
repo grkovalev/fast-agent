@@ -99,3 +99,22 @@ def test_findings_context_budget_falls_back_without_failing_the_run(tmp_path):
     assert stage.status == 'completed'
     assert summary['context_fallback'] is True
     assert 'Request budget fallback' in stage.summary
+
+
+def test_finding_type_context_budget_leaves_valid_findings_unresolved(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None,
+                        finding_type_request_char_budget=1000, chunk_target_tokens=100,
+                        chunk_overlap_tokens=40, chunk_question_overhead=500,
+                        chunk_request_budget=1000, outline_window_lines=100,
+                        section_score_batch_size=2)
+    pipeline = V2PipelineService(settings)
+    pipeline.create(run_id='type-budget-t20')
+
+    asyncio.run(pipeline.run('type-budget-t20', implement_source=True))
+
+    assert pipeline.repo.stage('type-budget-t20', 'findings').status == 'completed'
+    findings = pipeline.repo.findings('type-budget-t20')
+    summary = pipeline.repo.finding_summary('type-budget-t20')
+    assert findings and all(item.finding_type == 'unresolved' for item in findings)
+    assert summary['classification_calls'] == 0
+    assert summary['classification_budget_limited'] == len(findings)
