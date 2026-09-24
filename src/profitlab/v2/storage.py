@@ -12,6 +12,8 @@ from .contracts import (
     CanonicalDocumentRef,
     OutlineSection,
     PipelineEvent,
+    ReportBatch,
+    ReportBatchItem,
     StageSnapshot,
     TextChunk,
     V2Run,
@@ -50,6 +52,7 @@ class V2Repository:
             'company_fact_datasets', 'fact_summaries', 'comparison_summaries',
             'section_score_batches', 'performance_summaries', 'evaluation_scale_verdicts',
             'ticker_selections', 'retrieval_benchmarks', 'evaluation_scorecards',
+            'report_batches', 'report_batch_items',
         }
         actual_tables = {row['name'] for row in db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
@@ -154,6 +157,16 @@ class V2Repository:
             CREATE TABLE evaluation_scorecards (
                 configuration_hash TEXT PRIMARY KEY, input_hash TEXT NOT NULL,
                 calculated_at TEXT NOT NULL, payload TEXT NOT NULL);
+            CREATE TABLE report_batches (
+                batch_id TEXT PRIMARY KEY, requested_count INTEGER NOT NULL,
+                status TEXT NOT NULL, cancellation_requested INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL, summary TEXT NOT NULL);
+            CREATE TABLE report_batch_items (
+                batch_id TEXT NOT NULL REFERENCES report_batches(batch_id) ON DELETE CASCADE,
+                ordinal INTEGER NOT NULL, ticker TEXT, run_id TEXT REFERENCES runs(run_id) ON DELETE SET NULL,
+                started_at TEXT NOT NULL, finished_at TEXT, outcome TEXT, message TEXT NOT NULL,
+                PRIMARY KEY(batch_id, ordinal));
+            CREATE INDEX report_batch_items_batch_ordinal ON report_batch_items(batch_id, ordinal);
             CREATE INDEX scores_run_kind_item ON scores(run_id, score_kind, item_id);
             CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
             CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
@@ -226,6 +239,65 @@ class V2Repository:
         with self.connect() as db:
             rows = db.execute('SELECT DISTINCT ticker FROM runs').fetchall()
         return {row['ticker'] for row in rows}
+
+    def create_report_batch(self, batch: ReportBatch):
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('INSERT INTO report_batches VALUES (?, ?, ?, ?, ?, ?, ?)', (
+                batch.batch_id, batch.requested_count, batch.status, batch.cancellation_requested,
+                batch.created_at.isoformat(), batch.updated_at.isoformat(), batch.summary))
+
+    def report_batch(self, batch_id: str) -> ReportBatch:
+        with self.connect() as db:
+            row = db.execute('SELECT * FROM report_batches WHERE batch_id=?', (batch_id,)).fetchone()
+        if not row:
+            raise FileNotFoundError(batch_id)
+        return ReportBatch.model_validate(dict(row))
+
+    def report_batches(self, limit: int = 50) -> list[ReportBatch]:
+        with self.connect() as db:
+            rows = db.execute('SELECT * FROM report_batches ORDER BY created_at DESC LIMIT ?',
+                              (min(limit, 100),)).fetchall()
+        return [ReportBatch.model_validate(dict(row)) for row in rows]
+
+    def update_report_batch(self, batch_id: str, *, status: str | None = None,
+                            cancellation_requested: bool | None = None, summary: str | None = None):
+        current = self.report_batch(batch_id)
+        updated = current.model_copy(update={
+            'status': status if status is not None else current.status,
+            'cancellation_requested': (cancellation_requested if cancellation_requested is not None
+                                       else current.cancellation_requested),
+            'summary': summary if summary is not None else current.summary,
+            'updated_at': datetime.now(UTC),
+        })
+        with self.connect() as db:
+            db.execute('UPDATE report_batches SET status=?, cancellation_requested=?, updated_at=?, summary=? '
+                       'WHERE batch_id=?', (updated.status, updated.cancellation_requested,
+                                             updated.updated_at.isoformat(), updated.summary, batch_id))
+        return updated
+
+    def add_report_batch_item(self, item: ReportBatchItem):
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('INSERT INTO report_batch_items VALUES (?, ?, ?, ?, ?, ?, ?, ?)', (
+                item.batch_id, item.ordinal, item.ticker, item.run_id, item.started_at.isoformat(),
+                item.finished_at.isoformat() if item.finished_at else None, item.outcome, item.message))
+
+    def finish_report_batch_item(self, batch_id: str, ordinal: int, *, outcome: str, message: str):
+        now = datetime.now(UTC)
+        with self.connect() as db:
+            changed = db.execute('UPDATE report_batch_items SET finished_at=?, outcome=?, message=? '
+                                 'WHERE batch_id=? AND ordinal=?',
+                                 (now.isoformat(), outcome, message, batch_id, ordinal)).rowcount
+        if not changed:
+            raise FileNotFoundError(f'{batch_id}:{ordinal}')
+
+    def report_batch_items(self, batch_id: str) -> list[ReportBatchItem]:
+        self.report_batch(batch_id)
+        with self.connect() as db:
+            rows = db.execute('SELECT * FROM report_batch_items WHERE batch_id=? ORDER BY ordinal',
+                              (batch_id,)).fetchall()
+        return [ReportBatchItem.model_validate(dict(row)) for row in rows]
 
     def record_ticker_selection(self, selection):
         with self.connect() as db:

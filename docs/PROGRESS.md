@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T36 — Overall cross-run evaluation scorecard** — **DONE**.
-- Next task: **T37 — Sequential random-report batch runner.**
+- Current task: **T37 — Sequential random-report batch runner** — **DONE**.
+- Next task: **T38 — Versioned run timing and evaluation cohorts.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -67,7 +67,8 @@ denominator.
 
 ## T36 local acceptance and handoff
 
-- Added a persisted `t36-strict-exact-v1` scorecard snapshot. It fingerprints both
+- Added a persisted `t36-strict-exact-v1` scorecard snapshot (superseded by the
+  clarified `t36-strict-exact-v2` contract below). It fingerprints both
   its contract and all persisted run/comparison inputs, so unchanged aggregates are
   reused and changed evaluation data deterministically produces a new snapshot. It
   performs no SEC, Jev, or LLM call.
@@ -95,6 +96,50 @@ denominator.
   each appears in the ledger, choose either matrix’s TP/FP/FN record link, and confirm
   the linked Evaluate record and the displayed precision/recall/F1 reproduce its cells.
 - Next: **T37 — Sequential random-report batch runner**.
+
+## T37 local acceptance and handoff
+
+- Added durable sequential report batches with a conservative configured requested-count
+  maximum (default 5), a bounded selection-attempt limit, item-by-item outcome ledger,
+  and links to every independently inspectable child run. The coordinator selects only
+  after the preceding child is terminal and never creates parallel pipeline tasks.
+- The existing live eligible-ticker picker now accepts an exclusion set. The batch also
+  rejects an accidentally repeated picker result, records picker exhaustion/skips and
+  child failures, and makes no provider request itself. Cancellation stops future
+  selection after the current child reaches a terminal state; resume preserves all
+  earlier attempts and selects only the remaining count.
+- Added a home-page batch form and a bounded progress page with requested/completed,
+  failed, cancelled, skipped, and active counts, per-attempt remediation, plus cancel
+  and resume controls. No browser automation was run per task policy.
+- Inspected the T36 scorecard/storage gates first. Added `tests/task_gates/test_t37.py`
+  covering injected picker selection, one-at-a-time execution, duplicate rejection,
+  picker exhaustion, cancellation/resume, and the batch form limit/progress route. No
+  obsolete tests were removed.
+- `time uv run pytest tests/task_gates/test_t37.py tests/task_gates/test_t36.py tests/task_gates/test_t33.py -q`:
+  **9 passed** in 0.92s (1.28s wall), with the existing Starlette/AnyIO deprecation
+  warning. Shared storage/orchestration scope required `time uv run pytest -q`:
+  **14 passed** in 0.84s (1.12s wall), with the same warning. `uv run ruff check .`
+  and `git diff --check` passed.
+- No live SEC, Jev, or LLM calls were attempted; browser automation was not run per
+  policy. Manual verification: run `uv run profitlab serve`, open `/`, set **Reports**
+  to `3`, and click **Start sequential batch**. On its progress page, observe that
+  only one attempt is active, open each created report link, and verify distinct
+  tickers. Click **Cancel after active report**, wait for its terminal outcome, then
+  click **Resume remaining reports**. Finally open `/v2/benchmark` and confirm the
+  completed and incomplete child runs both appear in the scorecard ledger.
+- Next: **T38 — Versioned run timing and evaluation cohorts.**
+
+### T36 scorecard clarification
+
+- An accepted visible finding whose assumed configured Company Facts target is absent
+  or unsupported is now a false positive, not an incomparable record. The persisted
+  scorecard contract is versioned as `t36-strict-exact-v2`; only genuinely undecidable
+  oracle cases remain incomparable. The decision record and scorecard copy state this
+  boundary explicitly. `time uv run pytest tests/task_gates/test_t36.py
+  tests/task_gates/test_t37.py tests/task_gates/test_t35.py -q` — **9 passed** in
+  0.97s (1.33s wall); `time uv run pytest -q` — **15 passed** in 0.88s (1.16s
+  wall), both with the existing Starlette/AnyIO deprecation warning. Ruff and diff
+  checks passed; live/browser verification remains pending.
 
 ## Task tracker
 
@@ -137,7 +182,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T34 | Remove offline fixture source mode | DONE | Live run not repeated; local prerequisite and source-contract checks passed |
 | T35 | Diagnose and redesign exact-match evaluation | DONE | Three persisted live SEC runs reviewed; manual browser inspection pending |
 | T36 | Overall cross-run evaluation scorecard | DONE | Manual browser inspection pending |
-| T37 | Sequential random-report batch runner | TODO | Not run |
+| T37 | Sequential random-report batch runner | DONE | Manual browser and live SEC/provider batch verification pending |
 | T38 | Versioned run timing and evaluation cohorts | TODO | Not run |
 | T39 | Context-aware Jev scoring and compact findings evidence | TODO | Not run |
 

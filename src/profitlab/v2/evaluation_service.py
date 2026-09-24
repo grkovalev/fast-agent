@@ -30,15 +30,17 @@ def cross_run_scorecard(repo) -> dict:
 
     Historical comparison states are diagnostic.  The approved T35 denominator is
     deliberately narrower: only an exact Company Facts annual value or an explicit
-    ``structured_fact_missed`` is a reviewed positive unit.  Unit/period/duplicate
-    ambiguity is recorded as incomparable, never as a false negative.
+    ``structured_fact_missed`` is a reviewed positive unit. Unit/period/duplicate
+    ambiguity is incomparable; an accepted finding without a supported configured
+    oracle mapping is instead a false positive.
     """
     contract = {
-        'version': 't36-strict-exact-v1',
+        'version': 't36-strict-exact-v2',
         'oracle': 'SEC Company Facts; same filing accession; annual fiscal period',
         'normalization': 'exact Decimal and literal visible unit; no inferred scale or attribution',
         'positive_denominator': 'exact-match or explicitly missed comparable fact',
-        'negative_denominator': 'accepted additional visible findings only; true negatives unavailable',
+        'negative_denominator': ('accepted findings with no matching configured Company Facts '
+                                 'target, including unsupported assumed mappings; true negatives unavailable'),
     }
     configuration_hash = hashlib.sha256(json.dumps(contract, sort_keys=True).encode()).hexdigest()
     runs = repo.runs()
@@ -94,10 +96,12 @@ def cross_run_scorecard(repo) -> dict:
             outcomes = {
                 'deterministic': ('true_positives' if deterministic == 'exact_match' else
                                   'false_negatives' if deterministic == 'structured_fact_missed' else
-                                  'false_positives' if comparison.state == 'additional_visible_value' else None),
+                                  'false_positives' if comparison.state in {
+                                      'additional_visible_value', 'unsupported'} else None),
                 'jev_assisted': ('true_positives' if comparison.state in {'exact_match', 'scale_aware_equivalent'} else
                                  'false_negatives' if comparison.state == 'structured_fact_missed' else
-                                 'false_positives' if comparison.state == 'additional_visible_value' else None),
+                                 'false_positives' if comparison.state in {
+                                     'additional_visible_value', 'unsupported'} else None),
             }
             for mode, outcome in outcomes.items():
                 if outcome:
@@ -130,7 +134,7 @@ def cross_run_scorecard(repo) -> dict:
                 if metric_counts['precision'] is not None and metric_counts['recall'] is not None
                 and metric_counts['precision'] + metric_counts['recall'] else None)
     warnings.append('True negatives are unavailable: no reviewed negative-candidate denominator exists.')
-    warnings.append('Incomparable diagnostic states are excluded from false-negative counts under T35.')
+    warnings.append('Only genuinely undecidable diagnostic states are incomparable; accepted unsupported mappings are false positives.')
     payload = {'contract': contract, 'configuration_hash': configuration_hash,
                'input_hash': input_hash, 'modes': modes, 'cells': cells,
                'breakdown': {mode: dict(values) for mode, values in breakdown.items()},

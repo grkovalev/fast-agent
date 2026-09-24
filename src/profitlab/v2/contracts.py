@@ -19,6 +19,8 @@ StageStatus = Literal[
 ]
 Hash = Annotated[str, Field(pattern=r'^[0-9a-f]{64}$')]
 FindingType = Literal['annual_profit', 'diluted_eps', 'diluted_shares', 'unresolved']
+BatchStatus = Literal['queued', 'running', 'cancelling', 'cancelled', 'completed']
+BatchItemOutcome = Literal['completed', 'failed', 'cancelled', 'skipped']
 
 
 class V2Contract(BaseModel):
@@ -58,6 +60,27 @@ class V2Run(V2Contract):
     created_at: AwareDatetime
     updated_at: AwareDatetime
     summary: str = ''
+
+
+class ReportBatch(V2Contract):
+    batch_id: StableID
+    requested_count: int = Field(ge=1)
+    status: BatchStatus = 'queued'
+    cancellation_requested: bool = False
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+    summary: str = ''
+
+
+class ReportBatchItem(V2Contract):
+    batch_id: StableID
+    ordinal: int = Field(ge=1)
+    ticker: str | None = Field(default=None, pattern=r'^[A-Z0-9][A-Z0-9.-]{0,19}$')
+    run_id: StableID | None = None
+    started_at: AwareDatetime
+    finished_at: AwareDatetime | None = None
+    outcome: BatchItemOutcome | None = None
+    message: str = ''
 
 
 class CanonicalDocumentRef(V2Contract):

@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 
 from profitlab.sec.ticker_picker import RandomEligibleTickerPicker
 from profitlab.settings import Settings
-from profitlab.v2 import STAGE_NAMES, V2PipelineService
+from profitlab.v2 import STAGE_NAMES, SequentialReportBatchService, V2PipelineService
 from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
 from profitlab.v2.evaluation_service import cross_run_scorecard
 
@@ -24,7 +24,13 @@ logger = logging.getLogger(__name__)
 def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                benchmark_dataset=None) -> FastAPI:
     settings = settings or Settings()
-    pipeline, tasks = V2PipelineService(settings), {}
+    pipeline, tasks, batch_tasks = V2PipelineService(settings), {}, {}
+
+    def new_picker():
+        return (ticker_picker_factory(pipeline.repo) if ticker_picker_factory
+                else RandomEligibleTickerPicker(settings, pipeline.repo))
+
+    batch_service = SequentialReportBatchService(settings, pipeline, new_picker)
 
     def start(run_id):
         if (task := tasks.get(run_id)) and not task.done():
@@ -62,14 +68,38 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         task = asyncio.create_task(guarded_run())
         tasks[run_id] = task
 
+    def start_batch(batch_id):
+        if (task := batch_tasks.get(batch_id)) and not task.done():
+            raise ValueError('Batch is already active.')
+
+        async def guarded_batch():
+            try:
+                await batch_service.run(batch_id)
+            except Exception as error:
+                logger.exception('Batch worker failed for %s', batch_id)
+                batch_service.repo.update_report_batch(
+                    batch_id, status='completed', summary=settings.redactor().text(str(error)))
+
+        batch_tasks[batch_id] = asyncio.create_task(guarded_batch())
+
     @asynccontextmanager
     async def lifespan(_app):
         pipeline.recover()
+        for batch in pipeline.repo.report_batches():
+            if batch.status in {'queued', 'running', 'cancelling'}:
+                pipeline.repo.update_report_batch(batch.batch_id, status='queued',
+                                                  cancellation_requested=False,
+                                                  summary='Recovered after restart; continuing remaining reports.')
+                start_batch(batch.batch_id)
         yield
         for task in tasks.values():
             if not task.done():
                 task.cancel()
         await asyncio.gather(*tasks.values(), return_exceptions=True)
+        for task in batch_tasks.values():
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*batch_tasks.values(), return_exceptions=True)
 
     app = FastAPI(title='ProfitLab', lifespan=lifespan)
     templates = Jinja2Templates(directory=WEB_DIR / 'templates')
@@ -82,7 +112,8 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         return response
 
     def home_context(**extra):
-        return {'v2_runs': pipeline.repo.recent(), 'readiness': settings.readiness(), **extra}
+        return {'v2_runs': pipeline.repo.recent(), 'batches': pipeline.repo.report_batches(),
+                'batch_maximum': settings.random_batch_max_reports, 'readiness': settings.readiness(), **extra}
 
     @app.get('/health')
     def health():
@@ -120,8 +151,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
 
     @app.post('/v2/ticker-picker')
     async def pick_ticker(request: Request):
-        picker = (ticker_picker_factory(pipeline.repo) if ticker_picker_factory
-                  else RandomEligibleTickerPicker(settings, pipeline.repo))
+        picker = new_picker()
         selection = await asyncio.to_thread(picker.pick)
         if selection.ticker:
             try:
@@ -133,6 +163,48 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             return RedirectResponse(f'/v2/runs/{run.run_id}', status_code=303)
         return templates.TemplateResponse(request=request, name='home.html', status_code=503,
                                           context=home_context(error=selection.message))
+
+    @app.post('/v2/batches')
+    async def create_batch(request: Request):
+        from urllib.parse import parse_qs
+        fields = parse_qs((await request.body()).decode())
+        try:
+            batch = batch_service.create(int(fields.get('count', [''])[0]))
+            start_batch(batch.batch_id)
+        except (TypeError, ValueError) as error:
+            return templates.TemplateResponse(request=request, name='home.html', status_code=400,
+                context=home_context(error=settings.redactor().text(str(error))))
+        return RedirectResponse(f'/v2/batches/{batch.batch_id}', status_code=303)
+
+    @app.get('/v2/batches/{batch_id}')
+    def batch_detail(request: Request, batch_id: str):
+        try:
+            batch = pipeline.repo.report_batch(batch_id)
+            items = pipeline.repo.report_batch_items(batch_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V2 batch not found') from None
+        counts = {outcome: sum(item.outcome == outcome for item in items)
+                  for outcome in ('completed', 'failed', 'cancelled', 'skipped')}
+        return templates.TemplateResponse(request=request, name='v2_batch.html', context={
+            'batch': batch, 'items': items, 'counts': counts,
+            'active_count': sum(item.outcome is None for item in items)})
+
+    @app.post('/v2/batches/{batch_id}/cancel')
+    def cancel_batch(batch_id: str):
+        try:
+            batch_service.cancel(batch_id)
+        except (FileNotFoundError, ValueError) as error:
+            raise HTTPException(400, str(error)) from None
+        return RedirectResponse(f'/v2/batches/{batch_id}', status_code=303)
+
+    @app.post('/v2/batches/{batch_id}/resume')
+    def resume_batch(batch_id: str):
+        try:
+            batch_service.resume(batch_id)
+            start_batch(batch_id)
+        except (FileNotFoundError, ValueError) as error:
+            raise HTTPException(400, str(error)) from None
+        return RedirectResponse(f'/v2/batches/{batch_id}', status_code=303)
 
     def context(run_id, stage, page):
         if stage not in STAGE_NAMES:

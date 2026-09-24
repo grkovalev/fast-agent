@@ -50,7 +50,7 @@ class RandomEligibleTickerPicker:
         self.repo.record_ticker_selection(selection)
         return selection
 
-    def pick(self):
+    def pick(self, *, exclude_tickers: set[str] | None = None):
         selected_at = datetime.now(UTC)
         if not self.settings.sec_contact_ready():
             return self._audit(TickerSelection(None, selected_at, 'SEC company_tickers.json',
@@ -73,6 +73,8 @@ class RandomEligibleTickerPicker:
                 return self._audit(TickerSelection(None, selected_at, 'SEC company_tickers.json',
                     'invalid', cache_status, 'unavailable',
                     'The SEC ticker directory contained an invalid ticker; try again after its cache refreshes.'))
+            excluded = {normalize_ticker(ticker) for ticker in (exclude_tickers or set())}
+            candidates = [ticker for ticker in candidates if ticker not in excluded]
             unseen = [ticker for ticker in candidates if ticker not in self.repo.processed_tickers()]
             candidates = unseen or candidates
             for _ in range(min(self.settings.random_ticker_attempts, len(candidates))):

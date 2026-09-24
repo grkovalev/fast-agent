@@ -39,8 +39,8 @@ they are diagnostic counts, not precision or recall.
 | Visible scale or lexical unit difference | 2 | DV lines 1043/1046: `$0.30`, `166,683`, with thousands-scale context | The values were independently confirmed scale-aware, but are not deterministic exact values. |
 | Duplicate or conflicting Company Facts concepts | 2 | DV reports `NetIncomeLoss` and `ProfitLoss` as $50.650m; TRC lines 595/597 distinguish $71k net income and $75k attributable to common stockholders | Not a discovery failure.  The former is a duplicate oracle; the latter exposes attribution ambiguity. |
 | Source-selection / extraction miss | 1 | TRC has a zero diluted-EPS Company Facts record and no quote-backed diluted-EPS finding | A candidate retrieval/extraction gap, pending direct filing review; count it only when the oracle is eligible. |
-| Oracle unavailable for visible metric | 2 | NOEM lines 856/858 give $0.17 per share for two share classes, but no matching diluted-EPS Company Facts row was normalized | Neither a false positive nor a missed expected fact. |
-| Unsupported / non-target visible values | 3 | NOEM lines 757, 855, 857 | Correctly preserved discovery evidence, but outside the configured comparator. |
+| Oracle unavailable for visible metric | 2 | NOEM lines 856/858 give $0.17 per share for two share classes, but no matching diluted-EPS Company Facts row was normalized | A false positive if accepted as configured diluted-EPS evidence; otherwise preserve it as an unscored diagnostic. |
+| Unsupported / non-target visible values | 3 | NOEM lines 757, 855, 857 | Evidence is preserved, but an accepted claim that assumes such a value covers a configured target is a false positive. |
 
 Every non-exact reviewed record has one of the classes above.  In particular,
 the two duplicate-oracle cards and NOEM's unavailable EPS comparator must not
@@ -99,12 +99,23 @@ The next scorecard must state this contract on every result:
 | Normalization | Decimal only after explicit visible unit/scale normalization; no float tolerance or inferred conversion |
 | Strict-exact denominator | Eligible expected audit units: unique `(metric, fiscal year, attribution)` facts with a single selected oracle and a finding whose period/unit/scale/attribution are resolved |
 | Semantic-review denominator | Reviewed eligible non-exact source/fact pairs, reported separately from strict exact |
-| Exclusions | Missing oracle, duplicate/conflicting concepts, unknown attribution, unsupported metric, unresolved period/unit/scale, and invalid quote |
+| Exclusions | Duplicate/conflicting concepts, unknown attribution, unresolved period/unit/scale, and invalid quote. An accepted unsupported/missing target mapping is a false positive, not an exclusion. |
 
-Strict-exact false positives would conflate different concepts, share classes,
-or annual columns.  Strict-exact false negatives would penalize a correctly
+Strict-exact false positives include an accepted value whose assumed configured
+tag/concept mapping is absent or wrong; the absence is not an oracle ambiguity.
+Different concepts, share classes, or annual columns must not be silently
+conflated into a match. Strict-exact false negatives would penalize a correctly
 quoted value reported in thousands or under a lexical unit alias.  The separate
 semantic outcome makes both risks visible instead of optimizing either score.
+
+## T36 clarification (2026-09-24)
+
+The scorecard contract now counts an accepted `unsupported` finding as a false
+positive alongside `additional_visible_value`. “Incomparable” is reserved for a
+case where the selected oracle cannot decide the claim fairly (for example a
+duplicate/conflicting fact, unresolved period/unit/scale, or attribution that is
+not established). It must not hide a finding accepted on the incorrect assumption
+that it was covered by the configured Company Facts tags.
 
 ## Implementation plan and regression boundary
 
