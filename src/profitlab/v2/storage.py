@@ -54,6 +54,7 @@ class V2Repository:
             'section_score_batches', 'performance_summaries', 'evaluation_scale_verdicts',
             'ticker_selections', 'retrieval_benchmarks', 'evaluation_scorecards',
             'report_batches', 'report_batch_items',
+            'adaptive_source_decisions', 'adaptive_context_summaries',
         }
         actual_tables = {row['name'] for row in db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
@@ -175,6 +176,15 @@ class V2Repository:
                 started_at TEXT NOT NULL, finished_at TEXT, outcome TEXT, message TEXT NOT NULL,
                 PRIMARY KEY(batch_id, ordinal));
             CREATE INDEX report_batch_items_batch_ordinal ON report_batch_items(batch_id, ordinal);
+            CREATE TABLE adaptive_source_decisions (
+                run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+                decision_id TEXT NOT NULL, core_start_line INTEGER NOT NULL,
+                expansion_pass INTEGER NOT NULL, payload TEXT NOT NULL,
+                PRIMARY KEY(run_id, decision_id));
+            CREATE INDEX adaptive_source_decisions_run_line ON adaptive_source_decisions
+                (run_id, core_start_line, expansion_pass);
+            CREATE TABLE adaptive_context_summaries (run_id TEXT PRIMARY KEY REFERENCES runs(run_id) ON DELETE CASCADE,
+                payload TEXT NOT NULL);
             CREATE INDEX scores_run_kind_item ON scores(run_id, score_kind, item_id);
             CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
             CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
@@ -836,6 +846,40 @@ class V2Repository:
         if not row:
             raise FileNotFoundError(chunk_id)
         return TextChunk.model_validate_json(row['payload'])
+
+    def save_adaptive_decisions(self, run_id: str, decisions):
+        """Replace a complete run's decision history atomically; no data is inferred."""
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM adaptive_source_decisions WHERE run_id=?', (run_id,))
+            db.executemany('''INSERT INTO adaptive_source_decisions
+                (run_id, decision_id, core_start_line, expansion_pass, payload) VALUES (?, ?, ?, ?, ?)''', [
+                (run_id, item.decision_id, item.core_range.start_line, item.expansion_pass,
+                 item.model_dump_json()) for item in decisions])
+
+    def adaptive_decisions(self, run_id: str, *, line: int | None = None):
+        from .contracts import AdaptiveSourceDecision
+        with self.connect() as db:
+            if line is None:
+                rows = db.execute('''SELECT payload FROM adaptive_source_decisions WHERE run_id=?
+                    ORDER BY core_start_line, expansion_pass''', (run_id,)).fetchall()
+            else:
+                rows = db.execute('''SELECT payload FROM adaptive_source_decisions WHERE run_id=?
+                    AND core_start_line=? ORDER BY expansion_pass''', (run_id, line)).fetchall()
+        return [AdaptiveSourceDecision.model_validate_json(row['payload']) for row in rows]
+
+    def save_adaptive_summary(self, run_id: str, payload: dict):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('INSERT OR REPLACE INTO adaptive_context_summaries (run_id, payload) VALUES (?, ?)',
+                       (run_id, json.dumps(payload, sort_keys=True)))
+
+    def adaptive_summary(self, run_id: str):
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM adaptive_context_summaries WHERE run_id=?', (run_id,)).fetchone()
+        return json.loads(row['payload']) if row else None
 
     def save_exploration_action(self, run_id: str, action_id: str, stage: str,
                                 sequence: int, payload: dict):

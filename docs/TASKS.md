@@ -724,6 +724,10 @@ provider calls to inspect.
 
 ## T39 — Jev-directed adaptive source context and target eligibility
 
+**Status:** IN_PROGRESS. The inspectable result will be persisted, range-bound Jev
+source decisions with bounded expansion history, used to limit adaptive retained
+evidence while preserving the existing flat chunk-score baseline.
+
 **Goal:** test whether Jev-directed, source-range-bound context expansion improves
 retrieval and quote-backed findings without weakening citation validation, recall, or
 the non-leak boundary. Do not assume that a larger fixed context window is useful:

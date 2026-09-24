@@ -54,16 +54,45 @@ class FindingsService:
 
     def _request_data(self, run_id, document, chunks, scores):
         score_by_id = {item.item_id: item for item in scores if item.policy_decision == 'selected'}
+        latest = {}
+        for decision in self.repo.adaptive_decisions(run_id):
+            latest[decision.core_range.start_line] = decision
+        adaptive_active = bool(latest) and (self.repo.adaptive_summary(run_id) or {}).get(
+            'retention_mode') != 'flat_baseline_no_direct_adaptive_evidence'
         retained = []
         for chunk in chunks:
             score = score_by_id.get(chunk.chunk_id)
             if not score:
                 continue
+            adaptive_evidence = [line for line in self._lines(document, chunk.core_range)
+                                 if (decision := latest.get(line['line_number'])) and
+                                 decision.role == 'evidence' and decision.context_sufficient and
+                                 'eligible' in decision.target_eligibility.values()]
+            # A selected ambiguity-reserve packet remains citable source text. Its
+            # interpretation stays explicitly unresolved in the prompt; the exact
+            # quote validator still prevents context-only citation.
+            if adaptive_active and not adaptive_evidence:
+                adaptive_evidence = [line for line in self._lines(document, chunk.core_range)
+                                     if (decision := latest.get(line['line_number'])) and decision.relevant]
+            # Old persisted development runs have no T39 decision history and remain
+            # inspectable as the explicitly versioned flat baseline.
+            if adaptive_active and not adaptive_evidence:
+                continue
+            selected_context = []
+            if adaptive_active:
+                seen = set()
+                for line in adaptive_evidence:
+                    for source_range in latest[line['line_number']].context_ranges:
+                        for context_line in self._lines(document, source_range):
+                            if context_line['line_number'] not in seen:
+                                selected_context.append(context_line)
+                                seen.add(context_line['line_number'])
             retained.append({'chunk_id': chunk.chunk_id,
                              'outline_section_id': chunk.section_id,
-                             'core_evidence_lines': self._lines(document, chunk.core_range),
-                             'context_lines': [line for source_range in chunk.context_ranges
-                                               for line in self._lines(document, source_range)],
+                             'core_evidence_lines': (adaptive_evidence if adaptive_active else
+                                                     self._lines(document, chunk.core_range)),
+                             'context_lines': selected_context or [line for source_range in chunk.context_ranges
+                                                                    for line in self._lines(document, source_range)],
                              'targets': [target for target, value in score.target_scores.items()
                                          if value >= self.settings.chunk_score_keep_threshold],
                              '_score': max(score.target_scores.values(), default=0)})
@@ -180,7 +209,7 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             except InvalidOperation:
                 continue
 
-    def _validate(self, document, chunks, proposal, model, *, repaired=False):
+    def _validate(self, run_id, document, chunks, proposal, model, *, repaired=False):
         if not isinstance(proposal, dict):
             return None, 'finding is not an object'
         chunk = {item.chunk_id: item for item in chunks}.get(proposal.get('source_chunk_id'))
@@ -192,6 +221,13 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             return None, 'source line must be an integer core evidence line'
         if not chunk.core_range.start_line <= source_line <= chunk.core_range.end_line:
             return None, 'source line is outside the chunk core evidence range'
+        fallback = (self.repo.adaptive_summary(run_id) or {}).get('retention_mode') == \
+            'flat_baseline_no_direct_adaptive_evidence'
+        decisions = self.repo.adaptive_decisions(run_id, line=source_line)
+        if decisions and not fallback:
+            latest = decisions[-1]
+            if not latest.relevant:
+                return None, 'quote source line is not retained adaptive evidence packet'
         line = document.lines[source_line - 1]
         offset = line.text.find(quote)
         if offset < 0:
@@ -321,7 +357,7 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
                                          {'findings': proposals, 'model': actual_model})
         findings, rejected = [], []
         for proposal in proposals:
-            finding, error = self._validate(document, chunks, proposal, actual_model)
+            finding, error = self._validate(run_id, document, chunks, proposal, actual_model)
             if finding:
                 findings.append(finding)
             else:
@@ -332,7 +368,7 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             calls += 1
             findings, rejected = [], []
             for proposal in repaired:
-                finding, error = self._validate(document, chunks, proposal, repair_model,
+                finding, error = self._validate(run_id, document, chunks, proposal, repair_model,
                                                   repaired=True)
                 if finding:
                     findings.append(finding)

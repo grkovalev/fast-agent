@@ -19,6 +19,8 @@ StageStatus = Literal[
 ]
 Hash = Annotated[str, Field(pattern=r'^[0-9a-f]{64}$')]
 FindingType = Literal['annual_profit', 'diluted_eps', 'diluted_shares', 'unresolved']
+AdaptiveRole = Literal['evidence', 'contextual', 'neither', 'uncertain']
+TargetEligibility = Literal['eligible', 'ineligible', 'uncertain']
 BatchStatus = Literal['queued', 'running', 'cancelling', 'cancelled', 'completed']
 BatchItemOutcome = Literal['completed', 'failed', 'cancelled', 'skipped']
 
@@ -143,6 +145,24 @@ class TextChunk(V2Contract):
     request_size_estimate: int = Field(ge=0)
     previous_chunk_id: StableID | None = None
     next_chunk_id: StableID | None = None
+
+
+class AdaptiveSourceDecision(V2Contract):
+    """One inspectable, source-bound Jev judgement; context is never citable."""
+    decision_id: StableID
+    core_range: SourceRange
+    context_ranges: list[SourceRange] = Field(default_factory=list)
+    section_id: StableID | None = None
+    expansion_pass: int = Field(ge=0)
+    role: AdaptiveRole
+    relevant: bool | None = None
+    target_eligibility: dict[str, TargetEligibility] = Field(default_factory=dict)
+    context_sufficient: bool | None = None
+    unresolved_fields: list[Literal['metric', 'period', 'unit_scale', 'attribution', 'qualifier']] = Field(default_factory=list)
+    confidence: float = Field(ge=0, le=1)
+    rationale: str = Field(min_length=1, max_length=1200)
+    model: str | None = None
+    prompt_version: str
 
 
 class ScoredItem(V2Contract):

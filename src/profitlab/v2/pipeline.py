@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from profitlab.sec.service import normalize_ticker
 
+from .adaptive_context import AdaptiveContextService
 from .benchmark import RetrievalBenchmarkService
 from .chunk_scoring import ChunkScoringService
 from .chunking import SourceRangeChunker
@@ -16,7 +17,7 @@ from .evaluation_service import EvaluationService
 from .facts_service import CompanyFactsService
 from .findings_service import FindingsService
 from .outline_service import OutlineService
-from .section_scoring import SectionScoringService
+from .section_scoring import TARGETS, SectionScoringService
 from .source_service import V2SourceService
 from .storage import V2Repository
 
@@ -49,12 +50,17 @@ class V2PipelineService:
         names = (
             'application_revision', 'outline_model', 'outline_prompt_version',
             'section_score_prompt_version', 'chunk_score_prompt_version',
+            'adaptive_context_prompt_version',
             'findings_prompt_version', 'finding_type_prompt_version',
             'evaluation_scale_prompt_version', 'typesafe_model', 'llm_model',
             'llm_output_mode', 'section_score_keep_threshold',
             'section_score_uncertain_threshold', 'chunk_score_keep_threshold',
             'chunk_score_uncertain_threshold', 'chunk_score_max_retained',
             'findings_max_requests', 'evaluation_scale_max_pairs',
+            'adaptive_context_initial_ring_lines', 'adaptive_context_max_ring_lines',
+            'adaptive_context_max_expansion_passes', 'adaptive_context_batch_size',
+            'adaptive_context_request_char_budget', 'adaptive_context_max_requests',
+            'adaptive_context_direct_per_target', 'adaptive_context_ambiguous_per_target',
         )
         return {name: str(getattr(self.settings, name)) for name in names}
 
@@ -250,6 +256,76 @@ class V2PipelineService:
                     result = await ChunkScoringService(self.settings, self.repo).score(
                         run_id, document, sections, chunks,
                         on_progress=score_progress)
+                    # Preserve the historical flat-chunk result verbatim for the
+                    # development-cohort comparison; adaptive eligibility is a
+                    # separate retention gate, never a silently changed baseline.
+                    self.repo.save_scores(run_id, 'chunk_score_flat', result.scores)
+                    # Route compact evidence packets only inside the selected
+                    # sections' chunk cores. The former whole-filing line sweep
+                    # cost more and made an experimental precision judgement an
+                    # early recall gate.
+                    candidate_lines = {line for chunk in chunks for line in range(
+                        chunk.core_range.start_line, chunk.core_range.end_line + 1)}
+                    adaptive = await AdaptiveContextService(self.settings, self.repo).classify(
+                        run_id, document, sections, candidate_lines=candidate_lines)
+                    final_by_line = {}
+                    for decision in adaptive.decisions:
+                        final_by_line[decision.core_range.start_line] = decision
+                    packet_lines = set()
+                    for target in TARGETS:
+                        direct = sorted((item for item in final_by_line.values()
+                                         if item.role == 'evidence' and item.context_sufficient and
+                                         item.target_eligibility.get(target) == 'eligible'),
+                                        key=lambda item: (-item.confidence, item.core_range.start_line))
+                        ambiguous = sorted((item for item in final_by_line.values()
+                                            if item.relevant and item.target_eligibility.get(target) != 'ineligible'
+                                            and item not in direct),
+                                           key=lambda item: (-item.confidence, item.core_range.start_line))
+                        packet_lines.update(item.core_range.start_line for item in
+                                            direct[:self.settings.adaptive_context_direct_per_target])
+                        packet_lines.update(item.core_range.start_line for item in
+                                            ambiguous[:self.settings.adaptive_context_ambiguous_per_target])
+                    adjusted = []
+                    for score in result.scores:
+                        chunk = next(item for item in chunks if item.chunk_id == score.item_id)
+                        decisions = [final_by_line[line] for line in range(
+                            chunk.core_range.start_line, chunk.core_range.end_line + 1)
+                                     if line in final_by_line]
+                        retained_packets = [item for item in decisions
+                                            if item.core_range.start_line in packet_lines]
+                        direct = any(item.role == 'evidence' and item.context_sufficient and
+                                     'eligible' in item.target_eligibility.values() for item in retained_packets)
+                        if retained_packets:
+                            adjusted.append(score.model_copy(update={'policy_decision': 'selected',
+                                'policy_reason': ('adaptive direct evidence packet' if direct else
+                                                  'adaptive per-target ambiguity reserve')}))
+                        else:
+                            adjusted.append(score.model_copy(update={'policy_decision': 'skipped',
+                                'policy_reason': 'no directly eligible adaptive evidence'}))
+                    direct_selected = sum(item.policy_decision == 'selected' for item in adjusted)
+                    if not direct_selected:
+                        # A zero-result adaptive experiment must not silently turn
+                        # a usable Jev-only discovery run into empty downstream
+                        # stages. Reuse the separately persisted Jev baseline and
+                        # label the result as partial; this is not an invented
+                        # source classification or an adaptive success.
+                        adjusted = [item.model_copy(update={
+                            'policy_reason': ('flat Jev baseline retained: adaptive direct eligibility '
+                                              'yielded no evidence (explicit partial)'),
+                        }) for item in result.scores]
+                        summary = self.repo.adaptive_summary(run_id) or {}
+                        self.repo.save_adaptive_summary(run_id, {**summary,
+                            'retention_mode': 'flat_baseline_no_direct_adaptive_evidence',
+                            'direct_selected_chunks': 0})
+                    else:
+                        summary = self.repo.adaptive_summary(run_id) or {}
+                        self.repo.save_adaptive_summary(run_id, {**summary,
+                            'retention_mode': 'adaptive_direct_evidence',
+                            'direct_selected_chunks': direct_selected})
+                    self.repo.save_scores(run_id, 'chunk_score', adjusted)
+                    result = result.__class__(adjusted, result.calls + adaptive.calls,
+                                              result.cached_batches, result.usage,
+                                              result.retained_characters)
                 except Exception as error:  # noqa: BLE001 - preserve bounded provider failure state
                     failed = running.model_copy(update={
                         'status': 'failed', 'finished_at': datetime.now(UTC),
@@ -271,7 +347,10 @@ class V2PipelineService:
                     'summary': (f'Jev scored {len(result.scores)} detailed chunks: {selected} retained, '
                                 f'{uncertain} uncertain; {result.calls} live batch(es), '
                                 f'{result.cached_batches} cached batch(es).'),
-                    'limitation': None,
+                    'limitation': ('Adaptive direct eligibility yielded no evidence; the separately '
+                                   'versioned flat Jev baseline is shown and used for this run.'
+                                   if (self.repo.adaptive_summary(run_id) or {}).get('retention_mode') ==
+                                   'flat_baseline_no_direct_adaptive_evidence' else None),
                     'input_hash': document.ref.source_hash,
                     'output_hash': hashlib.sha256(''.join(
                         f'{item.item_id}:{item.target_scores}' for item in result.scores).encode()).hexdigest(),

@@ -83,6 +83,19 @@ class Settings(BaseSettings):
     chunk_score_max_uncertain: int = Field(4, ge=0, le=100)
     chunk_score_retained_text_char_budget: int = Field(48000, ge=1000, le=1000000)
     chunk_score_overlap_dedupe_ratio: float = Field(.65, ge=0, le=1)
+    # T39 classifies each visible canonical block with a small local ring. Wider
+    # rings are Jev-directed only after it records insufficient interpretation.
+    adaptive_context_prompt_version: str = 'adaptive-context-v2-packets'
+    adaptive_context_batch_size: int = Field(20, ge=1, le=30)
+    adaptive_context_request_char_budget: int = Field(30000, ge=1000, le=60000)
+    adaptive_context_max_requests: int = Field(400, ge=1, le=4000)
+    adaptive_context_initial_ring_lines: int = Field(1, ge=0, le=20)
+    adaptive_context_max_ring_lines: int = Field(8, ge=1, le=100)
+    adaptive_context_max_expansion_passes: int = Field(3, ge=0, le=8)
+    # Each user-facing target keeps a small ambiguity reserve. It prevents one
+    # confident target from consuming the evidence budget before extraction.
+    adaptive_context_direct_per_target: int = Field(3, ge=1, le=12)
+    adaptive_context_ambiguous_per_target: int = Field(2, ge=0, le=12)
     # Findings receive only the small retained visible-evidence set.  One repair is
     # intentionally permitted for a malformed citation; uncited prose is rejected.
     findings_prompt_version: str = 'findings-v5-jev-types'

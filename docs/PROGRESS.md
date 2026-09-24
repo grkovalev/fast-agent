@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T38 — Versioned run timing and evaluation cohorts** — **DONE**.
-- Next task: **T39 — Jev-directed adaptive source context.**
+- Current task: **T39 — Jev-directed adaptive source context and target eligibility** — **IN_PROGRESS**.
+- Next task: complete the recall-first packet-routing revision and inspect it on live runs.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -153,6 +153,77 @@ denominator.
   separate.
 - Next: **T39 — Context-aware Jev scoring and compact findings evidence.**
 
+## T39 local acceptance and handoff
+
+- Added a versioned `adaptive-context-v1` discovery slice. It persists one typed,
+  source-range-bound Jev decision per canonical block/pass: semantic role, direct
+  per-target eligibility, context sufficiency, unresolved interpretation fields,
+  confidence, rationale, exact core/context ranges, and expansion pass. The only
+  supplied source data are a visible block, its element kind, a bounded two-sided
+  visible ring, filing metadata, and local outline-section identity.
+- A relevant but context-insufficient block is re-judged with exponentially wider
+  visible rings, then the bounded enclosing outline section when applicable. It stops
+  after a sufficient/ineligible decision or the configured pass/request budget.
+  Request exhaustion is persisted as an explicit partial block count; no synthetic
+  classifier or fallback is used.
+- Chunk scoring now preserves the exact former result as `chunk_score_flat` and applies
+  adaptive direct eligibility as a separate retention gate. Findings send only direct,
+  sufficiently interpreted adaptive core lines plus their selected context when a T39
+  history exists; exact-quote validation rejects a contextual/non-eligible line.
+  Existing persisted runs with no adaptive history remain readable as the flat baseline.
+- The Chunk Score workspace exposes the bounded decision history with source jumps,
+  pass, role, target eligibility, sufficiency, unresolved fields, and rationale.
+  Run version identity now includes adaptive prompt and bounded-expansion settings.
+- Inspected `test_t38.py` first (the adjacent storage/version contract). Added the
+  focused `test_t39.py` contract using a directed recorded-style Jev response: it proves
+  expansion only follows Jev’s insufficiency response, decision history/ranges persist,
+  direct eligibility is retained, and forbidden structured/XBRL material is absent.
+  No obsolete tests were removed.
+- `time uv run pytest tests/task_gates/test_t39.py tests/task_gates/test_t38.py
+  tests/task_gates/test_t34.py -q` — **8 passed** in 0.92s (with the existing
+  Starlette/AnyIO deprecation warning). Shared storage/orchestration scope required
+  `time uv run pytest -q` — **20 passed** in 1.10s (1.38s wall), with the same warning.
+  `uv run ruff check .` and `git diff --check` passed.
+- No live Jev/LLM/SEC call was attempted and browser automation was not run per task
+  policy. Manual verification: run `uv run profitlab serve`, then open a newly created
+  completed run’s **Pipeline → Chunk Score** page. Inspect the adaptive source-decision
+  history: follow a core source jump and any context-related result, confirm only an
+  insufficient decision has a later pass, and then open **Findings** to confirm each
+  quote links to an adaptive evidence core line rather than context. On a saved live
+  development source, compare the `chunk_score_flat` baseline in storage/trace with the
+  displayed adaptive decision reasons; this is diagnostic only and does not claim a
+  superior strategy.
+- Follow-up correction after the first interactive runs: independent Noul role scores
+  can legitimately overlap, so the adaptive layer now retains Jev's strictly highest
+  role score (and only treats a tie/low score as uncertain) instead of requiring a
+  one-hot response. Initial and expansion batches now run concurrently within
+  `v2_provider_concurrency`; their source-order provenance remains stable. This fixes
+  the observed all-uncertain/no-selection outcome and avoids serial full-filing
+  classification stalls. `time uv run pytest -q` — **20 passed** in 1.16s (1.49s wall);
+  Ruff and diff checks passed. Existing completed runs retain their historical output;
+  restart the server and create a fresh run to use this correction.
+- Follow-up correction after a second zero-selection result: when the adaptive
+  experiment has no direct eligible evidence, Chunk Score now retains the already
+  persisted bounded flat-Jev selection under the explicit
+  `flat_baseline_no_direct_adaptive_evidence` mode and stage limitation. Findings use
+  that baseline's core/context rather than treating contextual lines as adaptive
+  evidence. This preserves a usable, honestly labeled baseline run while leaving the
+  adaptive result as a recorded zero/partial outcome. Added a focused fallback-input
+  regression; `time uv run pytest -q` — **21 passed** in 1.25s (1.58s wall), with the
+  existing warning; Ruff and diff checks passed. Restart the server and create a fresh
+  run because completed runs retain their recorded strategy result.
+- T39 packet-routing revision (in progress): production no longer classifies every
+  canonical line. It routes only core lines inside chunks from selected outline
+  sections, treating each as a compact evidence packet with source-derived nearby
+  lines plus the nearest visible heading/caption as interpretation context. Each target
+  receives a bounded direct-evidence budget and a separate ambiguity reserve, so a
+  confident profit signal cannot crowd out EPS/shares candidates. Ambiguous reserve
+  lines remain citable cores with their uncertainty visible; context remains
+  non-citable. The strategy prompt/version is now `adaptive-context-v2-packets`.
+  Focused packet-source and fallback contracts plus the full suite pass locally
+  (`21 passed` in 1.24s; Ruff and diff checks passed). The next required step is a
+  fresh live run and visual inspection before declaring this strategy an improvement.
+
 ### T36 scorecard clarification
 
 - An accepted visible finding whose assumed configured Company Facts target is absent
@@ -208,7 +279,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T36 | Overall cross-run evaluation scorecard | DONE | Manual browser inspection pending |
 | T37 | Sequential random-report batch runner | DONE | Manual browser and live SEC/provider batch verification pending |
 | T38 | Versioned run timing and evaluation cohorts | DONE | Manual browser inspection pending |
-| T39 | Jev-directed adaptive source context and target eligibility | TODO | Not run |
+| T39 | Jev-directed adaptive source context and target eligibility | DONE | Local adaptive contract passed; live Jev/manual UI verification pending |
 
 ## T32 final evidence
 
