@@ -15,7 +15,7 @@ def test_clean_database_creates_the_complete_current_schema(tmp_path):
 
     assert {'runs', 'stages', 'events', 'canonical_documents', 'outline_sections',
             'chunks', 'findings', 'structured_facts', 'comparisons',
-            'retrieval_benchmarks'} <= tables
+            'retrieval_benchmarks', 'evaluation_scorecards'} <= tables
 
 
 def test_existing_incompatible_database_is_refused_without_modification(tmp_path):

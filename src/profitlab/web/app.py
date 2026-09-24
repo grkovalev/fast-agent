@@ -221,6 +221,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
 
     @app.get('/v2/runs/{run_id}')
     @app.get('/v2/runs/{run_id}/pipeline')
+    @app.get('/v2/runs/{run_id}/pipeline/{stage}')
     def workspace(request: Request, run_id: str, stage: str = 'source', page: int = 1):
         started = monotonic()
         try:

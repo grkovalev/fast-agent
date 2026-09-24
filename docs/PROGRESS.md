@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T35 — Diagnose and redesign exact-match evaluation** — **DONE**.
-- Next task: **T36 — Overall cross-run evaluation scorecard.**
+- Current task: **T36 — Overall cross-run evaluation scorecard** — **DONE**.
+- Next task: **T37 — Sequential random-report batch runner.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -65,6 +65,37 @@ denominator.
   versioned eligible/incomparable denominator.
 - Next: **T36 — Overall cross-run evaluation scorecard**.
 
+## T36 local acceptance and handoff
+
+- Added a persisted `t36-strict-exact-v1` scorecard snapshot. It fingerprints both
+  its contract and all persisted run/comparison inputs, so unchanged aggregates are
+  reused and changed evaluation data deterministically produces a new snapshot. It
+  performs no SEC, Jev, or LLM call.
+- The strict denominator includes only exact Company Facts annual/literal-unit/Decimal
+  positives and explicitly missed comparable facts. Period, unit, scale, duplicate,
+  and other T35 diagnostic ambiguities are counted as incomparable rather than false
+  negatives. Deterministic and Jev-assisted matrices remain separate; true negatives
+  stay unavailable because there is no reviewed negative-candidate denominator.
+- Every persisted run is in the scorecard ledger. Completed evaluations with records
+  are included; queued, failed, cancelled, partial, and empty evaluations carry their
+  precise exclusion reason. The UI names the contract/denominators, shows matrix and
+  per-metric/period metrics, and links each TP/FP/FN record to its Evaluate stage.
+- Inspected the pre-existing scorecard and T35 tests first. Added
+  `tests/task_gates/test_t36.py` for a hand-built multi-run matrix, incomplete-run
+  accounting/zero denominators, and the route’s displayed denominator and record link.
+  Updated the fresh-schema contract for `evaluation_scorecards`; no obsolete tests
+  were removed.
+- `time uv run pytest tests/task_gates/test_t36.py tests/task_gates/test_t35.py tests/task_gates/test_t33.py -q`:
+  **8 passed** in 0.80s (1.17s wall), with one Starlette/AnyIO deprecation warning.
+  Shared-storage scope also required `time uv run pytest -q`: **11 passed** in 0.84s
+  (1.11s wall), with the same warning. `uv run ruff check .` and `git diff --check` passed.
+- No live/provider validation was needed or attempted. Browser automation was not run
+  per task policy. Manual verification: after `uv run profitlab serve`, open
+  `/v2/benchmark`. With at least two completed runs and one incomplete run, confirm
+  each appears in the ledger, choose either matrix’s TP/FP/FN record link, and confirm
+  the linked Evaluate record and the displayed precision/recall/F1 reproduce its cells.
+- Next: **T37 — Sequential random-report batch runner**.
+
 ## Task tracker
 
 Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live verification separate. Initially no check has run.
@@ -105,7 +136,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T33 | Fresh-only storage schema; remove migrations | DONE | Not applicable |
 | T34 | Remove offline fixture source mode | DONE | Live run not repeated; local prerequisite and source-contract checks passed |
 | T35 | Diagnose and redesign exact-match evaluation | DONE | Three persisted live SEC runs reviewed; manual browser inspection pending |
-| T36 | Overall cross-run evaluation scorecard | TODO | Not run |
+| T36 | Overall cross-run evaluation scorecard | DONE | Manual browser inspection pending |
 | T37 | Sequential random-report batch runner | TODO | Not run |
 | T38 | Versioned run timing and evaluation cohorts | TODO | Not run |
 | T39 | Context-aware Jev scoring and compact findings evidence | TODO | Not run |

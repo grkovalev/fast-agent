@@ -26,40 +26,118 @@ class EvaluationResult:
 
 
 def cross_run_scorecard(repo) -> dict:
-    """Aggregate sealed evaluation comparisons without re-running an evaluator.
+    """Persist and return the T36 strict-exact scorecard without provider calls.
 
-    A missed value is an expected fact without a matching finding. This includes a
-    visible-but-wrong value, because it still misses the expected value. An
-    additional value has no expected fact, so mismatches always equal additional
-    values plus missed values.
+    Historical comparison states are diagnostic.  The approved T35 denominator is
+    deliberately narrower: only an exact Company Facts annual value or an explicit
+    ``structured_fact_missed`` is a reviewed positive unit.  Unit/period/duplicate
+    ambiguity is recorded as incomparable, never as a false negative.
     """
-    counts = {'heuristic_matches': 0, 'jev_matches': 0,
-              'additional_values': 0, 'missed_values': 0}
-    included_runs, excluded_runs = [], []
-    for run in repo.runs():
-        evaluation = repo.stage(run.run_id, 'evaluate')
+    contract = {
+        'version': 't36-strict-exact-v1',
+        'oracle': 'SEC Company Facts; same filing accession; annual fiscal period',
+        'normalization': 'exact Decimal and literal visible unit; no inferred scale or attribution',
+        'positive_denominator': 'exact-match or explicitly missed comparable fact',
+        'negative_denominator': 'accepted additional visible findings only; true negatives unavailable',
+    }
+    configuration_hash = hashlib.sha256(json.dumps(contract, sort_keys=True).encode()).hexdigest()
+    runs = repo.runs()
+    input_rows = []
+    for run in runs:
+        input_rows.append({'run_id': run.run_id, 'status': run.status,
+                           'evaluate': (repo.stage(run.run_id, 'evaluate').status
+                                        if repo.stage(run.run_id, 'evaluate') else None),
+                           'comparisons': [item.model_dump(mode='json') for item in repo.comparisons(run.run_id)],
+                           'facts': [item.model_dump(mode='json') for item in repo.structured_facts(run.run_id)]})
+    input_hash = hashlib.sha256(json.dumps(input_rows, sort_keys=True, default=str).encode()).hexdigest()
+    saved = repo.evaluation_scorecard(configuration_hash)
+    if saved and saved['input_hash'] == input_hash:
+        return saved
+
+    def blank_counts():
+        return {'true_positives': 0, 'false_positives': 0, 'false_negatives': 0,
+                'true_negatives': None, 'incomparable': 0}
+
+    modes = {'deterministic': blank_counts(), 'jev_assisted': blank_counts()}
+    cells = {mode: {key: [] for key in ('true_positives', 'false_positives', 'false_negatives')}
+             for mode in modes}
+    breakdown = {mode: defaultdict(blank_counts) for mode in modes}
+    included_runs, excluded_runs, ledger, warnings = [], [], [], []
+
+    for run in runs:
+        stage = repo.stage(run.run_id, 'evaluate')
         comparisons = repo.comparisons(run.run_id)
-        if not evaluation or evaluation.status != 'completed' or not comparisons:
-            reason = ('evaluation is not completed' if not evaluation or evaluation.status != 'completed'
-                      else 'evaluation produced no comparable values')
-            excluded_runs.append({'run': run, 'reason': reason})
+        if not stage or stage.status != 'completed':
+            reason = f'evaluate stage is {stage.status if stage else "missing"}'
+            excluded_runs.append({'run_id': run.run_id, 'ticker': run.ticker, 'status': run.status,
+                                  'reason': reason})
+            ledger.append({'run_id': run.run_id, 'ticker': run.ticker, 'included': False, 'reason': reason})
             continue
-        included_runs.append(run)
+        if not comparisons:
+            reason = 'evaluation completed with no comparison records'
+            excluded_runs.append({'run_id': run.run_id, 'ticker': run.ticker, 'status': run.status,
+                                  'reason': reason})
+            ledger.append({'run_id': run.run_id, 'ticker': run.ticker, 'included': False, 'reason': reason})
+            continue
+        included_runs.append({'run_id': run.run_id, 'ticker': run.ticker, 'status': run.status})
+        ledger.append({'run_id': run.run_id, 'ticker': run.ticker, 'included': True,
+                       'reason': 'completed evaluation records reviewed under strict contract'})
+        facts = {fact.fact_id: fact for fact in repo.structured_facts(run.run_id)}
         for comparison in comparisons:
-            heuristic_match = (comparison.deterministic_state or comparison.state) == 'exact_match'
-            jev_match = comparison.state in {'exact_match', 'scale_aware_equivalent'}
-            if comparison.fact_id:
-                counts['heuristic_matches'] += heuristic_match
-                counts['jev_matches'] += jev_match
-                counts['missed_values'] += not jev_match
-            elif comparison.state == 'additional_visible_value':
-                counts['additional_values'] += 1
-    counts['mismatches'] = counts['additional_values'] + counts['missed_values']
-    denominator = counts['jev_matches'] + counts['mismatches']
-    percentages = {key: (value / denominator * 100 if denominator else None)
-                   for key, value in counts.items()}
-    return {'counts': counts, 'percentages': percentages, 'denominator': denominator,
-            'included_runs': included_runs, 'excluded_runs': excluded_runs}
+            period = (facts[comparison.fact_id].period_end.isoformat()
+                      if comparison.fact_id in facts else 'additional')
+            bucket = f'{comparison.metric or "unresolved"} / {period}'
+            link = {'run_id': run.run_id, 'ticker': run.ticker,
+                    'comparison_id': comparison.comparison_id, 'metric': comparison.metric,
+                    'period': period, 'state': comparison.state}
+            deterministic = comparison.deterministic_state or comparison.state
+            outcomes = {
+                'deterministic': ('true_positives' if deterministic == 'exact_match' else
+                                  'false_negatives' if deterministic == 'structured_fact_missed' else
+                                  'false_positives' if comparison.state == 'additional_visible_value' else None),
+                'jev_assisted': ('true_positives' if comparison.state in {'exact_match', 'scale_aware_equivalent'} else
+                                 'false_negatives' if comparison.state == 'structured_fact_missed' else
+                                 'false_positives' if comparison.state == 'additional_visible_value' else None),
+            }
+            for mode, outcome in outcomes.items():
+                if outcome:
+                    modes[mode][outcome] += 1
+                    breakdown[mode][bucket][outcome] += 1
+                    cells[mode][outcome].append(link)
+                else:
+                    modes[mode]['incomparable'] += 1
+                    breakdown[mode][bucket]['incomparable'] += 1
+
+    for mode, counts in modes.items():
+        predicted = counts['true_positives'] + counts['false_positives']
+        required = counts['true_positives'] + counts['false_negatives']
+        counts['precision'] = counts['true_positives'] / predicted if predicted else None
+        counts['recall'] = counts['true_positives'] / required if required else None
+        counts['f1'] = (2 * counts['precision'] * counts['recall'] / (counts['precision'] + counts['recall'])
+                        if counts['precision'] is not None and counts['recall'] is not None
+                        and counts['precision'] + counts['recall'] else None)
+        counts['positive_denominator'] = required
+        counts['predicted_positive_denominator'] = predicted
+        counts['true_negative_denominator'] = None
+        for metric_counts in breakdown[mode].values():
+            predicted = metric_counts['true_positives'] + metric_counts['false_positives']
+            required = metric_counts['true_positives'] + metric_counts['false_negatives']
+            metric_counts['precision'] = metric_counts['true_positives'] / predicted if predicted else None
+            metric_counts['recall'] = metric_counts['true_positives'] / required if required else None
+            metric_counts['f1'] = (
+                2 * metric_counts['precision'] * metric_counts['recall'] /
+                (metric_counts['precision'] + metric_counts['recall'])
+                if metric_counts['precision'] is not None and metric_counts['recall'] is not None
+                and metric_counts['precision'] + metric_counts['recall'] else None)
+    warnings.append('True negatives are unavailable: no reviewed negative-candidate denominator exists.')
+    warnings.append('Incomparable diagnostic states are excluded from false-negative counts under T35.')
+    payload = {'contract': contract, 'configuration_hash': configuration_hash,
+               'input_hash': input_hash, 'modes': modes, 'cells': cells,
+               'breakdown': {mode: dict(values) for mode, values in breakdown.items()},
+               'included_runs': included_runs, 'excluded_runs': excluded_runs,
+               'ledger': ledger, 'warnings': warnings}
+    repo.save_evaluation_scorecard(configuration_hash, input_hash, payload)
+    return repo.evaluation_scorecard(configuration_hash)
 
 
 class EvaluationService:

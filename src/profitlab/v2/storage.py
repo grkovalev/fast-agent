@@ -49,7 +49,7 @@ class V2Repository:
             'chunk_score_summaries', 'finding_batches', 'finding_summaries',
             'company_fact_datasets', 'fact_summaries', 'comparison_summaries',
             'section_score_batches', 'performance_summaries', 'evaluation_scale_verdicts',
-            'ticker_selections', 'retrieval_benchmarks',
+            'ticker_selections', 'retrieval_benchmarks', 'evaluation_scorecards',
         }
         actual_tables = {row['name'] for row in db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
@@ -151,6 +151,9 @@ class V2Repository:
                 eligibility TEXT NOT NULL, message TEXT NOT NULL);
             CREATE TABLE retrieval_benchmarks (run_id TEXT PRIMARY KEY REFERENCES runs(run_id) ON DELETE CASCADE,
                 payload TEXT NOT NULL);
+            CREATE TABLE evaluation_scorecards (
+                configuration_hash TEXT PRIMARY KEY, input_hash TEXT NOT NULL,
+                calculated_at TEXT NOT NULL, payload TEXT NOT NULL);
             CREATE INDEX scores_run_kind_item ON scores(run_id, score_kind, item_id);
             CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
             CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
@@ -622,6 +625,22 @@ class V2Repository:
             row = db.execute('SELECT payload FROM comparison_summaries WHERE run_id=?',
                              (run_id,)).fetchone()
         return json.loads(row['payload']) if row else None
+
+    def evaluation_scorecard(self, configuration_hash: str):
+        """Return a persisted scorecard snapshot for an exact configuration."""
+        with self.connect() as db:
+            row = db.execute('SELECT input_hash, calculated_at, payload FROM evaluation_scorecards '
+                             'WHERE configuration_hash=?', (configuration_hash,)).fetchone()
+        return ({**json.loads(row['payload']), 'input_hash': row['input_hash'],
+                 'calculated_at': row['calculated_at']} if row else None)
+
+    def save_evaluation_scorecard(self, configuration_hash: str, input_hash: str, payload: dict):
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('''INSERT OR REPLACE INTO evaluation_scorecards
+                (configuration_hash, input_hash, calculated_at, payload) VALUES (?, ?, ?, ?)''',
+                       (configuration_hash, input_hash, datetime.now(UTC).isoformat(),
+                        json.dumps(payload, sort_keys=True)))
 
     def evaluation_scale_verdict(self, pair_hash: str, prompt_version: str,
                                  configuration_hash: str, actual_model: str):
