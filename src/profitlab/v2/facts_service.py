@@ -70,7 +70,15 @@ class CompanyFactsService:
         expected_form = filing.get('form', '10-K')
         expected_end = filing.get('report_date')
         selected, alternatives = [], {}
+        selected_metrics = set()
         for metric, concept, unit, _label in FACT_TARGETS:
+            # Concepts on the same metric line are ordered fallbacks, not two
+            # independently expected discoveries.  A filing may report both
+            # NetIncomeLoss and ProfitLoss for the same annual period; comparing
+            # a single visible finding against both creates a false ambiguous
+            # oracle rather than evidence of a discovery failure.
+            if metric in selected_metrics:
+                continue
             entries = facts_root.get(concept, {}).get('units', {}).get(unit, [])
             candidates = []
             for entry in entries:
@@ -97,6 +105,7 @@ class CompanyFactsService:
             selected.append(StructuredFact(fact_id=f'fact-{identity}', concept=f'us-gaap:{concept}',
                 metric=metric, value=value, unit=unit, period_start=start, period_end=end,
                 accession=expected_accession, form=expected_form, filed_date=filed))
+            selected_metrics.add(metric)
             if len(candidates) > 1:
                 alternatives[f'fact-{identity}'] = [
                     {'value': str(item[1]), 'filed_date': item[4].isoformat(),

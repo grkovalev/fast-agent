@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T34 — Remove offline fixture source mode** — **DONE**.
-- Next task: **T35 — Diagnose and redesign exact-match evaluation.**
+- Current task: **T35 — Diagnose and redesign exact-match evaluation** — **DONE**.
+- Next task: **T36 — Overall cross-run evaluation scorecard.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,6 +18,52 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T35 decision record
+
+The reviewed real-run sample and chosen exact-evaluation contract are in
+[`T35_EVALUATION_DECISION.md`](T35_EVALUATION_DECISION.md). It records DV
+(`0001104659-26-020499`), NOEM (`0001213900-26-027784`), and TRC
+(`0001628280-26-019685`) with raw comparison counts, representative visible
+source lines, oracle limitations, false-positive/false-negative risks, and the
+approved split between strict exact audit units and separate semantic review.
+The result is **both** a source-to-finding metadata improvement and an
+evaluation-contract redesign: incomparable values are excluded rather than
+being called discovery misses.  The immediately applied safe correction makes
+Company Facts concepts ordered fallbacks per metric, preventing `NetIncomeLoss`
+and `ProfitLoss` from becoming duplicate expected facts for a new run.  The
+remaining versioned review unit, UI denominator, and cross-run aggregation are
+T36; visible scale/attribution extraction belongs to T39.
+The Evaluation UI now labels its historical counts as a diagnostic comparator,
+names the SEC Company Facts / annual / exact-Decimal / literal-unit contract,
+and does not present the old metric-period count as the new strict-exact
+denominator.
+
+### T35 local acceptance and handoff
+
+- Reviewed three persisted real SEC primary-filing runs on 2026-09-24: DV
+  `v2-b95f2d36e162` / `0001104659-26-020499`, NOEM
+  `v2-833668489686` / `0001213900-26-027784`, and TRC
+  `v2-36c40a279e2b` / `0001628280-26-019685`. The review used their stored
+  source quotes, findings, Company Facts facts, and comparisons; it made no
+  SEC, Jev, or LLM call.
+- Inspected the changed evaluation area first. No dedicated T22/T28 evaluation
+  tests remain after prior cleanup; `test_t35.py` is the focused replacement
+  contract. It covers the confirmed TRC duplicate-concept conflict and the DV
+  explicit-thousands unit mismatch. The saved fixture is a narrow, controlled
+  extract of reviewed Company Facts values, not an offline application mode.
+- `time uv run pytest tests/task_gates/test_t35.py -q` — **2 passed** in 0.59s
+  (0.93s wall). `uv run ruff check .` and `git diff --check` passed.
+- Browser automation was not run per task policy. Manual verification: start
+  `uv run profitlab serve`, then open each reviewed run's **Evaluate** stage:
+  `/v2/runs/v2-b95f2d36e162/pipeline/evaluate`,
+  `/v2/runs/v2-833668489686/pipeline/evaluate`, and
+  `/v2/runs/v2-36c40a279e2b/pipeline/evaluate`. Open the diagnostic evidence
+  for DV's scale-aware cards, NOEM's additional/unsupported cards, and TRC's
+  duplicate-oracle card; compare the linked quotes with the decision record's
+  classifications. These historical cards remain diagnostic until T36 adds the
+  versioned eligible/incomparable denominator.
+- Next: **T36 — Overall cross-run evaluation scorecard**.
 
 ## Task tracker
 
@@ -58,7 +104,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T32 | Final real-data demonstration | DONE | Eight live filings recorded; browser automation not run |
 | T33 | Fresh-only storage schema; remove migrations | DONE | Not applicable |
 | T34 | Remove offline fixture source mode | DONE | Live run not repeated; local prerequisite and source-contract checks passed |
-| T35 | Diagnose and redesign exact-match evaluation | TODO | Not run |
+| T35 | Diagnose and redesign exact-match evaluation | DONE | Three persisted live SEC runs reviewed; manual browser inspection pending |
 | T36 | Overall cross-run evaluation scorecard | TODO | Not run |
 | T37 | Sequential random-report batch runner | TODO | Not run |
 | T38 | Versioned run timing and evaluation cohorts | TODO | Not run |
