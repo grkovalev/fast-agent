@@ -5,6 +5,7 @@ import zlib
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from time import monotonic
 
 from .canonical import CanonicalDocument
 from .contracts import (
@@ -61,7 +62,9 @@ class V2Repository:
         run_columns = {row['name'] for row in db.execute('PRAGMA table_info(runs)')}
         expected_run_columns = {
             'run_id', 'ticker', 'status', 'selected_stage', 'cancellation_requested',
-            'created_at', 'updated_at', 'summary',
+            'created_at', 'updated_at', 'summary', 'version_id', 'version_components',
+            'version_state', 'total_elapsed_seconds', 'queued_seconds', 'active_seconds',
+            'timing_origin_monotonic',
         }
         if run_columns != expected_run_columns:
             raise ValueError(self._unsupported_database_message())
@@ -73,12 +76,17 @@ class V2Repository:
                 run_id TEXT PRIMARY KEY, ticker TEXT NOT NULL,
                 status TEXT NOT NULL, selected_stage TEXT NOT NULL,
                 cancellation_requested INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL, updated_at TEXT NOT NULL, summary TEXT NOT NULL);
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL, summary TEXT NOT NULL,
+                version_id TEXT NOT NULL, version_components TEXT NOT NULL,
+                version_state TEXT NOT NULL, total_elapsed_seconds REAL,
+                queued_seconds REAL, active_seconds REAL, timing_origin_monotonic REAL);
             CREATE TABLE stages (
                 run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
                 stage TEXT NOT NULL, position INTEGER NOT NULL, status TEXT NOT NULL,
                 completed_work INTEGER NOT NULL, total_work INTEGER,
                 started_at TEXT, finished_at TEXT, elapsed_seconds REAL NOT NULL,
+                queued_seconds REAL NOT NULL, active_seconds REAL NOT NULL,
+                retry_backoff_seconds REAL NOT NULL, active_started_monotonic REAL,
                 summary TEXT NOT NULL, limitation TEXT, error TEXT,
                 input_hash TEXT, output_hash TEXT, PRIMARY KEY(run_id, stage));
             CREATE TABLE events (
@@ -189,10 +197,12 @@ class V2Repository:
             db.execute('BEGIN IMMEDIATE')
             if db.execute('SELECT 1 FROM runs WHERE run_id=?', (run.run_id,)).fetchone():
                 raise ValueError(f'V2 run {run.run_id} already exists; choose a fresh run ID.')
-            db.execute('INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?)', (
+            db.execute('INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (
                 run.run_id, run.ticker, run.status, run.selected_stage,
                 run.cancellation_requested, run.created_at.isoformat(), run.updated_at.isoformat(),
-                run.summary,
+                run.summary, run.version_id, json.dumps(run.version_components, sort_keys=True),
+                run.version_state, run.total_elapsed_seconds, run.queued_seconds, run.active_seconds,
+                run.timing_origin_monotonic,
             ))
             for position, stage in enumerate(STAGE_NAMES, 1):
                 snapshot = StageSnapshot(run_id=run.run_id, stage=stage, position=position)
@@ -202,10 +212,13 @@ class V2Repository:
 
     @staticmethod
     def _write_stage(db, stage: StageSnapshot):
+        if stage.elapsed_seconds and not stage.active_seconds:
+            stage = stage.model_copy(update={'active_seconds': stage.elapsed_seconds})
         values = stage.model_dump(mode='json')
         db.execute('''INSERT OR REPLACE INTO stages VALUES (
             :run_id, :stage, :position, :status, :completed_work, :total_work,
-            :started_at, :finished_at, :elapsed_seconds, :summary, :limitation,
+            :started_at, :finished_at, :elapsed_seconds, :queued_seconds, :active_seconds,
+            :retry_backoff_seconds, :active_started_monotonic, :summary, :limitation,
             :error, :input_hash, :output_hash)''', values)
 
     @staticmethod
@@ -221,19 +234,25 @@ class V2Repository:
             row = db.execute('SELECT * FROM runs WHERE run_id=?', (run_id,)).fetchone()
         if not row:
             raise FileNotFoundError(run_id)
-        return V2Run.model_validate(dict(row))
+        return self._run_from_row(row)
+
+    @staticmethod
+    def _run_from_row(row) -> V2Run:
+        payload = dict(row)
+        payload['version_components'] = json.loads(payload['version_components'])
+        return V2Run.model_validate(payload)
 
     def recent(self, limit: int = 50):
         with self.connect() as db:
             rows = db.execute('SELECT * FROM runs ORDER BY created_at DESC LIMIT ?',
                               (min(limit, 100),)).fetchall()
-        return [V2Run.model_validate(dict(row)) for row in rows]
+        return [self._run_from_row(row) for row in rows]
 
     def runs(self) -> list[V2Run]:
         """Return every persisted run for cross-run reporting."""
         with self.connect() as db:
             rows = db.execute('SELECT * FROM runs ORDER BY created_at DESC').fetchall()
-        return [V2Run.model_validate(dict(row)) for row in rows]
+        return [self._run_from_row(row) for row in rows]
 
     def processed_tickers(self):
         with self.connect() as db:
@@ -370,8 +389,19 @@ class V2Repository:
         now = datetime.now(UTC).isoformat()
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
-            changed = db.execute('UPDATE runs SET status=?, summary=?, updated_at=? '
-                                 'WHERE run_id=?', (status, summary, now, run_id)).rowcount
+            row = db.execute('SELECT timing_origin_monotonic, total_elapsed_seconds FROM runs '
+                             'WHERE run_id=?', (run_id,)).fetchone()
+            if not row:
+                raise FileNotFoundError(run_id)
+            stage_active = db.execute('SELECT COALESCE(SUM(active_seconds), 0) AS value FROM stages '
+                                      'WHERE run_id=?', (run_id,)).fetchone()['value']
+            elapsed = row['total_elapsed_seconds']
+            if row['timing_origin_monotonic'] is not None:
+                elapsed = max(float(elapsed or 0), monotonic() - row['timing_origin_monotonic'])
+            queued = max(0.0, elapsed - stage_active) if elapsed is not None else None
+            changed = db.execute('UPDATE runs SET status=?, summary=?, updated_at=?, '
+                                 'total_elapsed_seconds=?, queued_seconds=?, active_seconds=? WHERE run_id=?',
+                                 (status, summary, now, elapsed, queued, stage_active, run_id)).rowcount
             if not changed:
                 raise FileNotFoundError(run_id)
             return self._event(db, run_id, None, kind, status, summary)
@@ -665,7 +695,11 @@ class V2Repository:
         return json.loads(row['payload']) if row else None
 
     def save_comparisons(self, run_id: str, comparisons):
-        self.get_run(run_id)
+        run = self.get_run(run_id)
+        comparisons = [item.model_copy(update={
+            'evaluation_run_version': run.version_id,
+            'evaluation_total_elapsed_seconds': run.total_elapsed_seconds,
+        }) for item in comparisons]
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
             db.execute('DELETE FROM comparisons WHERE run_id=?', (run_id,))

@@ -124,10 +124,10 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         return templates.TemplateResponse(request=request, name='home.html', context=home_context())
 
     @app.get('/v2/benchmark')
-    def benchmark_overview(request: Request):
+    def benchmark_overview(request: Request, version: str | None = None):
         return templates.TemplateResponse(
             request=request, name='v2_benchmark.html',
-            context={'scorecard': cross_run_scorecard(pipeline.repo)},
+            context={'scorecard': cross_run_scorecard(pipeline.repo, version_id=version)},
         )
 
     @app.post('/v2/benchmark/regenerate')
@@ -187,6 +187,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                   for outcome in ('completed', 'failed', 'cancelled', 'skipped')}
         return templates.TemplateResponse(request=request, name='v2_batch.html', context={
             'batch': batch, 'items': items, 'counts': counts,
+            'run_lookup': {run.run_id: run for run in pipeline.repo.runs()},
             'active_count': sum(item.outcome is None for item in items)})
 
     @app.post('/v2/batches/{batch_id}/cancel')

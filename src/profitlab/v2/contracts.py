@@ -38,6 +38,10 @@ class StageSnapshot(V2Contract):
     started_at: AwareDatetime | None = None
     finished_at: AwareDatetime | None = None
     elapsed_seconds: float = Field(default=0, ge=0)
+    queued_seconds: float = Field(default=0, ge=0)
+    active_seconds: float = Field(default=0, ge=0)
+    retry_backoff_seconds: float = Field(default=0, ge=0)
+    active_started_monotonic: float | None = Field(default=None, ge=0)
     summary: str = ''
     limitation: str | None = None
     error: str | None = None
@@ -60,6 +64,18 @@ class V2Run(V2Contract):
     created_at: AwareDatetime
     updated_at: AwareDatetime
     summary: str = ''
+    # Pipeline-created runs replace this test-safe default with a content-addressed
+    # implementation/configuration identity.  Keeping it explicit makes direct
+    # repository fixtures usable without pretending that they came from production.
+    version_id: str = 'test-default-v1'
+    version_components: dict[str, str] = Field(default_factory=dict)
+    version_state: Literal['comparable', 'unknown'] = 'comparable'
+    total_elapsed_seconds: float | None = Field(default=None, ge=0)
+    queued_seconds: float | None = Field(default=None, ge=0)
+    active_seconds: float | None = Field(default=None, ge=0)
+    # Monotonic timestamps are process/host-local. A missing origin is displayed
+    # as unavailable instead of deriving a duration from wall-clock timestamps.
+    timing_origin_monotonic: float | None = Field(default=None, ge=0)
 
 
 class ReportBatch(V2Contract):
@@ -185,6 +201,8 @@ class FactComparison(V2Contract):
     jev_prompt_version: str | None = None
     requests_before_match: int | None = Field(default=None, ge=0)
     source_lines_before_match: int | None = Field(default=None, ge=0)
+    evaluation_run_version: str | None = None
+    evaluation_total_elapsed_seconds: float | None = Field(default=None, ge=0)
 
 
 class PipelineEvent(V2Contract):

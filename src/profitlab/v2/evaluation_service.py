@@ -25,7 +25,7 @@ class EvaluationResult:
     summary: dict
 
 
-def cross_run_scorecard(repo) -> dict:
+def cross_run_scorecard(repo, *, version_id: str | None = None) -> dict:
     """Persist and return the T36 strict-exact scorecard without provider calls.
 
     Historical comparison states are diagnostic.  The approved T35 denominator is
@@ -35,18 +35,31 @@ def cross_run_scorecard(repo) -> dict:
     oracle mapping is instead a false positive.
     """
     contract = {
-        'version': 't36-strict-exact-v2',
+        'version': 't38-strict-exact-v1',
         'oracle': 'SEC Company Facts; same filing accession; annual fiscal period',
         'normalization': 'exact Decimal and literal visible unit; no inferred scale or attribution',
         'positive_denominator': 'exact-match or explicitly missed comparable fact',
         'negative_denominator': ('accepted findings with no matching configured Company Facts '
                                  'target, including unsupported assumed mappings; true negatives unavailable'),
     }
-    configuration_hash = hashlib.sha256(json.dumps(contract, sort_keys=True).encode()).hexdigest()
     runs = repo.runs()
+    cohort_counts = defaultdict(int)
+    for run in runs:
+        cohort_counts[run.version_id] += 1
+    comparable = [run for run in runs if run.version_state == 'comparable']
+    # A deterministic default means a refreshed scorecard cannot silently switch
+    # cohorts merely because a newer run was created.
+    selected_version = version_id or (max(
+        (run.version_id for run in comparable), key=lambda item: (cohort_counts[item], item), default=None))
+    contract['run_version'] = selected_version
+    configuration_hash = hashlib.sha256(json.dumps(contract, sort_keys=True).encode()).hexdigest()
     input_rows = []
     for run in runs:
-        input_rows.append({'run_id': run.run_id, 'status': run.status,
+        input_rows.append({'run_id': run.run_id, 'version_id': run.version_id,
+                           'version_state': run.version_state,
+                           'timing': {'total': run.total_elapsed_seconds,
+                                      'active': run.active_seconds, 'queued': run.queued_seconds},
+                           'status': run.status,
                            'evaluate': (repo.stage(run.run_id, 'evaluate').status
                                         if repo.stage(run.run_id, 'evaluate') else None),
                            'comparisons': [item.model_dump(mode='json') for item in repo.comparisons(run.run_id)],
@@ -66,24 +79,42 @@ def cross_run_scorecard(repo) -> dict:
     breakdown = {mode: defaultdict(blank_counts) for mode in modes}
     included_runs, excluded_runs, ledger, warnings = [], [], [], []
 
+    def ledger_item(run, included, reason):
+        item = {'run_id': run.run_id, 'ticker': run.ticker, 'included': included, 'reason': reason}
+        if run.version_id != 'test-default-v1':
+            item['version_id'] = run.version_id
+        return item
+
     for run in runs:
+        if run.version_state != 'comparable':
+            reason = 'version provenance is unknown; this run is non-comparable'
+            excluded_runs.append({'run_id': run.run_id, 'ticker': run.ticker, 'status': run.status,
+                                  'reason': reason})
+            ledger.append(ledger_item(run, False, reason))
+            continue
+        if run.version_id != selected_version:
+            reason = f'belongs to separate version cohort {run.version_id}'
+            excluded_runs.append({'run_id': run.run_id, 'ticker': run.ticker, 'status': run.status,
+                                  'reason': reason})
+            ledger.append(ledger_item(run, False, reason))
+            continue
         stage = repo.stage(run.run_id, 'evaluate')
         comparisons = repo.comparisons(run.run_id)
         if not stage or stage.status != 'completed':
             reason = f'evaluate stage is {stage.status if stage else "missing"}'
             excluded_runs.append({'run_id': run.run_id, 'ticker': run.ticker, 'status': run.status,
                                   'reason': reason})
-            ledger.append({'run_id': run.run_id, 'ticker': run.ticker, 'included': False, 'reason': reason})
+            ledger.append(ledger_item(run, False, reason))
             continue
         if not comparisons:
             reason = 'evaluation completed with no comparison records'
             excluded_runs.append({'run_id': run.run_id, 'ticker': run.ticker, 'status': run.status,
                                   'reason': reason})
-            ledger.append({'run_id': run.run_id, 'ticker': run.ticker, 'included': False, 'reason': reason})
+            ledger.append(ledger_item(run, False, reason))
             continue
-        included_runs.append({'run_id': run.run_id, 'ticker': run.ticker, 'status': run.status})
-        ledger.append({'run_id': run.run_id, 'ticker': run.ticker, 'included': True,
-                       'reason': 'completed evaluation records reviewed under strict contract'})
+        included_runs.append({'run_id': run.run_id, 'ticker': run.ticker, 'status': run.status,
+                              'version_id': run.version_id})
+        ledger.append(ledger_item(run, True, 'completed evaluation records reviewed under strict contract'))
         facts = {fact.fact_id: fact for fact in repo.structured_facts(run.run_id)}
         for comparison in comparisons:
             period = (facts[comparison.fact_id].period_end.isoformat()
@@ -135,11 +166,17 @@ def cross_run_scorecard(repo) -> dict:
                 and metric_counts['precision'] + metric_counts['recall'] else None)
     warnings.append('True negatives are unavailable: no reviewed negative-candidate denominator exists.')
     warnings.append('Only genuinely undecidable diagnostic states are incomparable; accepted unsupported mappings are false positives.')
+    cohorts = [{'version_id': key, 'run_count': cohort_counts[key],
+                'comparable': any(run.version_id == key and run.version_state == 'comparable' for run in runs)}
+               for key in sorted(cohort_counts)]
+    if selected_version is None:
+        warnings.append('No comparable version cohort is available.')
     payload = {'contract': contract, 'configuration_hash': configuration_hash,
                'input_hash': input_hash, 'modes': modes, 'cells': cells,
                'breakdown': {mode: dict(values) for mode, values in breakdown.items()},
                'included_runs': included_runs, 'excluded_runs': excluded_runs,
-               'ledger': ledger, 'warnings': warnings}
+               'ledger': ledger, 'warnings': warnings, 'cohorts': cohorts,
+               'selected_version': selected_version}
     repo.save_evaluation_scorecard(configuration_hash, input_hash, payload)
     return repo.evaluation_scorecard(configuration_hash)
 

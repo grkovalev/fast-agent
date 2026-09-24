@@ -129,6 +129,30 @@ denominator.
   completed and incomplete child runs both appear in the scorecard ledger.
 - Next: **T38 — Versioned run timing and evaluation cohorts.**
 
+## T38 local acceptance and handoff
+
+- New runs capture an immutable content-addressed version identifier from the declared
+  application revision plus behavior-affecting pipeline, prompt, model, selection, and
+  evaluation settings. An unknown application revision is visibly non-comparable.
+- Run timing now persists monotonic total, queued, and active durations; each stage
+  persists active, queued, and retry/backoff components. Cancelled active stages retain
+  their elapsed monotonic active duration. Workspace and batch pages display compact
+  version/timing provenance.
+- The scorecard contract is now `t38-strict-exact-v1`. It selects one version cohort,
+  accounts for all other cohorts separately, and never pools them into matrix or
+  precision/recall/F1 denominators. The scorecard exposes direct cohort selectors.
+- Added `tests/task_gates/test_t38.py` for immutable version capture, a changed setting
+  producing a separate cohort, completed timing persistence, cancelled-stage timing,
+  and cohort isolation. `uv run pytest -q` — **19 passed**; `uv run ruff check .` and
+  `git diff --check` passed (with the existing Starlette/AnyIO deprecation warning).
+- No SEC, Jev, or LLM calls were needed. Browser automation was not run per policy.
+  Manual verification: create two runs with the same `PROFITLAB_APPLICATION_REVISION`
+  and one after changing a versioned setting. Inspect each workspace for total/stage
+  timing and version. Open `/v2/benchmark`, choose the shared cohort, and confirm only
+  its runs contribute to the matrix; select the other cohort and confirm it remains
+  separate.
+- Next: **T39 — Context-aware Jev scoring and compact findings evidence.**
+
 ### T36 scorecard clarification
 
 - An accepted visible finding whose assumed configured Company Facts target is absent
@@ -183,7 +207,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T35 | Diagnose and redesign exact-match evaluation | DONE | Three persisted live SEC runs reviewed; manual browser inspection pending |
 | T36 | Overall cross-run evaluation scorecard | DONE | Manual browser inspection pending |
 | T37 | Sequential random-report batch runner | DONE | Manual browser and live SEC/provider batch verification pending |
-| T38 | Versioned run timing and evaluation cohorts | TODO | Not run |
+| T38 | Versioned run timing and evaluation cohorts | DONE | Manual browser inspection pending |
 | T39 | Context-aware Jev scoring and compact findings evidence | TODO | Not run |
 
 ## T32 final evidence

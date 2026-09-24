@@ -1,6 +1,7 @@
 """Functional T14 shell around the eight ordered V2 stages."""
 import asyncio
 import hashlib
+import json
 from datetime import UTC, datetime
 from time import monotonic
 from uuid import uuid4
@@ -30,11 +31,32 @@ class V2PipelineService:
         if not self.settings.sec_contact_ready():
             raise ValueError('SEC_USER_AGENT is required and must include a real contact email before creating a run.')
         now = datetime.now(UTC)
+        components = self._version_components()
+        version_id = 'v2-' + hashlib.sha256(
+            json.dumps(components, sort_keys=True, separators=(',', ':')).encode()).hexdigest()[:16]
         run = V2Run(run_id=run_id or 'v2-' + uuid4().hex[:12], ticker=ticker,
                     created_at=now, updated_at=now,
+                    version_id=version_id, version_components=components,
+                    version_state=('unknown' if components['application_revision'] == 'unknown'
+                                   else 'comparable'),
+                    timing_origin_monotonic=monotonic(),
                     summary='Eight-stage V2 pipeline is queued.')
         self.repo.create_run(run)
         return run
+
+    def _version_components(self):
+        """Only behavior-affecting, non-secret configuration belongs in a cohort ID."""
+        names = (
+            'application_revision', 'outline_model', 'outline_prompt_version',
+            'section_score_prompt_version', 'chunk_score_prompt_version',
+            'findings_prompt_version', 'finding_type_prompt_version',
+            'evaluation_scale_prompt_version', 'typesafe_model', 'llm_model',
+            'llm_output_mode', 'section_score_keep_threshold',
+            'section_score_uncertain_threshold', 'chunk_score_keep_threshold',
+            'chunk_score_uncertain_threshold', 'chunk_score_max_retained',
+            'findings_max_requests', 'evaluation_scale_max_pairs',
+        )
+        return {name: str(getattr(self.settings, name)) for name in names}
 
     async def run(self, run_id: str, delay: float = 0, *, implement_source: bool = False):
         run_started = monotonic()
@@ -55,6 +77,7 @@ class V2PipelineService:
             tick = monotonic()
             running = old.model_copy(update={
                 'status': 'running', 'started_at': started_at,
+                'active_started_monotonic': tick,
                 'summary': f'{name.replace("_", " ").title()} shell started.',
             })
             self.repo.update_stage(running, event_kind='stage_started',
@@ -377,8 +400,13 @@ class V2PipelineService:
 
     def _cancel(self, run_id, name, running=None):
         stage = running or self.repo.stage(run_id, name)
+        active_elapsed = stage.elapsed_seconds
+        if stage.active_started_monotonic is not None:
+            active_elapsed = max(active_elapsed, monotonic() - stage.active_started_monotonic)
         cancelled = stage.model_copy(update={
             'status': 'cancelled', 'finished_at': datetime.now(UTC),
+            'elapsed_seconds': active_elapsed, 'active_seconds': active_elapsed,
+            'active_started_monotonic': None,
             'summary': 'Cancelled before domain work.',
             'limitation': 'Cancellation is durable; resume continues from completed checkpoints.',
         })

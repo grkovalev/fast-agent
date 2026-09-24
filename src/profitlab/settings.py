@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     data_dir: Path = Field(Path("data"), validation_alias="PROFITLAB_DATA_DIR")
+    # This is the packaged executable release; deployments may override it with an
+    # immutable build/VCS revision. ``unknown`` remains an explicit non-comparable
+    # opt-in for environments where neither identity can be established.
+    application_revision: str = Field('0.1.0', validation_alias='PROFITLAB_APPLICATION_REVISION')
     host: str = Field("127.0.0.1", validation_alias="PROFITLAB_HOST")
     port: int = Field(8000, ge=1, le=65535, validation_alias="PROFITLAB_PORT")
     stage_timeout: float = Field(2400, gt=0, le=3600)
