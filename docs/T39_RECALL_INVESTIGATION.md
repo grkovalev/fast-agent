@@ -217,6 +217,40 @@ Do not reintroduce adaptive eligibility, top-N packet routing, or target-specifi
 extraction labels without an experiment showing that they improve source-row recall on
 the replay set.
 
+## Fixed multi-filing source-row replay set
+
+The checked-in `t39-source-row-expectations-v2` set fixes the source identity before
+any candidate design is measured.  It contains the controlled IWAL case plus exactly
+the five filings named above: CQP, VLOSU (now SEC ticker VLOS), ATLC, NBHC, and RANI. Each case pins its
+ticker, accession, raw-HTML SHA-256, and three reviewed current-year rows (annual
+profit/loss, diluted EPS, and diluted shares).  The hashes were reconstructed from the
+SEC primary HTML on 2026-09-27 using the production `visible-html-1` canonicalizer.
+
+The rows are review-only, post-run diagnostics.  A changed/re-filed source does not
+match the case, and the set is never supplied to source retrieval, Jev, the Findings
+LLM, or evaluation.  CQP and VLOSU retain their mixed-table/noise failure modes; ATLC
+and NBHC retain the decimal JSON protocol cases; RANI retains the Findings timeout
+case.  A controlled replay must record the first loss point for every row before any
+calibrated role, eligibility, routing, prompt, or retention change is considered.
+
+### First fixed-set replay: CQP
+
+On 2026-09-27, fresh run `v2-b77c75aa8adc` used application revision
+`t39-fixed-replay-v1` (version `v2-5e400dda6f984ca5`) against pinned CQP accession
+`0001383650-26-000005`; its canonical source hash matched the fixed set. All three
+reviewed rows (292–294) were flat-retained, sent to Findings, proposed,
+quote-validated, type-classified, and published. This proves no source-row loss for
+the CQP mixed-table case on the current flat path.
+
+The run published annual profit `2987`, diluted EPS `5.17`, and diluted shares `484.0`.
+Its independent comparisons did not exact-match: the annual Company Facts value is
+scale-incompatible with the visible statement value and the other two are additional
+visible values under the current target contract. This is an evaluation/scale boundary,
+not a source, proposal, quote, classification, or publication failure. The run made
+36 source-context calls for 250 retained lines and recorded 254 decisions, including
+174 explicit request-budget partials. It does not establish context usefulness or a
+candidate strategy improvement.
+
 ## Local checks at the time of writing
 
 The working tree passed `uv run pytest -q` with **25 passed** (one existing Starlette /

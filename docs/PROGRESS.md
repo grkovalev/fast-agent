@@ -95,6 +95,28 @@
   passed. Next bounded experiment: define the fixed multi-filing source-row replay
   set named in the recall investigation before evaluating any calibrated role or
   eligibility alternative.
+- T39 fixed replay-set slice: expanded the checked-in, source-hash-bound review-only
+  source-row expectations to the exact CQP, VLOSU (now SEC ticker VLOS), ATLC, NBHC, and RANI filings named
+  in the recall investigation, alongside IWAL. Every case has its accession and the
+  three current-year annual-profit/loss, diluted-EPS, and diluted-share rows; CQP and
+  VLOSU preserve mixed-table/noise coverage, ATLC/NBHC the Decimal JSON protocol, and
+  RANI the Findings timeout case. The rows remain strictly post-run diagnostics, and a
+  changed source hash cannot inherit a case. Next bounded experiment: run one freshly
+  versioned controlled replay of this fixed set, then inspect its persisted source-row
+  loss points before changing role calibration, eligibility, routing, prompts,
+  retention, or Findings input.
+- T39 CQP fixed-set replay: on 2026-09-27, fresh run `v2-b77c75aa8adc` under
+  application revision `t39-fixed-replay-v1` / version `v2-5e400dda6f984ca5` matched
+  the pinned CQP source hash. All three reviewed rows (292–294) were flat-retained,
+  sent, proposed, quote-validated, type-classified, and published: no source-row loss
+  point was observed in the mixed-table case. Annual profit `2987`, diluted EPS `5.17`,
+  and diluted shares `484.0` remained additional visible values under the current
+  Company Facts scale/target contract; this is not an accuracy result. Context
+  diagnostics made 36 calls for 250 retained lines and persisted 254 decisions, 174
+  explicit budget partials. Next bounded experiment: replay the VLOSU/VLOS mixed-table
+  case from the same fixed set, then inspect its persisted source-row trace before
+  changing role calibration, eligibility, routing, prompts, retention, or Findings
+  input.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).

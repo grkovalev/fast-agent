@@ -14,6 +14,7 @@ from profitlab.v2.source_replay import (
     SourceReplayCase,
     SourceReplayDataset,
     SourceReplayService,
+    load_source_replay_dataset,
 )
 from profitlab.v2.storage import V2Repository
 
@@ -222,3 +223,18 @@ def test_source_row_replay_traces_persisted_loss_points_without_provider_inputs(
         'quote_validated': True, 'classification': ['annual_profit'],
         'published': True, 'independent_match': True,
     }]
+
+
+def test_checked_in_replay_set_pins_each_investigated_filing_and_source_row():
+    dataset = load_source_replay_dataset()
+
+    assert dataset.dataset_version == 't39-source-row-expectations-v2'
+    cases = {item.ticker: item for item in dataset.cases}
+    assert set(cases) == {'IWAL', 'CQP', 'VLOS', 'ATLC', 'NBHC', 'RANI'}
+    assert all(len(item.rows) == 3 for item in cases.values())
+    assert all({row.target for row in item.rows} == {
+        'annual_profit', 'diluted_eps', 'diluted_shares'} for item in cases.values())
+    # The source hash is an intentional membership boundary.  A refiled or otherwise
+    # changed SEC HTML document must not silently inherit this reviewed row set.
+    assert dataset.case_for(ticker='CQP', accession=cases['CQP'].accession,
+                            source_hash='0' * 64) is None

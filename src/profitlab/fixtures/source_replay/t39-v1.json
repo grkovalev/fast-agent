@@ -1,5 +1,5 @@
 {
-  "dataset_version": "t39-source-row-expectations-v1",
+  "dataset_version": "t39-source-row-expectations-v2",
   "cases": [
     {
       "case_id": "iwal-2025-current-statement-rows",
@@ -10,6 +10,61 @@
         {"line_number": 291, "target": "annual_profit", "note": "Current-year net loss row in the consolidated statement."},
         {"line_number": 292, "target": "diluted_eps", "note": "Current-year basic and diluted per-share row."},
         {"line_number": 293, "target": "diluted_shares", "note": "Current-year weighted-average basic and diluted shares row."}
+      ]
+    },
+    {
+      "case_id": "cqp-2025-mixed-income-table",
+      "ticker": "CQP",
+      "accession": "0001383650-26-000005",
+      "source_hash": "deed038bac4ece73cafbed9b6de07ce76775e35dcccf1f18bc4436e6fe9175ac",
+      "rows": [
+        {"line_number": 292, "target": "annual_profit", "note": "Current-year net-income row in the mixed statement table."},
+        {"line_number": 293, "target": "diluted_eps", "note": "Current-year basic-and-diluted net-income-per-unit row."},
+        {"line_number": 294, "target": "diluted_shares", "note": "Current-year weighted-average basic-and-diluted common-units row."}
+      ]
+    },
+    {
+      "case_id": "vlosu-2025-statement-and-table-noise",
+      "ticker": "VLOS",
+      "accession": "0001213900-26-027060",
+      "source_hash": "0af1d24ea8e3a9020501689bc02870a457c6c6e93a4318874c01f7890977d2c7",
+      "rows": [
+        {"line_number": 1148, "target": "annual_profit", "note": "Statement-of-operations net-income row beside generic operating-cost rows."},
+        {"line_number": 1154, "target": "diluted_eps", "note": "Class-B diluted net-income-per-share row in the selected statement table."},
+        {"line_number": 1326, "target": "diluted_shares", "note": "Diluted weighted-average ordinary-shares row in the per-share reconciliation."}
+      ]
+    },
+    {
+      "case_id": "atlc-2025-decimal-protocol",
+      "ticker": "ATLC",
+      "accession": "0001437749-26-007972",
+      "source_hash": "190f9c2a83dd7a64c0424ae0a887c1c1c3bb9c6178c5535e561e12b735ac197c",
+      "rows": [
+        {"line_number": 1586, "target": "annual_profit", "note": "Net income attributable to controlling interests in the per-share computation."},
+        {"line_number": 1596, "target": "diluted_eps", "note": "Diluted current-year net-income-per-common-share Decimal row."},
+        {"line_number": 1594, "target": "diluted_shares", "note": "Diluted current-year share-count denominator row."}
+      ]
+    },
+    {
+      "case_id": "nbhc-2025-decimal-protocol",
+      "ticker": "NBHC",
+      "accession": "0001104659-26-019119",
+      "source_hash": "59f13e5e6ec98d10b551daef4fb18ff2ffded540acf3068e92058da14d9596cf",
+      "rows": [
+        {"line_number": 2684, "target": "annual_profit", "note": "Current-year net-income row in the basic-and-diluted earnings-per-share table."},
+        {"line_number": 2691, "target": "diluted_eps", "note": "Current-year diluted earnings-per-share Decimal row."},
+        {"line_number": 2689, "target": "diluted_shares", "note": "Current-year diluted weighted-average-share denominator row."}
+      ]
+    },
+    {
+      "case_id": "rani-2025-findings-timeout",
+      "ticker": "RANI",
+      "accession": "0001193125-26-126417",
+      "source_hash": "7719d29d0164bd942f29a4d83bed148775655c0b69ab9e9b5ab7f543e8ace2eb",
+      "rows": [
+        {"line_number": 1197, "target": "annual_profit", "note": "Current-year consolidated net-loss row for the timeout/concurrency case."},
+        {"line_number": 1200, "target": "diluted_eps", "note": "Current-year basic-and-diluted net-loss-per-share row."},
+        {"line_number": 1201, "target": "diluted_shares", "note": "Current-year weighted-average basic-and-diluted share-count row."}
       ]
     }
   ]
