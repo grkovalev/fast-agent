@@ -28,6 +28,34 @@ measurement: it contains 15 runs, 10 terminal runs, and code/server changes occu
 during development. Its populated finding summaries average 4.33 retained chunks, 4.33
 extraction calls, and 14.67 rejected proposals. Do not use it to claim a trend.
 
+### 4. Controlled IWAL source-row replay
+
+On 2026-09-26, fresh run `v2-5e82c4ba9063` used application revision
+`t39-iwal-audit-v1` (version `v2-3432655c44f7a869`) against the pinned IWAL filing
+`0001498372-26-000002`, whose canonical hash matches the checked-in replay case.
+The fresh run makes the structural proposal audit available; reviewed rows themselves
+were still never provider inputs.
+
+| Expected source row | Flat retained | Sent | Proposed / quote valid | Type / published | Independent outcome |
+| --- | --- | --- | --- | --- | --- |
+| 291, net loss | yes | yes | yes / yes | annual profit / yes | exact match |
+| 292, basic and diluted EPS | yes | yes | yes / yes | diluted EPS / yes | additional visible value |
+| 293, weighted-average shares | yes | yes | yes / yes | diluted shares / yes | additional visible value |
+
+The last two rows have no available Company Facts target in this filing, so their
+evaluation disposition is not a source, proposal, validation, classification, or
+publication failure. This small case establishes that the revised request/audit path
+can preserve and publish its three reviewed rows; it does not demonstrate broader
+precision or recall.
+
+The same run recorded 109 source-context decisions: 88 completed and 21 explicit
+budget partials after 36 Jev calls. All final roles were `uncertain`. Since those
+decisions remain diagnostics and flat chunk retention delivered all three rows, the
+experiment establishes neither semantic value nor a context-driven retrieval effect.
+The immediate next diagnostic is to inspect the persisted completed/partial response
+shape and expansion histories, without changing a prompt, threshold, retention rule,
+or Findings input first.
+
 ## What was tried
 
 ### 1. Adaptive source eligibility after flat chunk scoring

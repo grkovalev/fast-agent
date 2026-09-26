@@ -57,6 +57,21 @@
   and `git diff --check` passed. Next bounded experiment: execute one newly versioned,
   controlled IWAL replay to populate the proposal audit, then inspect the first loss
   point before altering any prompt, threshold, retention, or findings input.
+- T39 controlled IWAL replay: on 2026-09-26, created fresh run `v2-5e82c4ba9063`
+  under application revision `t39-iwal-audit-v1` / version
+  `v2-3432655c44f7a869`. It used the pinned accession
+  `0001498372-26-000002` and expected source hash. All three reviewed statement rows
+  (291–293) were flat-retained, sent to Findings, proposed, quote-validated,
+  type-classified, and published. The annual-loss row independently exact-matched;
+  EPS and diluted-shares rows are valid published values but have no corresponding
+  available Company Facts target, so evaluation records them as additional visible
+  values rather than retrieval failures. This controlled trace therefore has no
+  product-pipeline loss point for its three rows. T39 context diagnostics remained
+  109 `uncertain` decisions (88 completed, 21 budget partials, 36 calls), proving
+  neither semantic usefulness nor a context-driven retrieval effect: flat chunk
+  retention remains the active path. Next bounded slice: inspect the persisted
+  completed/partial Jev response shape and its expansion history before changing
+  any prompt, threshold, retention, or Findings input.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
