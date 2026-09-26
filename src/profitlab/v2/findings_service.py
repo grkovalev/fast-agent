@@ -66,6 +66,7 @@ class FindingsService:
                                                for line in self._lines(document, source_range)],
                              'targets': [target for target, value in score.target_scores.items()
                                          if value >= self.settings.chunk_score_keep_threshold],
+                             '_reserve': score.policy_reason == 'bounded uncertain-section recall reserve',
                              '_score': max(score.target_scores.values(), default=0)})
         filing = self.repo.filing(run_id)
         try:
@@ -75,8 +76,8 @@ class FindingsService:
         outline = [self._outline_entry(section) for section in self.repo.outline_sections(run_id)]
 
         def state_for(selected, selected_outline, fallback):
-            # _score is application-only ranking data and must not enter a provider payload.
-            selected = [{key: value for key, value in item.items() if key != '_score'}
+            # These are application-only retention metadata and must not enter a provider payload.
+            selected = [{key: value for key, value in item.items() if key not in {'_score', '_reserve'}}
                         for item in selected]
             return {'filing_metadata': {'ticker': self.repo.get_run(run_id).ticker,
                                      'filing_id': document.ref.filing_id,
@@ -94,7 +95,7 @@ class FindingsService:
             return state
         # Preserve complete highest-scored chunks first.  This is a graceful
         # degradation path, not a second selection policy or a provider call.
-        ranked = sorted(retained, key=lambda item: (-item['_score'], item['chunk_id']))
+        ranked = sorted(retained, key=lambda item: (not item['_reserve'], -item['_score'], item['chunk_id']))
         kept = []
         for item in ranked:
             candidate = state_for(kept + [item], outline, True)

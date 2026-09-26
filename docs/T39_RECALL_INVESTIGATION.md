@@ -302,6 +302,49 @@ reason to change role calibration, eligibility, routing, prompts, retention, or
 Findings input. The next fixed-set replay is NBHC, to inspect the other Decimal JSON
 protocol case under the same source-row contract.
 
+### Fourth fixed-set replay: NBHC
+
+On 2026-09-27, fresh controlled run `v2-fba0dfa336e5` used application revision
+`t39-fixed-replay-v4` (version `v2-57fddeed5d0c6b62`) against pinned NBHC accession
+`0001104659-26-019119`; its canonical source hash matched the fixed set. All three
+reviewed rows—the current-year net-income (2684), diluted weighted-average-share
+(2689), and diluted earnings-per-share (2691) rows—were not flat-retained. They were
+therefore never sent to Findings or proposed, quote-validated, classified, or
+published.
+
+The enclosing 2678–2694 earnings-per-share section was not semantically cold: its
+persisted target scores were 0.48 annual profit, 0.60 diluted EPS, and 0.56 diluted
+shares. It was instead marked `skipped` with reason `bounded selection limit reached`
+after the configured 12 selected sections had been filled. Thus this is a first loss
+point at bounded outline-section selection, upstream of chunk formation, Findings, and
+the Decimal JSON amount protocol; it does not diagnose the latter. The unchanged
+context diagnostic made 36 calls for 250 retained lines and recorded 254 decisions,
+including 182 explicit request-budget partials. The run is partial only for that
+separate diagnostic budget. It does not establish a reason to alter role calibration,
+eligibility, routing, prompts, retention, or Findings input.
+
+The next fixed-set replay is RANI, which can make the recorded Findings timeout case
+observable under this same post-run source-row contract before product behavior
+changes. A direct-worker attempt `v2-94b4dded91fe` was interrupted after source
+acquisition and is excluded from this cohort.
+
+### Uncertain-section routing follow-up
+
+Two fresh NBHC runs then tested a bounded reserve for uncertain sections. Run
+`v2-6390282b93e0` under `t39-nbhc-uncertain-chunk-v1` included 17 outline sections
+(12 selected plus five uncertain) and built 36 chunks. The reviewed EPS section was
+chunked and its detailed chunk scored 0.92 annual profit, 0.97 diluted EPS, and 0.96
+diluted shares, but the chunk was skipped by the 12-chunk retention budget. A second
+implementation reserved one high-scoring chunk per uncertain section and prioritized
+those chunks when Findings input was compacted. Run `v2-cd5da26653b3` under
+`t39-nbhc-uncertain-chunk-v2` retained 16 chunks, but the same section's live score
+drifted to 0.59 diluted EPS and it fell outside the five-section uncertain band; the
+run published zero findings. These are diagnostic failures, not evidence that the
+reserve is useful. The score drift and saturation mean threshold/cap tuning is not a
+safe next move. The next bounded experiment is deterministic target-shaped source
+reserve routing, with the fixed source-row trace still post-run and never supplied to
+providers.
+
 ## Local checks at the time of writing
 
 The working tree passed `uv run pytest -q` with **25 passed** (one existing Starlette /

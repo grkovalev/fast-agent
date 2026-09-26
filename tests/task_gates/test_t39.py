@@ -6,8 +6,10 @@ import pytest
 from profitlab.providers.jev import JevResponse, NoulAnswer, TokenUsage
 from profitlab.settings import Settings
 from profitlab.v2.canonical import CanonicalDocument, CanonicalLine
-from profitlab.v2.contracts import CanonicalDocumentRef, SourceRange, V2Run
+from profitlab.v2.chunk_scoring import ChunkScoringService
+from profitlab.v2.contracts import CanonicalDocumentRef, ScoredItem, SourceRange, TextChunk, V2Run
 from profitlab.v2.pipeline import V2PipelineService
+from profitlab.v2.section_scoring import SectionScoringService
 from profitlab.v2.source_context import SourceContextService
 from profitlab.v2.source_replay import (
     ExpectedSourceRow,
@@ -79,6 +81,52 @@ def test_source_context_configuration_is_versioned(tmp_path):
 
     assert baseline.version_id != changed.version_id
     assert baseline.version_components['source_context_rings'] == '(2, 8, 24)'
+
+
+def test_bounded_uncertain_sections_reach_chunking_and_are_versioned(tmp_path):
+    from profitlab.v2.contracts import OutlineSection
+
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, SEC_USER_AGENT='ProfitLab test@example.org',
+                        PROFITLAB_APPLICATION_REVISION='uncertain-chunk-v1',
+                        section_score_max_selected=1, section_score_max_uncertain=1, _env_file=None)
+    ref = CanonicalDocumentRef(document_id='document', filing_id='filing', source_hash='a' * 64, line_count=5)
+    first = OutlineSection(section_id='first', generated_topic='Other', primary_range=SourceRange(
+        document_id='document', source_hash='a' * 64, start_line=1, end_line=1))
+    reserve = OutlineSection(section_id='reserve', generated_topic='EPS', primary_range=SourceRange(
+        document_id='document', source_hash='a' * 64, start_line=2, end_line=4))
+    scores = SectionScoringService._policy([
+        ScoredItem(item_id='first', target_scores={'annual_profit': .9}, model='jev', call_id='1',
+                   policy_decision='skipped', policy_reason='pending'),
+        ScoredItem(item_id='reserve', target_scores={'diluted_eps': .6}, model='jev', call_id='2',
+                   policy_decision='skipped', policy_reason='pending'),
+    ], [first, reserve], settings)
+
+    assert {item.item_id for item in scores if item.policy_decision in {'selected', 'uncertain'}} == {
+        'first', 'reserve'}
+    run = V2PipelineService(settings).create('RESERVE')
+    assert run.version_components['section_score_max_uncertain'] == '1'
+    assert ref.line_count == 5
+
+
+def test_high_scoring_uncertain_section_gets_a_bounded_chunk_recall_reserve(tmp_path):
+    repo, document, _ = _setup(tmp_path)
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, SEC_USER_AGENT='ProfitLab test@example.org',
+                        chunk_score_max_retained=1, chunk_score_uncertain_section_reserve=1,
+                        _env_file=None)
+    regular = TextChunk(chunk_id='regular', section_id='regular', core_range=SourceRange(
+        document_id='document', source_hash='a' * 64, start_line=1, end_line=2), request_size_estimate=1)
+    reserve = TextChunk(chunk_id='reserve', section_id='uncertain', core_range=SourceRange(
+        document_id='document', source_hash='a' * 64, start_line=3, end_line=4), request_size_estimate=1)
+    scores = ChunkScoringService(settings, repo)._policy([
+        ScoredItem(item_id='regular', target_scores={'annual_profit': .99}, model='jev', call_id='1',
+                   policy_decision='skipped', policy_reason='pending'),
+        ScoredItem(item_id='reserve', target_scores={'diluted_eps': .97}, model='jev', call_id='2',
+                   policy_decision='skipped', policy_reason='pending'),
+    ], [regular, reserve], document, {'uncertain'})
+
+    assert {item.item_id for item in scores if item.policy_decision == 'selected'} == {'regular', 'reserve'}
+    assert next(item for item in scores if item.item_id == 'reserve').policy_reason == (
+        'bounded uncertain-section recall reserve')
 
 
 @pytest.mark.asyncio

@@ -157,6 +157,35 @@
   completed pipeline is therefore marked partial only for that diagnostic budget.
   Next bounded experiment: replay NBHC from the fixed set and persist its first
   source-row loss point before changing product behavior.
+- T39 NBHC fixed-set replay: on 2026-09-27, fresh controlled run
+  `v2-fba0dfa336e5` under application revision `t39-fixed-replay-v4` / version
+  `v2-57fddeed5d0c6b62` matched pinned NBHC accession
+  `0001104659-26-019119` and source hash. All three reviewed rows—the current-year
+  annual-profit (2684), diluted-share (2689), and diluted-EPS (2691) rows—were not
+  flat-retained, so none was sent, proposed, quote-validated, classified, or
+  published. Their enclosing earnings-per-share section (2678–2694) received
+  meaningful raw Jev target scores (0.48 annual profit, 0.60 diluted EPS, 0.56
+  diluted shares) but was marked `skipped` because the configured 12-section
+  selection limit was reached. The first observed loss point is therefore bounded
+  outline-section selection, upstream of chunking, Findings, and the Decimal JSON
+  amount protocol. The unchanged diagnostics made 36 calls for 250 retained source
+  lines and persisted 254 decisions, including 182 explicit request-budget partials;
+  the run is partial only for that diagnostic budget. Next bounded experiment: replay
+  RANI from the fixed set and persist its first source-row loss point before changing
+  product behavior. A direct-worker attempt `v2-94b4dded91fe` was interrupted after
+  source acquisition and is explicitly excluded from this cohort.
+- T39 uncertain-section routing experiment: two fresh NBHC runs tested the bounded
+  reserve change under revisions `t39-nbhc-uncertain-chunk-v1` and
+  `t39-nbhc-uncertain-chunk-v2`. Run `v2-6390282b93e0` moved the reviewed EPS
+  section into chunking and scored its chunk highly (`0.92` annual profit, `0.97`
+  diluted EPS, `0.96` diluted shares), but the chunk was still crowded out by the
+  12-chunk retention cap. The follow-up reserve implementation increased detailed
+  retention to 16 chunks, but run `v2-cd5da26653b3` saw the same section drift to
+  `0.59` diluted EPS and fall outside the five-section uncertain band; Findings
+  published zero findings. These runs do not establish an improvement. They show
+  Jev score instability/saturation makes another threshold or reserve-size tweak
+  unsafe. The next bounded slice is deterministic target-shaped source reserve
+  routing, measured against the fixed replay rows before changing evaluation.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).

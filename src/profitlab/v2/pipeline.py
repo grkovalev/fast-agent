@@ -58,8 +58,10 @@ class V2PipelineService:
             'findings_prompt_version', 'finding_type_prompt_version',
             'evaluation_scale_prompt_version', 'typesafe_model', 'llm_model',
             'llm_output_mode', 'section_score_keep_threshold',
-            'section_score_uncertain_threshold', 'chunk_score_keep_threshold',
+            'section_score_uncertain_threshold', 'section_score_max_selected',
+            'section_score_max_uncertain', 'chunk_score_keep_threshold',
             'chunk_score_uncertain_threshold', 'chunk_score_max_retained',
+            'chunk_score_uncertain_section_reserve',
             'findings_max_requests', 'evaluation_scale_max_pairs',
         )
         return {name: str(getattr(self.settings, name)) for name in names}
@@ -207,10 +209,10 @@ class V2PipelineService:
                     document_ref = self.repo.canonical_refs(run_id)[0]
                     document = self.repo.canonical_document(run_id, document_ref.document_id)
                     sections = self.repo.outline_sections(run_id)
-                    selected_ids = {item.item_id for item in self.repo.scores(run_id, 'section_score')
-                                    if item.policy_decision == 'selected'}
-                    selected_sections = [item for item in sections if item.section_id in selected_ids]
-                    chunks = SourceRangeChunker(self.settings).build(document, selected_sections)
+                    candidate_ids = {item.item_id for item in self.repo.scores(run_id, 'section_score')
+                                     if item.policy_decision in {'selected', 'uncertain'}}
+                    candidate_sections = [item for item in sections if item.section_id in candidate_ids]
+                    chunks = SourceRangeChunker(self.settings).build(document, candidate_sections)
                     self.repo.save_chunks(run_id, chunks)
                 except Exception as error:  # noqa: BLE001 - persist invariant failures before ending the run
                     failed = running.model_copy(update={
@@ -230,8 +232,8 @@ class V2PipelineService:
                     'status': 'completed', 'completed_work': len(chunks),
                     'total_work': len(chunks), 'finished_at': datetime.now(UTC),
                     'elapsed_seconds': monotonic() - tick,
-                    'summary': (f'Built {len(chunks)} bounded chunks from {len(selected_sections)} '
-                                f'selected sections ({core_lines} primary canonical lines).'),
+                    'summary': (f'Built {len(chunks)} bounded chunks from {len(candidate_sections)} '
+                                f'selected or bounded-uncertain sections ({core_lines} primary canonical lines).'),
                     'limitation': None,
                     'input_hash': document.ref.source_hash,
                     'output_hash': hashlib.sha256(''.join(item.chunk_id for item in chunks).encode()).hexdigest(),
@@ -253,9 +255,11 @@ class V2PipelineService:
                         })
                         self.repo.update_stage(snapshot, event_kind='stage_started',
                                                event_summary=snapshot.summary)
+                    uncertain_section_ids = {item.item_id for item in self.repo.scores(
+                        run_id, 'section_score') if item.policy_decision == 'uncertain'}
                     result = await ChunkScoringService(self.settings, self.repo).score(
                         run_id, document, sections, chunks,
-                        on_progress=score_progress)
+                        uncertain_section_ids=uncertain_section_ids, on_progress=score_progress)
                 except Exception as error:  # noqa: BLE001 - preserve bounded provider failure state
                     failed = running.model_copy(update={
                         'status': 'failed', 'finished_at': datetime.now(UTC),

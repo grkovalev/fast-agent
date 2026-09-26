@@ -192,9 +192,10 @@ class SectionScoringService:
         }) for item in uncertain})
         for item in raw:
             if item.item_id not in updated:
-                reason = ('below uncertain threshold' if max(item.target_scores.values()) <
+                top_score = max(item.target_scores.values())
+                reason = ('below uncertain threshold' if top_score <
                           settings.section_score_uncertain_threshold else
-                          'bounded selection limit reached')
+                          'outside bounded uncertain exploration band')
                 updated[item.item_id] = item.model_copy(update={
                     'policy_decision': 'skipped', 'policy_reason': reason})
         return [updated[section.section_id] for section in sections]
