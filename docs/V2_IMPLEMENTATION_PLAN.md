@@ -193,3 +193,15 @@ if it preserves the quality floor while providing a measured benefit. Persist
 classifications and core/context source ranges so every decision and finding remains
 inspectable. Evaluation and structured facts remain unavailable to all classification,
 scoring, and findings requests.
+
+### Exploration UI
+
+The existing eight-stage rail remains the durable checkpoint and status navigator. It
+does not describe the internal shape of adaptive retrieval. The Chunk and Findings
+views add a bounded source-exploration graph whose nodes are source-ranged evidence
+cores or contextual ranges and whose directed edges are explicitly labelled `context`
+or `expansion`. A context node may explain a core's period, unit/scale, attribution,
+or qualifier but must never look like a citable finding source. Nodes expose their
+decision pass/final state and exact source jump. Render only the selected source block,
+its decision history, and local neighbours; never attempt a filing-wide graph or use
+the UI as proof that the adaptive strategy is superior to the flat baseline.

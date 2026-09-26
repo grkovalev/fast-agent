@@ -54,6 +54,7 @@ class V2Repository:
             'section_score_batches', 'performance_summaries', 'evaluation_scale_verdicts',
             'ticker_selections', 'retrieval_benchmarks', 'evaluation_scorecards',
             'report_batches', 'report_batch_items',
+            'source_context_decisions',
         }
         actual_tables = {row['name'] for row in db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
@@ -175,6 +176,13 @@ class V2Repository:
                 started_at TEXT NOT NULL, finished_at TEXT, outcome TEXT, message TEXT NOT NULL,
                 PRIMARY KEY(batch_id, ordinal));
             CREATE INDEX report_batch_items_batch_ordinal ON report_batch_items(batch_id, ordinal);
+            CREATE TABLE source_context_decisions (
+                run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+                decision_id TEXT NOT NULL, block_id TEXT NOT NULL, expansion_pass INTEGER NOT NULL,
+                core_start_line INTEGER NOT NULL, core_end_line INTEGER NOT NULL, payload TEXT NOT NULL,
+                PRIMARY KEY(run_id, decision_id));
+            CREATE INDEX source_context_decisions_run_block ON source_context_decisions
+                (run_id, block_id, expansion_pass);
             CREATE INDEX scores_run_kind_item ON scores(run_id, score_kind, item_id);
             CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
             CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
@@ -340,6 +348,7 @@ class V2Repository:
             'exploration_actions', 'chunk_score_summaries', 'finding_summaries',
             'company_fact_datasets', 'fact_summaries', 'comparison_summaries',
             'performance_summaries',
+            'source_context_decisions',
         )
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
@@ -796,6 +805,31 @@ class V2Repository:
         with self.connect() as db:
             row = db.execute('SELECT payload FROM finding_summaries WHERE run_id=?', (run_id,)).fetchone()
         return json.loads(row['payload']) if row else None
+
+    def save_source_context_decisions(self, run_id: str, decisions):
+        """Replace only this run's bounded, source-ranged T39 diagnostics."""
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM source_context_decisions WHERE run_id=?', (run_id,))
+            db.executemany('''INSERT INTO source_context_decisions
+                (run_id, decision_id, block_id, expansion_pass, core_start_line, core_end_line, payload)
+                VALUES (?, ?, ?, ?, ?, ?, ?)''', [
+                    (run_id, item.decision_id, item.block_id, item.expansion_pass,
+                     item.core_range.start_line, item.core_range.end_line, item.model_dump_json())
+                    for item in decisions])
+
+    def source_context_decisions(self, run_id: str, block_id: str | None = None):
+        from .contracts import SourceContextDecision
+
+        with self.connect() as db:
+            if block_id:
+                rows = db.execute('''SELECT payload FROM source_context_decisions WHERE run_id=?
+                    AND block_id=? ORDER BY expansion_pass, decision_id''', (run_id, block_id)).fetchall()
+            else:
+                rows = db.execute('''SELECT payload FROM source_context_decisions WHERE run_id=?
+                    ORDER BY core_start_line, expansion_pass, decision_id''', (run_id,)).fetchall()
+        return [SourceContextDecision.model_validate_json(row['payload']) for row in rows]
 
     def save_chunks(self, run_id: str, chunks: list[TextChunk]):
         self.get_run(run_id)

@@ -6,11 +6,18 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T38 — Versioned run timing and evaluation cohorts** — **DONE**.
-- Next task: **T39 — Jev-directed adaptive source context.**
+- Current task: **T39 — Jev-directed adaptive source context and target eligibility** — **IN_PROGRESS**.
+- Next task: **T39 — Jev-directed adaptive source context and target eligibility.**
 - T39 experiment record: [recall investigation](T39_RECALL_INVESTIGATION.md). It
   documents failed live cohorts and the controlled next experiment; do not treat its
   unverified working-tree changes as an accepted approach.
+- T39 first slice: persisted source-range-bound `SourceContextDecision` records,
+  bounded visible expansion rings, and versioned configuration are implemented and
+  locally tested. They are diagnostics beside flat-chunk retention, not a recall gate.
+  Remaining: wire bounded live block classification into the chunk/findings inspectors,
+  add the bounded source-exploration graph (with the stage rail retained as checkpoint
+  navigation), record side-by-side cohort measurements, and run the controlled live
+  replay.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -211,7 +218,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T36 | Overall cross-run evaluation scorecard | DONE | Manual browser inspection pending |
 | T37 | Sequential random-report batch runner | DONE | Manual browser and live SEC/provider batch verification pending |
 | T38 | Versioned run timing and evaluation cohorts | DONE | Manual browser inspection pending |
-| T39 | Jev-directed adaptive source context and target eligibility | TODO | Not run |
+| T39 | Jev-directed adaptive source context and target eligibility | IN_PROGRESS | First contract slice passed; live classification not run |
 
 ## T32 final evidence
 

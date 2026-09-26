@@ -729,6 +729,10 @@ retrieval and quote-backed findings without weakening citation validation, recal
 the non-leak boundary. Do not assume that a larger fixed context window is useful:
 measure it against the current flat-chunk baseline.
 
+The workspace must start to expose this as a source-exploration graph: the existing
+eight-stage rail remains checkpoint navigation, while source blocks, context bindings,
+expansion passes, and citable evidence are the inspectable working surface.
+
 **Read:** V2 plan sections 7, 8, 15, 16, and 18. Dependency: T38.
 
 **Implementation-first scope:** build the complete lean vertical slice before a broad
@@ -766,11 +770,12 @@ and explicit-partial-state contracts needed to learn safely from the first resul
    outputs. Source position/range management, response validation, expansion limits,
    and persisted provenance are application responsibilities; Jev alone makes semantic
    role, target-eligibility, and context-sufficiency judgments.
-5. Replace broad detailed relevance as the retention gate with separate Jev decisions
-   for (a) relevance and (b) direct eligibility for each configured target. Retain only
-   direct, sufficiently interpretable evidence; preserve uncertain candidates for
-   inspection without presenting them as target evidence. The existing exact-text
-   scoring path remains available as a baseline.
+5. Preserve the flat detailed chunk-selection path as the active recall baseline.
+   Record separate Jev relevance and direct-eligibility decisions for each configured
+   target as diagnostics; do not make an uncertain semantic decision an early retention
+   gate unless the controlled development comparison demonstrates it preserves required
+   source-row recall. Preserve uncertain candidates for inspection without presenting
+   them as target evidence.
 6. For findings, send each retained citable core with only the Jev-selected source
    context that established its interpretation. An exact finding quote must resolve to
    a retained evidence-core line; contextual ranges may establish period, unit/scale,
@@ -792,10 +797,18 @@ and explicit-partial-state contracts needed to learn safely from the first resul
    resolves to its evidence core rather than context. Diagnose other behavior from the
    persisted live results first; add a controlled regression only after a failure mode
    is understood.
+9. Add a bounded source-exploration view to the Chunk and Findings stages. It shows
+   source-range nodes for evidence cores and contextual ranges, directed links labelled
+   as context or expansion, pass/final-decision metadata, and direct source jumps. The
+   eight-stage rail remains a compact checkpoint/status rail; it is not a claim that
+   evidence exploration is linear. Keep the flat baseline and adaptive diagnostics
+   visibly separate, and never render an unbounded filing-wide graph.
 
 **Manual verification handoff:** inspect a retained source block and its decision
 history: initial context, every expansion pass, final role/eligibility, and source
 jumps. Verify a published finding cites its evidence core rather than contextual text.
+Open the exploration view and confirm context arrows cannot be mistaken for citable
+evidence and the existing stage rail remains available for progress navigation.
 On the saved development runs, compare the versioned flat-chunk baseline with adaptive
 context and confirm expansion occurs only after Jev records an unresolved interpretation
 field. Inspect at least one adjusted/pro-forma or narrative-rate rejection and one
@@ -805,5 +818,6 @@ unresolved source-context case.
 inspectable Jev decision; expansions are bounded and occur only after a recorded
 insufficiency decision; contextual data never replaces the exact citable evidence
 line; no discovery request contains evaluation/XBRL data; versioned development-run
-results expose the first failure modes and baseline comparison; and no strategy is
-declared superior beyond what those recorded results support.
+results expose the first failure modes and baseline comparison; the bounded graph
+separates evidence cores from context/expansion links; and no strategy is declared
+superior beyond what those recorded results support.

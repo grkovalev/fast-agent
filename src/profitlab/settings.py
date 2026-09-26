@@ -83,6 +83,14 @@ class Settings(BaseSettings):
     chunk_score_max_uncertain: int = Field(4, ge=0, le=100)
     chunk_score_retained_text_char_budget: int = Field(48000, ge=1000, le=1000000)
     chunk_score_overlap_dedupe_ratio: float = Field(.65, ge=0, le=1)
+    # T39 source-context diagnostics are bounded and never replace flat chunk retention.
+    source_context_prompt_version: str = 'source-context-v1'
+    source_context_max_blocks: int = Field(250, ge=1, le=5000)
+    source_context_rings: tuple[int, ...] = (2, 8, 24)
+    source_context_request_char_budget: int = Field(12000, ge=1000, le=30000)
+    source_context_role_threshold: float = Field(.65, ge=0, le=1)
+    source_context_role_margin: float = Field(.10, ge=0, le=1)
+    source_context_eligibility_threshold: float = Field(.65, ge=0, le=1)
     # Findings receive only the small retained visible-evidence set.  One repair is
     # intentionally permitted for a malformed citation; uncited prose is rejected.
     findings_prompt_version: str = 'findings-v5-jev-types'

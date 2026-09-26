@@ -214,7 +214,10 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         selected = next(item for item in state['stages'] if item.stage == stage)
         page = max(1, page)
         data_stages = {'outline', 'section_score', 'chunk', 'chunk_score', 'findings', 'facts', 'evaluate'}
-        outline = pipeline.repo.outline_sections(run_id, page=page) if stage in data_stages else []
+        outline = ([item.model_copy(update={
+            'parent_topic_hint': item.parent_topic_hint or 'Filing overview'})
+            for item in pipeline.repo.outline_sections(run_id, page=page)]
+            if stage in data_stages else [])
         chunks = pipeline.repo.chunks(run_id, page=page) if stage in {'chunk', 'chunk_score', 'findings'} else []
         findings = pipeline.repo.findings(run_id, page=page) if stage in {'findings', 'evaluate'} else []
         finding_scores = pipeline.repo.scores_for_items(
