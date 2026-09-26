@@ -8,6 +8,9 @@
   paths no longer exist in V2 runtime code or UI.
 - Current task: **T38 — Versioned run timing and evaluation cohorts** — **DONE**.
 - Next task: **T39 — Jev-directed adaptive source context.**
+- T39 experiment record: [recall investigation](T39_RECALL_INVESTIGATION.md). It
+  documents failed live cohorts and the controlled next experiment; do not treat its
+  unverified working-tree changes as an accepted approach.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
