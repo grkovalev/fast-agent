@@ -251,6 +251,32 @@ not a source, proposal, quote, classification, or publication failure. The run m
 174 explicit request-budget partials. It does not establish context usefulness or a
 candidate strategy improvement.
 
+### Second fixed-set replay: VLOSU / VLOS
+
+On 2026-09-27, fresh controlled run `v2-dd7ff6d041be` used application revision
+`t39-fixed-replay-v2` (version `v2-b9a2cf7c5ed5d24a`) against pinned VLOS accession
+`0001213900-26-027060`; its canonical source hash matched the fixed set. The annual
+profit row 1148 and diluted-EPS row 1154 were flat-retained, sent to Findings,
+proposed, quote-validated, type-classified, and published. Net income `5,778,750`
+exact-matched the independent target. The Class-B diluted EPS `0.16` is a valid
+published additional visible value under the current target contract, not a
+source-pipeline failure.
+
+The expected diluted-share row 1326 did not reach Findings: it was not
+flat-retained, and consequently was neither proposed nor validated. Its enclosing
+outline section, lines 1261–1331 (`Significant accounting policies`), received Jev
+scores of `0.09` annual profit, `0.09` diluted EPS, and `0.13` diluted shares. It was
+therefore skipped below the configured `0.20` uncertain threshold, so chunking never
+created a chunk covering line 1326. This is the first observed VLOS loss point, at
+outline section selection—not a Findings, JSON, quote-validation, classification,
+or evaluation failure. It does not justify calibration from one filing.
+
+The unchanged T39 context diagnostic made 36 Jev calls for 148 retained source lines
+and persisted 150 decisions, including 74 explicit request-budget partials. It remains
+diagnostic only and has no demonstrated retrieval effect. The next fixed-set replay is
+ATLC, to observe the decimal JSON protocol case before altering role calibration,
+eligibility, routing, prompts, retention, or Findings input.
+
 ## Local checks at the time of writing
 
 The working tree passed `uv run pytest -q` with **25 passed** (one existing Starlette /

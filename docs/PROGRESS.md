@@ -117,6 +117,28 @@
   case from the same fixed set, then inspect its persisted source-row trace before
   changing role calibration, eligibility, routing, prompts, retention, or Findings
   input.
+- T39 VLOS fixed-set replay: on 2026-09-27, fresh controlled run
+  `v2-dd7ff6d041be` under application revision `t39-fixed-replay-v2` / version
+  `v2-b9a2cf7c5ed5d24a` matched pinned VLOS accession
+  `0001213900-26-027060` and source hash. The annual-profit row (1148) and
+  diluted-EPS row (1154) were flat-retained, sent, proposed, quote-validated,
+  classified, and published; annual profit `5,778,750` exact-matched its
+  independent Company Facts target, while the Class-B EPS `0.16` remained an
+  additional visible value. The diluted-shares row (1326) was not flat-retained,
+  so it was never sent or proposed: its enclosing lines 1261–1331 “Significant
+  accounting policies” outline section scored skipped (annual-profit `0.09`,
+  diluted-EPS `0.09`, diluted-shares `0.13`, below the `0.20` uncertain threshold),
+  hence no chunk covered that row. This is the first observed VLOS source-row loss
+  point, upstream of chunk scoring, source-context diagnostics, Findings, and
+  evaluation. The unchanged diagnostics made 36 Jev calls for 148 retained lines,
+  persisting 150 decisions with 74 explicit budget partials. This is evidence about
+  one section-selection miss, not a basis to alter a threshold or make adaptive
+  context a gate. Next bounded experiment: inspect the fixed ATLC decimal-protocol
+  case and persist its first source-row loss point before changing role calibration,
+  eligibility, routing, prompts, retention, or Findings input. Focused local
+  acceptance after recording the evidence: `uv run pytest tests/task_gates/test_t39.py
+  -q` — **9 passed** (one existing Starlette/AnyIO warning); `uv run ruff check .`
+  and `git diff --check` passed.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
