@@ -11,18 +11,26 @@
 - T39 experiment record: [recall investigation](T39_RECALL_INVESTIGATION.md). It
   documents failed live cohorts and the controlled next experiment; do not treat its
   unverified working-tree changes as an accepted approach.
+- T39 operating rule: after every bounded implementation slice, run a small live
+  cohort and explore its persisted source rows, decisions, traces, findings, and
+  evaluation before selecting the next slice. Local tests validate contracts only;
+  the live evidence must show whether the work is moving in the right direction.
 - T39 first slice: persisted source-range-bound `SourceContextDecision` records,
   bounded visible expansion rings, and versioned configuration are implemented and
   locally tested. They are diagnostics beside flat-chunk retention, not a recall gate.
 - T39 inspector slice: persisted decisions now appear in the Chunk inspector and in
   bounded Chunk/Chunk Score/Findings workspace surfaces as an evidence-core/context/
   expansion graph. It keeps the stage rail as checkpoint navigation, labels context as
-  non-citable, and explicitly says flat chunk retention is unchanged. It does not run
-  the classifier or alter retrieval/findings inputs. `uv run pytest -q` — **23 passed**
-  (one existing Starlette/AnyIO deprecation warning); `uv run ruff check .` and
-  `git diff --check` passed. Browser and live-provider verification were not run.
-  Remaining: wire bounded live block classification into the inspectors, record
-  side-by-side cohort measurements, and run the controlled live replay.
+  non-citable, and explicitly says flat chunk retention is unchanged. The next bounded
+  slice wires live classification after flat detailed-chunk scoring: it visits
+  de-duplicated retained-core canonical lines in source order and persists decisions
+  for those existing inspectors, without changing retention or Findings inputs. A
+  versioned maximum live-call budget (default 36) produces explicit partial decisions
+  on exhaustion or provider failure, rather than failing the baseline stage. `uv run
+  pytest -q` — **24 passed** (one existing Starlette/AnyIO deprecation warning); `uv
+  run ruff check .` and `git diff --check` passed. Browser and live-provider
+  verification were not run. Remaining: record side-by-side cohort measurements and
+  run the controlled live replay.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).

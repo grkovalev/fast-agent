@@ -30,6 +30,9 @@ class SourceContextService:
     def __init__(self, settings, repository):
         self.settings, self.repo = settings, repository
 
+    def _client(self, run_id):
+        return SectionScoringService(self.settings, self.repo)._client(run_id, stage='chunk_score')
+
     @staticmethod
     def _range(document, start, end):
         return SourceRange(document_id=document.ref.document_id, source_hash=document.ref.source_hash,
@@ -111,22 +114,26 @@ class SourceContextService:
         """Persist initial and only Jev-requested wider-context passes for each core."""
         if len(cores) > self.settings.source_context_max_blocks:
             raise ValueError('Source-context block budget would be exceeded before any provider call.')
-        client = SectionScoringService(self.settings, self.repo)._client(run_id, stage='chunk_score')
+        client = self._client(run_id)
         decisions, calls = [], 0
         for core, section_id in cores:
             for expansion_pass, radius in enumerate(self.settings.source_context_rings):
+                if calls >= self.settings.source_context_max_requests:
+                    decisions.append(self._partial(document, core, [], expansion_pass,
+                                                   'Configured live source-context request budget exhausted.'))
+                    break
                 context = self._ring(document, core, radius)
                 request = self._request(run_id, document, core, context, expansion_pass, section_id)
                 if len(json.dumps(request.model_dump(mode='json'))) > self.settings.source_context_request_char_budget:
-                    decisions.append(SourceContextDecision(
-                        decision_id='context-' + hashlib.sha256(f'{core.start_line}:{expansion_pass}:partial'.encode()).hexdigest()[:24],
-                        block_id='block-' + hashlib.sha256(f'{document.ref.source_hash}:{core.start_line}'.encode()).hexdigest()[:24],
-                        core_range=core, context_ranges=context, expansion_pass=expansion_pass, role='uncertain',
-                        target_eligibility={target: False for target in TARGETS}, context_sufficient=None,
-                        unresolved_fields=list(UNRESOLVED_FIELDS), rationale='Configured visible-context request budget exceeded.',
-                        confidence=0, model=self.settings.typesafe_model, call_id='none', state='partial'))
+                    decisions.append(self._partial(document, core, context, expansion_pass,
+                                                   'Configured visible-context request budget exceeded.'))
                     break
-                response = await client.evaluate(request)
+                try:
+                    response = await client.evaluate(request)
+                except Exception as error:  # noqa: BLE001 - diagnostics must not make the flat baseline fail
+                    decisions.append(self._partial(document, core, context, expansion_pass,
+                                                   f'Jev source-context call did not complete: {type(error).__name__}.'))
+                    break
                 calls += 1
                 decision = self._decision(document, core, context, expansion_pass, response, f'context-{calls}')
                 decisions.append(decision)
@@ -135,3 +142,14 @@ class SourceContextService:
                     break
         self.repo.save_source_context_decisions(run_id, decisions)
         return SourceContextResult(decisions, calls, sum(item.state == 'partial' for item in decisions))
+
+    def _partial(self, document, core, context, expansion_pass, rationale):
+        return SourceContextDecision(
+            decision_id='context-' + hashlib.sha256(
+                f'{document.ref.source_hash}:{core.start_line}:{expansion_pass}:partial'.encode()).hexdigest()[:24],
+            block_id='block-' + hashlib.sha256(
+                f'{document.ref.source_hash}:{core.start_line}'.encode()).hexdigest()[:24],
+            core_range=core, context_ranges=context, expansion_pass=expansion_pass, role='uncertain',
+            target_eligibility={target: False for target in TARGETS}, context_sufficient=None,
+            unresolved_fields=list(UNRESOLVED_FIELDS), rationale=rationale,
+            confidence=0, model=self.settings.typesafe_model, call_id='none', state='partial')

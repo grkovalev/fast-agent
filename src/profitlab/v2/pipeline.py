@@ -17,6 +17,7 @@ from .facts_service import CompanyFactsService
 from .findings_service import FindingsService
 from .outline_service import OutlineService
 from .section_scoring import SectionScoringService
+from .source_context import SourceContextService
 from .source_service import V2SourceService
 from .storage import V2Repository
 
@@ -50,6 +51,7 @@ class V2PipelineService:
             'application_revision', 'outline_model', 'outline_prompt_version',
             'section_score_prompt_version', 'chunk_score_prompt_version',
             'source_context_prompt_version', 'source_context_max_blocks',
+            'source_context_max_requests',
             'source_context_rings', 'source_context_request_char_budget',
             'source_context_role_threshold', 'source_context_role_margin',
             'source_context_eligibility_threshold',
@@ -268,13 +270,36 @@ class V2PipelineService:
                     return self.repo.get_run(run_id)
                 selected = sum(item.policy_decision == 'selected' for item in result.scores)
                 uncertain = sum(item.policy_decision == 'uncertain' for item in result.scores)
+                # T39 is deliberately downstream of the flat policy.  Classify
+                # individual canonical lines from retained cores in stable source
+                # order, but never feed its semantic result back into retention or
+                # the Findings inputs.
+                retained_ids = {item.item_id for item in result.scores
+                                if item.policy_decision == 'selected'}
+                seen_lines, context_cores = set(), []
+                for chunk in sorted((item for item in chunks if item.chunk_id in retained_ids),
+                                    key=lambda item: (item.core_range.start_line, item.chunk_id)):
+                    for line_number in range(chunk.core_range.start_line, chunk.core_range.end_line + 1):
+                        if line_number not in seen_lines:
+                            seen_lines.add(line_number)
+                            context_cores.append((SourceContextService._range(
+                                document, line_number, line_number), chunk.section_id))
+                # This is an explicit diagnostic sampling boundary, not a semantic
+                # eligibility decision.
+                context_cores = context_cores[:self.settings.source_context_max_blocks]
+                context_result = await SourceContextService(self.settings, self.repo).classify(
+                    run_id, document, context_cores)
                 finished = running.model_copy(update={
                     'status': 'completed', 'completed_work': len(result.scores),
                     'total_work': len(result.scores), 'finished_at': datetime.now(UTC),
                     'elapsed_seconds': monotonic() - tick,
                     'summary': (f'Jev scored {len(result.scores)} detailed chunks: {selected} retained, '
                                 f'{uncertain} uncertain; {result.calls} live batch(es), '
-                                f'{result.cached_batches} cached batch(es).'),
+                                f'{result.cached_batches} cached batch(es). '
+                                f'T39 recorded {len(context_result.decisions)} source-context decision(s) '
+                                f'from {len(context_cores)} retained-core line(s); '
+                                f'{context_result.calls} live diagnostic call(s), '
+                                f'{context_result.partial} partial.'),
                     'limitation': None,
                     'input_hash': document.ref.source_hash,
                     'output_hash': hashlib.sha256(''.join(

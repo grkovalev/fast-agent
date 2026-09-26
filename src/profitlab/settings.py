@@ -85,7 +85,11 @@ class Settings(BaseSettings):
     chunk_score_overlap_dedupe_ratio: float = Field(.65, ge=0, le=1)
     # T39 source-context diagnostics are bounded and never replace flat chunk retention.
     source_context_prompt_version: str = 'source-context-v1'
+    # These are diagnostic calls made after flat chunk selection.  They must have
+    # their own call cap: an insufficient first pass can otherwise multiply one
+    # retained source line into every configured expansion ring.
     source_context_max_blocks: int = Field(250, ge=1, le=5000)
+    source_context_max_requests: int = Field(36, ge=1, le=500)
     source_context_rings: tuple[int, ...] = (2, 8, 24)
     source_context_request_char_budget: int = Field(12000, ge=1000, le=30000)
     source_context_role_threshold: float = Field(.65, ge=0, le=1)

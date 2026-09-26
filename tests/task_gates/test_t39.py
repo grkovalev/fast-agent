@@ -72,6 +72,28 @@ def test_source_context_configuration_is_versioned(tmp_path):
     assert baseline.version_components['source_context_rings'] == '(2, 8, 24)'
 
 
+@pytest.mark.asyncio
+async def test_context_request_cap_persists_an_explicit_partial_state(tmp_path):
+    _, document, service = _setup(tmp_path)
+    service.settings = service.settings.model_copy(update={'source_context_max_requests': 1})
+    core = SourceRange(document_id='document', source_hash='a' * 64, start_line=3, end_line=3)
+
+    class Client:
+        async def evaluate(self, request):
+            return JevResponse(model='jev-test', usage=TokenUsage(input_tokens=1, output_tokens=1),
+                               answers={key: NoulAnswer(type='noul', noul=(.9 if key in (
+                                   'evidence', 'eligible__annual_profit') else .05))
+                                        for key in request.questions})
+
+    service._client = lambda *args, **kwargs: Client()  # type: ignore[method-assign]
+    result = await service.classify('context-run', document, [(core, None)])
+
+    assert result.calls == 1
+    assert result.partial == 1
+    assert [item.state for item in result.decisions] == ['completed', 'partial']
+    assert result.decisions[-1].rationale == 'Configured live source-context request budget exhausted.'
+
+
 def test_chunk_inspector_renders_bounded_context_graph_without_changing_baseline(tmp_path):
     from fastapi.testclient import TestClient
 
