@@ -14,10 +14,15 @@
 - T39 first slice: persisted source-range-bound `SourceContextDecision` records,
   bounded visible expansion rings, and versioned configuration are implemented and
   locally tested. They are diagnostics beside flat-chunk retention, not a recall gate.
-  Remaining: wire bounded live block classification into the chunk/findings inspectors,
-  add the bounded source-exploration graph (with the stage rail retained as checkpoint
-  navigation), record side-by-side cohort measurements, and run the controlled live
-  replay.
+- T39 inspector slice: persisted decisions now appear in the Chunk inspector and in
+  bounded Chunk/Chunk Score/Findings workspace surfaces as an evidence-core/context/
+  expansion graph. It keeps the stage rail as checkpoint navigation, labels context as
+  non-citable, and explicitly says flat chunk retention is unchanged. It does not run
+  the classifier or alter retrieval/findings inputs. `uv run pytest -q` — **23 passed**
+  (one existing Starlette/AnyIO deprecation warning); `uv run ruff check .` and
+  `git diff --check` passed. Browser and live-provider verification were not run.
+  Remaining: wire bounded live block classification into the inspectors, record
+  side-by-side cohort measurements, and run the controlled live replay.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).

@@ -230,6 +230,22 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             if candidates:
                 value, label = max(candidates, key=lambda item: (item[0], item[1]))
                 finding_score_lookup[score.item_id] = {'label': label, 'score': value}
+        # T39 decisions are diagnostics beside flat chunk retention. Keep the
+        # exploration surface bounded to the chunks/findings currently displayed.
+        displayed_ranges = [item.core_range for item in chunks]
+        displayed_ranges.extend(item.source_range for item in findings)
+
+        def overlaps_displayed(source_range):
+            return any(
+                source_range.document_id == item.document_id and
+                source_range.source_hash == item.source_hash and
+                source_range.start_line <= item.end_line and item.start_line <= source_range.end_line
+                for item in displayed_ranges)
+
+        source_context_decisions = (
+            [item for item in pipeline.repo.source_context_decisions(run_id)
+             if overlaps_displayed(item.core_range)]
+            if stage in {'chunk', 'chunk_score', 'findings'} else [])
         result = {**state, 'selected': selected, 'page': page, 'canonical_refs': pipeline.repo.canonical_refs(run_id),
                   'outline_sections': outline, 'section_lookup': {x.section_id: x for x in outline},
                   'section_scores': pipeline.repo.scores(run_id, 'section_score', page=page) if stage == 'section_score' else [],
@@ -237,6 +253,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                   'chunk_scores': pipeline.repo.scores(run_id, 'chunk_score', page=page) if stage == 'chunk_score' else [],
                   'chunk_score_summary': pipeline.repo.chunk_score_summary(run_id) if stage == 'chunk_score' else None,
                   'chunk_actions': [], 'findings': findings, 'finding_score_lookup': finding_score_lookup,
+                  'source_context_decisions': source_context_decisions,
                   'finding_summary': pipeline.repo.finding_summary(run_id) if stage == 'findings' else None,
                   'finding_actions': [], 'structured_facts': pipeline.repo.structured_facts(run_id, page=page) if stage in {'facts', 'evaluate'} else [],
                   'fact_summary': pipeline.repo.fact_summary(run_id) if stage == 'facts' else None,
@@ -325,7 +342,13 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         return templates.TemplateResponse(request=request, name='v2_chunk.html', context={
             'run_id': run_id, 'chunk': item, 'section': section, 'document': document,
             'core_preview': document.slice(item.core_range)[:3000],
-            'context_previews': [(r, document.slice(r)[:1200]) for r in item.context_ranges]})
+            'context_previews': [(r, document.slice(r)[:1200]) for r in item.context_ranges],
+            'source_context_decisions': [decision for decision in pipeline.repo.source_context_decisions(run_id)
+                                         if decision.core_range.document_id == item.core_range.document_id and
+                                         decision.core_range.source_hash == item.core_range.source_hash and
+                                         decision.core_range.start_line <= item.core_range.end_line and
+                                         item.core_range.start_line <= decision.core_range.end_line],
+        })
 
     @app.get('/v2/runs/{run_id}/state')
     def state(run_id: str):

@@ -5,4 +5,5 @@
 <dt>Request estimate</dt><dd>{{ chunk.request_size_estimate }} tokens</dd><dt>Adjacent chunks</dt><dd>Previous: {{ chunk.previous_chunk_id or 'none' }}<br>Next: {{ chunk.next_chunk_id or 'none' }}</dd></dl>
 <h3>Core preview</h3><pre>{{ core_preview }}</pre>
 {% if context_previews %}<h3>Context overlap</h3>{% for source_range, preview in context_previews %}<section><p><a class="source-action" href="/v2/runs/{{ run_id }}/source?document={{ source_range.document_id }}&page={{ ((source_range.start_line - 1) // 100) + 1 }}#line-{{ source_range.start_line }}">Lines {{ source_range.start_line }}–{{ source_range.end_line }}</a></p><pre>{{ preview }}</pre></section>{% endfor %}{% else %}<p class="muted">This is the first chunk in its selected section, so no preceding context is needed.</p>{% endif %}
+{% include "_source_context_graph.html" %}
 </section>{% endblock %}

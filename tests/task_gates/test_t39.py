@@ -70,3 +70,34 @@ def test_source_context_configuration_is_versioned(tmp_path):
 
     assert baseline.version_id != changed.version_id
     assert baseline.version_components['source_context_rings'] == '(2, 8, 24)'
+
+
+def test_chunk_inspector_renders_bounded_context_graph_without_changing_baseline(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from profitlab.v2.contracts import OutlineSection, SourceContextDecision, TextChunk
+    from profitlab.web.app import create_app
+
+    repo, document, _ = _setup(tmp_path)
+    repo.save_canonical_document('context-run', document, b'<html></html>', b'<html></html>')
+    core = SourceRange(document_id='document', source_hash='a' * 64, start_line=3, end_line=3)
+    context = SourceRange(document_id='document', source_hash='a' * 64, start_line=2, end_line=2)
+    repo.save_outline_sections('context-run', [OutlineSection(
+        section_id='section', generated_topic='Income statement', primary_range=core)])
+    repo.save_chunks('context-run', [TextChunk(chunk_id='chunk', section_id='section', core_range=core,
+                                                request_size_estimate=1)])
+    repo.save_source_context_decisions('context-run', [SourceContextDecision(
+        decision_id='decision', block_id='block', core_range=core, context_ranges=[context],
+        expansion_pass=1, role='evidence', target_eligibility={'annual_profit': True},
+        context_sufficient=True, rationale='Visible header establishes the period.', confidence=.9,
+        model='jev-test', call_id='call-1')])
+
+    with TestClient(create_app(Settings(PROFITLAB_DATA_DIR=tmp_path,
+                                        SEC_USER_AGENT='ProfitLab test@example.org', _env_file=None))) as client:
+        response = client.get('/v2/runs/context-run/chunks/chunk')
+
+    assert response.status_code == 200
+    assert 'Adaptive source-context decisions' in response.text
+    assert 'Flat chunk retention is unchanged' in response.text
+    assert 'context →' in response.text
+    assert 'expansion →</strong> pass 1 wider visible ring' in response.text

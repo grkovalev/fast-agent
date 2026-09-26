@@ -1,0 +1,16 @@
+{% if source_context_decisions %}
+<section class="source-context-panel" aria-label="Adaptive source-context diagnostics">
+<p class="eyebrow">T39 diagnostic</p><h3>Adaptive source-context decisions</h3>
+<p class="muted">Flat chunk retention is unchanged. Core blocks are citable candidates; context and expansion links explain a core but cannot replace its quote.</p>
+<ol class="source-exploration-graph">
+{% for decision in source_context_decisions %}
+<li class="exploration-core"><strong>Evidence core</strong> · <a href="/v2/runs/{{ run.run_id if run else run_id }}/source?document={{ decision.core_range.document_id }}&page={{ ((decision.core_range.start_line - 1) // 100) + 1 }}#line-{{ decision.core_range.start_line }}">line {{ decision.core_range.start_line }}</a> · pass {{ decision.expansion_pass }} · {{ decision.state }}<br><span class="muted">Role: {{ decision.role }} · context {% if decision.context_sufficient is none %}partial{% elif decision.context_sufficient %}sufficient{% else %}insufficient{% endif %} · confidence {{ '%.2f' | format(decision.confidence) }}</span>
+{% if decision.target_eligibility %}<br><span class="muted">Direct target eligibility: {% for target, eligible in decision.target_eligibility.items() %}{{ target | replace('_', ' ') }} {{ 'yes' if eligible else 'no' }}{% if not loop.last %}; {% endif %}{% endfor %}</span>{% endif %}
+{% if decision.unresolved_fields %}<br><span class="notice">Unresolved: {{ decision.unresolved_fields | join(', ') }}</span>{% endif %}
+<p>{{ decision.rationale }}</p>
+{% for context_range in decision.context_ranges %}<div class="exploration-context"><strong>context →</strong> <a href="/v2/runs/{{ run.run_id if run else run_id }}/source?document={{ context_range.document_id }}&page={{ ((context_range.start_line - 1) // 100) + 1 }}#line-{{ context_range.start_line }}">lines {{ context_range.start_line }}–{{ context_range.end_line }}</a> <span class="muted">interpretation only; not independently citable</span></div>{% endfor %}
+{% if decision.expansion_pass %}<div class="exploration-expansion"><strong>expansion →</strong> pass {{ decision.expansion_pass }} wider visible ring</div>{% endif %}
+</li>
+{% endfor %}
+</ol></section>
+{% endif %}
