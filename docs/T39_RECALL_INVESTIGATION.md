@@ -277,6 +277,31 @@ diagnostic only and has no demonstrated retrieval effect. The next fixed-set rep
 ATLC, to observe the decimal JSON protocol case before altering role calibration,
 eligibility, routing, prompts, retention, or Findings input.
 
+### Third fixed-set replay: ATLC
+
+On 2026-09-27, fresh controlled run `v2-a5d6fb510af8` used application revision
+`t39-fixed-replay-v3` (version `v2-96a40c089fb37d78`) against pinned ATLC accession
+`0001437749-26-007972`; its canonical source hash matched the fixed set. All three
+reviewed rows were flat-retained and sent to Findings. The diluted-share denominator
+at line 1594 was proposed, quote-validated, type-classified as diluted shares, and
+published; its independent comparison was scale-aware equivalent.
+
+The reviewed annual-profit row 1586 and diluted-EPS row 1596 were not proposed.
+Thus their first observed loss point is the Findings proposal step, before JSON
+amount validation, quote validation, type classification, publication, or evaluation.
+The same run did publish quote-backed annual-profit and diluted-EPS findings from
+other retained lines (971 and 975). Those findings show that information appears
+elsewhere in the source; they do not make the two reviewed row-level misses disappear.
+This result does not isolate or establish a Decimal JSON parser improvement.
+
+The unchanged context diagnostic made 36 calls for 250 retained source lines and
+persisted 250 decisions, including 178 explicit request-budget partials. The run is
+therefore partial only because this diagnostic has its own bounded budget; every
+baseline stage completed. It remains no evidence for adaptive-context usefulness or a
+reason to change role calibration, eligibility, routing, prompts, retention, or
+Findings input. The next fixed-set replay is NBHC, to inspect the other Decimal JSON
+protocol case under the same source-row contract.
+
 ## Local checks at the time of writing
 
 The working tree passed `uv run pytest -q` with **25 passed** (one existing Starlette /

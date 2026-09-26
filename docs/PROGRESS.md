@@ -139,6 +139,24 @@
   acceptance after recording the evidence: `uv run pytest tests/task_gates/test_t39.py
   -q` — **9 passed** (one existing Starlette/AnyIO warning); `uv run ruff check .`
   and `git diff --check` passed.
+- T39 ATLC fixed-set replay: on 2026-09-27, fresh controlled run
+  `v2-a5d6fb510af8` under application revision `t39-fixed-replay-v3` / version
+  `v2-96a40c089fb37d78` matched pinned ATLC accession
+  `0001437749-26-007972` and source hash. All three reviewed rows were
+  flat-retained and sent to Findings. The diluted-share denominator (1594) was
+  proposed, quote-validated, type-classified, published, and independently
+  scale-aware equivalent. The annual-profit (1586) and diluted-EPS (1596) rows
+  were not proposed, so their first observed loss point is Findings proposal
+  selection, before quote validation and classification. The run did publish
+  quote-backed annual-profit and diluted-EPS findings from other retained lines
+  (971 and 975); those are not a recovery of the reviewed source rows. This is
+  source-row evidence for the decimal-protocol case, not a prompt/parser result or
+  a basis to alter routing, prompts, retention, role calibration, eligibility, or
+  Findings input. The unchanged context diagnostic made 36 calls for 250 retained
+  source lines and persisted 250 decisions with 178 explicit budget partials; the
+  completed pipeline is therefore marked partial only for that diagnostic budget.
+  Next bounded experiment: replay NBHC from the fixed set and persist its first
+  source-row loss point before changing product behavior.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
