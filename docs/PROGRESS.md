@@ -6,8 +6,11 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T39 — Jev-directed adaptive source context and target eligibility** — **IN_PROGRESS**.
-- Next task: complete the recall-first packet-routing revision and inspect it on live runs.
+- Current task: **T39 — recall-first grounded claim extraction** — **IN_PROGRESS**.
+- Next task: inspect the new flat-selection, all-claims path on fresh live runs.
+- T39 experiment record: [recall investigation](T39_RECALL_INVESTIGATION.md). It is
+  the authoritative account of failed cohorts, observed live failure modes, and the
+  required controlled next experiment.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -212,17 +215,20 @@ denominator.
   regression; `time uv run pytest -q` — **21 passed** in 1.25s (1.58s wall), with the
   existing warning; Ruff and diff checks passed. Restart the server and create a fresh
   run because completed runs retain their recorded strategy result.
-- T39 packet-routing revision (in progress): production no longer classifies every
-  canonical line. It routes only core lines inside chunks from selected outline
-  sections, treating each as a compact evidence packet with source-derived nearby
-  lines plus the nearest visible heading/caption as interpretation context. Each target
-  receives a bounded direct-evidence budget and a separate ambiguity reserve, so a
-  confident profit signal cannot crowd out EPS/shares candidates. Ambiguous reserve
-  lines remain citable cores with their uncertainty visible; context remains
-  non-citable. The strategy prompt/version is now `adaptive-context-v2-packets`.
-  Focused packet-source and fallback contracts plus the full suite pass locally
-  (`21 passed` in 1.24s; Ruff and diff checks passed). The next required step is a
-  fresh live run and visual inspection before declaring this strategy an improvement.
+- T39 recall-first extraction revision (in progress): the active Chunk Score output is
+  again the full flat Jev selection (`chunk_score_flat` is retained as an explicit
+  baseline record). Selected chunks deterministically emit paragraph/list/table-row
+  packets with bounded heading, caption, preamble, and adjacent-row context; packets
+  only shape the extraction view and never rank or exclude evidence. Findings makes one
+  bounded concurrent LLM request per selected chunk to extract untyped, quote-backed
+  numeric claims. Each claim must cite exactly one packet core and mechanically match
+  its Decimal amount to that quote. Only after that validation does Jev classify the
+  compact quote-plus-context view as annual profit, diluted EPS, diluted shares, or
+  unresolved. This removes both the adaptive eligibility gate and target-packet router
+  from the active path. Numeric JSON amounts are accepted while structural source-line
+  integers remain integers. Packets remain in the existing bounded diagnostic store, so
+  no database schema migration is needed. Fresh live inspection is required before
+  judging recall or precision.
 
 ### T36 scorecard clarification
 
@@ -279,7 +285,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T36 | Overall cross-run evaluation scorecard | DONE | Manual browser inspection pending |
 | T37 | Sequential random-report batch runner | DONE | Manual browser and live SEC/provider batch verification pending |
 | T38 | Versioned run timing and evaluation cohorts | DONE | Manual browser inspection pending |
-| T39 | Jev-directed adaptive source context and target eligibility | DONE | Local adaptive contract passed; live Jev/manual UI verification pending |
+| T39 | Recall-first grounded claim extraction | IN_PROGRESS | Local pipeline contracts pass; fresh live/manual inspection pending |
 
 ## T32 final evidence
 
