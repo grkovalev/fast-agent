@@ -9,6 +9,12 @@ from profitlab.v2.canonical import CanonicalDocument, CanonicalLine
 from profitlab.v2.contracts import CanonicalDocumentRef, SourceRange, V2Run
 from profitlab.v2.pipeline import V2PipelineService
 from profitlab.v2.source_context import SourceContextService
+from profitlab.v2.source_replay import (
+    ExpectedSourceRow,
+    SourceReplayCase,
+    SourceReplayDataset,
+    SourceReplayService,
+)
 from profitlab.v2.storage import V2Repository
 
 
@@ -169,3 +175,46 @@ def test_chunk_inspector_renders_bounded_context_graph_without_changing_baseline
     assert 'Flat chunk retention is unchanged' in response.text
     assert 'context →' in response.text
     assert 'expansion →</strong> pass 1 wider visible ring' in response.text
+
+
+def test_source_row_replay_traces_persisted_loss_points_without_provider_inputs(tmp_path):
+    from decimal import Decimal
+
+    from profitlab.v2.contracts import FactComparison, Finding, ScoredItem, TextChunk
+
+    repo, document, _ = _setup(tmp_path)
+    repo.save_filing('context-run', 'filing', 'a' * 64, {
+        'filing_id': 'filing', 'document_id': 'document', 'accession': 'accession',
+        'report_date': '2025-12-31'})
+    repo.save_canonical_document('context-run', document, b'<html></html>', b'<html></html>')
+    core = SourceRange(document_id='document', source_hash='a' * 64, start_line=3, end_line=3)
+    repo.save_chunks('context-run', [TextChunk(chunk_id='chunk', section_id='section', core_range=core,
+                                                request_size_estimate=1)])
+    repo.save_scores('context-run', 'chunk_score', [ScoredItem(
+        item_id='chunk', target_scores={'annual_profit': .9}, model='jev', call_id='call',
+        policy_decision='selected', policy_reason='test')])
+    finding = Finding(finding_id='finding', exact_quote='Net income 123', source_range=core,
+                      amount=Decimal(123), source_chunk_id='chunk', finding_type='annual_profit',
+                      validation_state='validated')
+    repo.save_findings('context-run', [finding])
+    repo.save_comparisons('context-run', [FactComparison(
+        comparison_id='comparison', metric='net_income_consolidated', finding_ids=['finding'],
+        state='exact_match')])
+    repo.save_exploration_action('context-run', 'findings-request', 'findings', 1, {
+        'request': {'retained_chunks': [{'core_evidence_lines': [{'line_number': 3}]}]},
+        'proposal_audit': [{'source_line': 3, 'quote_validated': True, 'validation_error': None,
+                            'repair_attempted': False}],
+    })
+    dataset = SourceReplayDataset(dataset_version='test-v1', cases=[SourceReplayCase(
+        case_id='case', ticker='CONTEXT', accession='accession', source_hash='a' * 64,
+        rows=[ExpectedSourceRow(line_number=3, target='annual_profit', note='Reviewed row.')])])
+
+    trace = SourceReplayService(repo, dataset).inspect('context-run')
+
+    assert trace['proposal_audit_available'] is True
+    assert trace['rows'] == [{
+        'line_number': 3, 'target': 'annual_profit', 'note': 'Reviewed row.',
+        'flat_retained': True, 'sent_to_findings': True, 'proposed': True,
+        'quote_validated': True, 'classification': ['annual_profit'],
+        'published': True, 'independent_match': True,
+    }]

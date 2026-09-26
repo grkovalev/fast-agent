@@ -1,0 +1,16 @@
+{
+  "dataset_version": "t39-source-row-expectations-v1",
+  "cases": [
+    {
+      "case_id": "iwal-2025-current-statement-rows",
+      "ticker": "IWAL",
+      "accession": "0001498372-26-000002",
+      "source_hash": "8af5586b2cd2edbc8d22ac4ab68918977e43cc1932f116a3d891e63003ea1ba6",
+      "rows": [
+        {"line_number": 291, "target": "annual_profit", "note": "Current-year net loss row in the consolidated statement."},
+        {"line_number": 292, "target": "diluted_eps", "note": "Current-year basic and diluted per-share row."},
+        {"line_number": 293, "target": "diluted_shares", "note": "Current-year weighted-average basic and diluted shares row."}
+      ]
+    }
+  ]
+}

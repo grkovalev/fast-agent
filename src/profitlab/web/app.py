@@ -16,6 +16,7 @@ from profitlab.settings import Settings
 from profitlab.v2 import STAGE_NAMES, SequentialReportBatchService, V2PipelineService
 from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
 from profitlab.v2.evaluation_service import cross_run_scorecard
+from profitlab.v2.source_replay import SourceReplayService
 
 WEB_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
@@ -254,6 +255,8 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                   'chunk_score_summary': pipeline.repo.chunk_score_summary(run_id) if stage == 'chunk_score' else None,
                   'chunk_actions': [], 'findings': findings, 'finding_score_lookup': finding_score_lookup,
                   'source_context_decisions': source_context_decisions,
+                  'source_replay': (SourceReplayService(pipeline.repo).inspect(run_id)
+                                    if stage in {'findings', 'evaluate'} else None),
                   'finding_summary': pipeline.repo.finding_summary(run_id) if stage == 'findings' else None,
                   'finding_actions': [], 'structured_facts': pipeline.repo.structured_facts(run_id, page=page) if stage in {'facts', 'evaluate'} else [],
                   'fact_summary': pipeline.repo.fact_summary(run_id) if stage == 'facts' else None,

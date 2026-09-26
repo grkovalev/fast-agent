@@ -319,9 +319,12 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             calls = 1
             self.repo.save_finding_batch(request_hash, self.prompt_version, config, model,
                                          {'findings': proposals, 'model': actual_model})
-        findings, rejected = [], []
+        findings, rejected, proposal_audit = [], [], []
         for proposal in proposals:
             finding, error = self._validate(document, chunks, proposal, actual_model)
+            proposal_audit.append({'source_line': proposal.get('source_line') if isinstance(proposal, dict) else None,
+                                   'quote_validated': bool(finding), 'validation_error': error,
+                                   'repair_attempted': False})
             if finding:
                 findings.append(finding)
             else:
@@ -334,6 +337,9 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             for proposal in repaired:
                 finding, error = self._validate(document, chunks, proposal, repair_model,
                                                   repaired=True)
+                proposal_audit.append({'source_line': proposal.get('source_line') if isinstance(proposal, dict) else None,
+                                       'quote_validated': bool(finding), 'validation_error': error,
+                                       'repair_attempted': True})
                 if finding:
                     findings.append(finding)
                 else:
@@ -371,6 +377,10 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
         })
         self.repo.save_exploration_action(run_id, 'findings-request', 'findings', 1,
             {'request': state, 'model': actual_model, 'validated': len(findings),
-             'rejected': [{'reason': item['reason']} for item in rejected]})
+             'rejected': [{'reason': item['reason']} for item in rejected],
+             # Structural response provenance only: no generated quote or amount is
+             # duplicated in the trace.  It lets post-run replay distinguish model
+             # omission from a citation-validation loss.
+             'proposal_audit': proposal_audit})
         return FindingsResult(findings, calls, cached, len(rejected), state['context_fallback'],
                               len(chunks) - len(state['retained_chunks']))

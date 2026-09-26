@@ -42,6 +42,21 @@
   run and therefore does not create a persisted new version cohort. Remaining: record
   source-row expectations for the controlled replay set and diagnose this all-uncertain
   response shape before changing prompts, thresholds, retention, or Findings inputs.
+- T39 source-row replay slice: added a checked-in, source-hash-bound IWAL current-year
+  expectation set for the three statement rows (lines 291–293), and a strictly post-run
+  trace from flat retention through the actual Findings request, proposal validation,
+  Jev type classification, publication, and independent comparison. The findings trace
+  now persists structural proposal/validation audit entries for new runs without
+  duplicating generated quotes or amounts. The replay surface is visible only in the
+  Findings/Evaluate workspace and explicitly states that reviewed rows are never
+  provider inputs. Read-only replay of the saved live IWAL run verified all three rows
+  were flat-retained, sent, classified, and published; the profit row independently
+  matched. Its older trace predates proposal auditing, so proposal and quote-validation
+  states correctly render as unknown rather than failures. `uv run pytest -q` — **27
+  passed** (one existing Starlette/AnyIO deprecation warning); `uv run ruff check .`
+  and `git diff --check` passed. Next bounded experiment: execute one newly versioned,
+  controlled IWAL replay to populate the proposal audit, then inspect the first loss
+  point before altering any prompt, threshold, retention, or findings input.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
