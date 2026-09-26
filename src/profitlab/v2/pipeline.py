@@ -51,7 +51,7 @@ class V2PipelineService:
             'application_revision', 'outline_model', 'outline_prompt_version',
             'section_score_prompt_version', 'chunk_score_prompt_version',
             'source_context_prompt_version', 'source_context_max_blocks',
-            'source_context_max_requests',
+            'source_context_max_requests', 'source_context_batch_size',
             'source_context_rings', 'source_context_request_char_budget',
             'source_context_role_threshold', 'source_context_role_margin',
             'source_context_eligibility_threshold',

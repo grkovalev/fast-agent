@@ -81,8 +81,8 @@ async def test_context_request_cap_persists_an_explicit_partial_state(tmp_path):
     class Client:
         async def evaluate(self, request):
             return JevResponse(model='jev-test', usage=TokenUsage(input_tokens=1, output_tokens=1),
-                               answers={key: NoulAnswer(type='noul', noul=(.9 if key in (
-                                   'evidence', 'eligible__annual_profit') else .05))
+                               answers={key: NoulAnswer(type='noul', noul=(.9 if key.endswith((
+                                   '__evidence', '__eligible__annual_profit')) else .05))
                                         for key in request.questions})
 
     service._client = lambda *args, **kwargs: Client()  # type: ignore[method-assign]
@@ -92,6 +92,52 @@ async def test_context_request_cap_persists_an_explicit_partial_state(tmp_path):
     assert result.partial == 1
     assert [item.state for item in result.decisions] == ['completed', 'partial']
     assert result.decisions[-1].rationale == 'Configured live source-context request budget exhausted.'
+
+
+@pytest.mark.asyncio
+async def test_context_classification_batches_source_order_without_merging_ranges(tmp_path):
+    _, document, service = _setup(tmp_path)
+    service.settings = service.settings.model_copy(update={
+        'source_context_batch_size': 2, 'source_context_max_requests': 1})
+    cores = [SourceRange(document_id='document', source_hash='a' * 64, start_line=line, end_line=line)
+             for line in (3, 4)]
+
+    class Client:
+        async def evaluate(self, request):
+            assert [item['core_block']['line_number'] for item in request.state['source_blocks']] == [3, 4]
+            return JevResponse(model='jev-test', usage=TokenUsage(input_tokens=1, output_tokens=1),
+                               answers={key: NoulAnswer(type='noul', noul=(.9 if key.endswith((
+                                   '__evidence', '__sufficient', '__eligible__annual_profit')) else .05))
+                                        for key in request.questions})
+
+    service._client = lambda *args, **kwargs: Client()  # type: ignore[method-assign]
+    result = await service.classify('context-run', document, [(core, None) for core in cores])
+
+    assert result.calls == 1
+    assert [item.core_range.start_line for item in result.decisions] == [3, 4]
+    assert [item.call_id for item in result.decisions] == ['context-1', 'context-1']
+    assert result.decisions[0].context_ranges != result.decisions[1].context_ranges
+
+
+@pytest.mark.asyncio
+async def test_unusable_context_response_persists_an_explicit_partial_state(tmp_path):
+    _, document, service = _setup(tmp_path)
+    core = SourceRange(document_id='document', source_hash='a' * 64, start_line=3, end_line=3)
+
+    class Client:
+        async def evaluate(self, request):
+            # Jev returned a response, but omitted a required finite answer.  This
+            # diagnostic must not turn into a chunk-score baseline failure.
+            return JevResponse(model='jev-test', usage=TokenUsage(input_tokens=1, output_tokens=1),
+                               answers={'evidence': NoulAnswer(type='noul', noul=.9)})
+
+    service._client = lambda *args, **kwargs: Client()  # type: ignore[method-assign]
+    result = await service.classify('context-run', document, [(core, None)])
+
+    assert result.calls == 1
+    assert result.partial == 1
+    assert result.decisions[0].state == 'partial'
+    assert result.decisions[0].rationale == 'Jev source-context response was unusable: KeyError.'
 
 
 def test_chunk_inspector_renders_bounded_context_graph_without_changing_baseline(tmp_path):

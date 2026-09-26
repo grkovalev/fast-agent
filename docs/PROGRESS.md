@@ -22,15 +22,26 @@
   bounded Chunk/Chunk Score/Findings workspace surfaces as an evidence-core/context/
   expansion graph. It keeps the stage rail as checkpoint navigation, labels context as
   non-citable, and explicitly says flat chunk retention is unchanged. The next bounded
-  slice wires live classification after flat detailed-chunk scoring: it visits
-  de-duplicated retained-core canonical lines in source order and persists decisions
-  for those existing inspectors, without changing retention or Findings inputs. A
-  versioned maximum live-call budget (default 36) produces explicit partial decisions
-  on exhaustion or provider failure, rather than failing the baseline stage. `uv run
-  pytest -q` — **24 passed** (one existing Starlette/AnyIO deprecation warning); `uv
-  run ruff check .` and `git diff --check` passed. Browser and live-provider
-  verification were not run. Remaining: record side-by-side cohort measurements and
-  run the controlled live replay.
+  slice batches independent retained-core line decisions in source order (default eight
+  cores per Jev request), preserving each core's own visible context, response fields,
+  range, and expansion history. A versioned maximum live-call budget (default 36)
+  counts malformed/failed attempts and produces explicit partial decisions rather than
+  failing the baseline stage. Focused coverage includes response-invalid partial state
+  and source-order batching; `uv run pytest -q` — **26 passed** (one existing
+  Starlette/AnyIO deprecation warning); `uv run ruff check .` and `git diff --check`
+  passed.
+- T39 batched live replay: on 2026-09-26, direct diagnostic replay of the saved IWAL
+  run `v2-aa2f7a4a731e` classified its 107 already retained canonical lines with 36
+  Jev calls. It persisted 109 decisions: 88 completed and 21 explicit budget partials
+  (two recorded expansion attempts), compared with the earlier per-line wiring's 36
+  calls / 111 decisions / 75 partials. The baseline Findings/Evaluation rows were not
+  changed. All completed role judgements were `uncertain` (notably evidence scores
+  below the configured threshold), so batching improves diagnostic coverage only; it
+  does not demonstrate semantic usefulness or retrieval improvement. The replay used
+  execution revision `t39-context-batch-v1`, but was intentionally applied to a saved
+  run and therefore does not create a persisted new version cohort. Remaining: record
+  source-row expectations for the controlled replay set and diagnose this all-uncertain
+  response shape before changing prompts, thresholds, retention, or Findings inputs.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -231,7 +242,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T36 | Overall cross-run evaluation scorecard | DONE | Manual browser inspection pending |
 | T37 | Sequential random-report batch runner | DONE | Manual browser and live SEC/provider batch verification pending |
 | T38 | Versioned run timing and evaluation cohorts | DONE | Manual browser inspection pending |
-| T39 | Jev-directed adaptive source context and target eligibility | IN_PROGRESS | First contract slice passed; live classification not run |
+| T39 | Jev-directed adaptive source context and target eligibility | IN_PROGRESS | Batched IWAL diagnostic replay ran; no semantic improvement established |
 
 ## T32 final evidence
 
