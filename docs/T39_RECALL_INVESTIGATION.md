@@ -52,9 +52,34 @@ The same run recorded 109 source-context decisions: 88 completed and 21 explicit
 budget partials after 36 Jev calls. All final roles were `uncertain`. Since those
 decisions remain diagnostics and flat chunk retention delivered all three rows, the
 experiment establishes neither semantic value nor a context-driven retrieval effect.
-The immediate next diagnostic is to inspect the persisted completed/partial response
+The immediate next diagnostic was to inspect the persisted completed/partial response
 shape and expansion histories, without changing a prompt, threshold, retention rule,
 or Findings input first.
+
+### 5. Score-shape diagnostic replay
+
+On 2026-09-27, `v2-10d253c64e2b` replayed the same 107 flat-retained IWAL cores
+under application revision `t39-score-shape-v1` / version `v2-a3c9381780e9992a`.
+It persisted the complete finite Jev answer vector alongside every completed
+source-context decision. The request, thresholds, rings, expansion policy, flat
+retention, and Findings inputs were unchanged.
+
+The replay made 36 Jev calls and persisted 109 decisions: 88 completed, 21 explicit
+request-budget partials; 69 completed cores were uncertain with sufficient context,
+18 were uncertain with insufficient context, and one was evidence with sufficient
+context. The evidence-labelled core was line 290, a heading/context line eligible
+only for earnings-change and comparability—not a target value. The reviewed loss row
+291 had sufficient context but evidence 0.64, just below the 0.65 role threshold,
+and annual-profit eligibility 0.47. Rows 292 and 293 had evidence 0.62 and
+diluted-shares eligibility 0.87, but were still role-uncertain. The two eligible,
+insufficient first-pass candidates entered pass 1 after the final first-pass call and
+became budget partials.
+
+This identifies a response-calibration shape (near-threshold generic evidence plus
+separate direct-type scores) but does not establish a safe threshold change, a useful
+eligibility rule, or retrieval improvement. A same-source diagnostic replay that
+accidentally inherited application revision `0.1.0` is retained as
+`v2-8c12a9fdc6eb` but explicitly excluded from controlled cohorts.
 
 ## What was tried
 

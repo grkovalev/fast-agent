@@ -72,6 +72,29 @@
   retention remains the active path. Next bounded slice: inspect the persisted
   completed/partial Jev response shape and its expansion history before changing
   any prompt, threshold, retention, or Findings input.
+- T39 score-shape diagnostic slice: persisted the complete finite Jev score vector
+  with every completed `SourceContextDecision` and exposed its role/sufficiency
+  scores in the bounded context inspector; partial and historical decisions state
+  that scores are unavailable. This changes no prompt, threshold, expansion policy,
+  retention, or Findings input. A fresh direct replay of the same 107 IWAL
+  flat-retained source lines under application revision `t39-score-shape-v1` created
+  `v2-10d253c64e2b` / `v2-a3c9381780e9992a`: 109 decisions, 88 completed, 21
+  explicit request-budget partials, and 36 Jev calls. Of completed decisions, 69
+  were uncertain/sufficient, 18 uncertain/insufficient, and one
+  evidence/sufficient (line 290, a heading/context line eligible only for
+  earnings-change/comparability). The reviewed annual-loss row 291 remained
+  uncertain despite sufficient context (evidence 0.64 vs the 0.65 role threshold;
+  annual-profit eligibility 0.47); rows 292–293 had evidence 0.62 but
+  diluted-shares eligibility 0.87. The two pass-1 expansions again consumed the
+  remaining call budget and became explicit partials. This is response-shape
+  evidence, not a retrieval result or a basis to tune a threshold from one filing.
+  An accidental otherwise-identical replay `v2-8c12a9fdc6eb` inherited revision
+  `0.1.0`; it is marked partial and excluded from controlled cohorts. Local
+  acceptance: `uv run pytest tests/task_gates/test_t39.py -q` — 8 passed (one
+  existing Starlette/AnyIO warning); `uv run ruff check .` and `git diff --check`
+  passed. Next bounded experiment: define the fixed multi-filing source-row replay
+  set named in the recall investigation before evaluating any calibrated role or
+  eligibility alternative.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).

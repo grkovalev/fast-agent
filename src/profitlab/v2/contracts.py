@@ -161,6 +161,11 @@ class SourceContextDecision(V2Contract):
     target_eligibility: dict[str, bool]
     context_sufficient: bool | None = None
     unresolved_fields: list[Literal['metric', 'period', 'unit_scale', 'attribution', 'qualifier']] = Field(default_factory=list)
+    # Preserve the finite Jev response shape separately from the interpreted role.
+    # In particular, an ``uncertain`` role can mean a near-threshold evidence score,
+    # a close role margin, or a malformed/partial response; those must not be
+    # conflated when inspecting a bounded live cohort.
+    response_scores: dict[str, Annotated[float, Field(ge=0, le=1)]] = Field(default_factory=dict)
     rationale: str = Field(min_length=1, max_length=2000)
     confidence: float = Field(ge=0, le=1)
     model: str

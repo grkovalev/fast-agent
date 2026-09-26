@@ -135,7 +135,7 @@ class SourceContextService:
             block_id='block-' + hashlib.sha256(f'{document.ref.source_hash}:{core.start_line}'.encode()).hexdigest()[:24],
             core_range=core, context_ranges=context, expansion_pass=expansion_pass, role=role,
             target_eligibility=eligible, context_sufficient=sufficient,
-            unresolved_fields=unresolved,
+            unresolved_fields=unresolved, response_scores=scores,
             rationale=('Jev scores: ' + ', '.join(f'{key}={scores[key]:.2f}' for key in ranked) +
                        f'; sufficient={scores["sufficient"]:.2f}.'),
             confidence=scores[ranked[0]], model=response.model, call_id=call_id,
@@ -216,5 +216,5 @@ class SourceContextService:
                 f'{document.ref.source_hash}:{core.start_line}'.encode()).hexdigest()[:24],
             core_range=core, context_ranges=context, expansion_pass=expansion_pass, role='uncertain',
             target_eligibility={target: False for target in TARGETS}, context_sufficient=None,
-            unresolved_fields=list(UNRESOLVED_FIELDS), rationale=rationale,
+            unresolved_fields=list(UNRESOLVED_FIELDS), response_scores={}, rationale=rationale,
             confidence=0, model=self.settings.typesafe_model, call_id='none', state='partial')

@@ -64,6 +64,8 @@ def test_context_decision_is_range_bound_and_persists_expansion_history(tmp_path
     assert saved[0].target_eligibility == {'annual_profit': True, 'diluted_eps': False,
                                             'diluted_shares': False, 'earnings_change': False,
                                             'comparability': False}
+    assert saved[0].response_scores['evidence'] == .9
+    assert saved[0].response_scores['eligible__annual_profit'] == .9
     assert saved[0].core_range.start_line == saved[0].core_range.end_line == 3
     assert all(item.start_line != 3 and item.end_line != 3 for item in saved[0].context_ranges)
 
@@ -143,6 +145,7 @@ async def test_unusable_context_response_persists_an_explicit_partial_state(tmp_
     assert result.calls == 1
     assert result.partial == 1
     assert result.decisions[0].state == 'partial'
+    assert result.decisions[0].response_scores == {}
     assert result.decisions[0].rationale == 'Jev source-context response was unusable: KeyError.'
 
 
@@ -175,6 +178,7 @@ def test_chunk_inspector_renders_bounded_context_graph_without_changing_baseline
     assert 'Flat chunk retention is unchanged' in response.text
     assert 'context →' in response.text
     assert 'expansion →</strong> pass 1 wider visible ring' in response.text
+    assert 'Jev response scores: unavailable' in response.text
 
 
 def test_source_row_replay_traces_persisted_loss_points_without_provider_inputs(tmp_path):
