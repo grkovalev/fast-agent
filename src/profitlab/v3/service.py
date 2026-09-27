@@ -184,6 +184,21 @@ class V3GraphService:
                 errors.append(f'next window {index} rejected: {error}')
         return plans, errors
 
+    @staticmethod
+    def _answerability(proposal) -> str:
+        """Accept only the model's explicit frontier decision.
+
+        The application deliberately does not infer sufficiency from labels,
+        relations, document position, or source text. A malformed or omitted
+        decision therefore cannot make a frontier answerable.
+        """
+        if not isinstance(proposal, dict):
+            raise TypeError('response is not an object')
+        value = proposal.get('answerability')
+        if value not in ('sufficient', 'insufficient'):
+            raise ValueError('answerability must be exactly sufficient or insufficient')
+        return value
+
     def _range(self, document, value, start, end) -> SourceRange:
         if not isinstance(value, dict):
             raise TypeError('evidence span is not an object')
@@ -418,7 +433,7 @@ class V3GraphService:
         nodes, edges, seen, source_chars, started = [], [], set(), 0, time.monotonic()
         frontier = deque((start, end, 'initial generic source coverage', [])
                          for start, end in self._initial_windows(document))
-        sequence, budget_exhausted = 0, False
+        sequence, budget_exhausted, partial_terminal, answerable = 0, False, False, False
         while frontier:
             if (sequence >= self.settings.v3_max_actions or
                     source_chars >= self.settings.v3_max_total_source_characters or
@@ -444,8 +459,10 @@ class V3GraphService:
                 'kind': 'explore', 'question': question,
                 'window': {'start_line': start, 'end_line': end}, 'lines': lines,
                 'document_bounds': {'start_line': 1, 'end_line': document.ref.line_count},
+                'next_window_max_lines': self.settings.v3_window_lines,
                 'relation_vocabulary': ['supports', 'qualifies', 'contradicts', 'same_claim', 'narrows', 'related_to'],
                 'output': {
+                    'answerability': '"sufficient" | "insufficient"',
                     'nodes': '[{label,status,evidence:[{start_line,end_line?,start_character?,end_character?,exact_text}]}]',
                     'edges': '[{from_node,to_node,relation,status,evidence:[...]}]',
                     'next_windows': '[{start_line,end_line,reason,parent_refs:[node index or node id]}]',
@@ -453,12 +470,15 @@ class V3GraphService:
                 'constraints': ('Use only supplied lines. Cite exact spans. Never emit an answer. '
                                 'Node and edge status MUST be exactly accepted, uncertain, or rejected. '
                                 'Edges must refer to nodes using their zero-based index, not their labels. '
-                                'If more source is needed, request only bounded next_windows within document_bounds, '
-                                'each justified by accepted or uncertain nodes from this response in parent_refs. '
-                                'Do not request a window already supplied; return an empty list when no justified expansion remains.'),
+                                'Set answerability to sufficient only when this frontier makes the supplied graph able to answer the question; '
+                                'otherwise set it to insufficient. An insufficient frontier MUST request at least one bounded next_windows '
+                                'entry within document_bounds, each justified by accepted or uncertain nodes from this response in parent_refs. '
+                                f'Each next window may contain at most {self.settings.v3_window_lines} lines. '
+                                'A sufficient frontier must return an empty next_windows list. Do not request a window already supplied.'),
             }
             request_hash = _digest({'request': request, 'model': self.model, 'prompt': self.settings.v3_prompt_version})
             cached = self.repo.cached(request_hash); tick = time.monotonic()
+            answerability = None
             try:
                 response = cached if cached is not None else await self._live_call(request)
                 if cached is None:
@@ -469,22 +489,35 @@ class V3GraphService:
                 next_plans, next_errors = self._next_windows(
                     response, document, local_nodes, local_edges)
                 errors.extend(next_errors)
-                for plan in next_plans:
-                    if plan[:2] not in seen:
-                        frontier.append(plan)
+                answerability = self._answerability(response)
+                unvisited_plans = [plan for plan in next_plans if plan[:2] not in seen]
+                if answerability == 'insufficient':
+                    if not unvisited_plans:
+                        errors.append('insufficient frontier has no valid unvisited continuation')
+                        partial_terminal = True
+                    else:
+                        frontier.extend(unvisited_plans)
+                else:
+                    # A sufficient declaration is the only model-provided
+                    # permission to leave exploration for answer synthesis.
+                    answerable = True
                 state = 'cached' if cached else ('partial' if errors else 'completed')
             except Exception as error:  # noqa: BLE001 - audit a malformed/provider response and continue.
                 response, errors, state = {'error': str(error)}, [str(error)], 'partial'
+                partial_terminal = True
             action = ExplorationAction(
                 action_id=_id('action', [manifest.experiment_id, sequence, request_hash]),
                 experiment_id=manifest.experiment_id, sequence=sequence, window=window,
                 reason=reason, parent_path=parent_path, status=state,
                 budget_state=self._budget_state(sequence, source_chars, started), request_hash=request_hash,
-                response_status='; '.join(errors)[:2000] or 'validated',
+                response_status='; '.join(errors)[:2000] or 'validated', answerability=answerability,
                 elapsed_seconds=time.monotonic() - tick, created_at=datetime.now(UTC))
             self.repo.save_action(action, request, response)
+            if partial_terminal or answerable:
+                break
         manifest = manifest.model_copy(update={
-            'frontier_state': 'budget_exhausted' if budget_exhausted else 'exhausted',
+            'frontier_state': ('partial' if partial_terminal else
+                               'budget_exhausted' if budget_exhausted else 'exhausted'),
             'finished_at': datetime.now(UTC),
         })
         paths = self._paths(document, nodes, edges)
@@ -493,6 +526,8 @@ class V3GraphService:
         # particular, a graph with no accepted path must remain inspectable even
         # though _answer deliberately refuses to fabricate a claim.
         self.repo.update_manifest(manifest)
+        if not answerable:
+            raise ValueError('V3 frontier ended without a sufficient model-supplied answerability decision; no answer was synthesized.')
         answer = await self._answer(manifest, document, nodes, edges, paths)
         manifest = manifest.model_copy(update={'frontier_state': 'answered', 'finished_at': datetime.now(UTC)})
         self.repo.update_manifest(manifest); self.repo.save_answer(answer)

@@ -35,7 +35,7 @@
 <section><p class="eyebrow">Why each window was explored</p><h2>Frontier trace</h2>
 {% for action in actions %}<article class="graph-item"><span class="graph-status {{ action.status }}">{{ action.status | replace('_', ' ') }}</span>
 <h3><a href="/v3/experiments/{{ manifest.experiment_id }}/source?line={{ action.window.start_line }}#line-{{ action.window.start_line }}">L{{ action.window.start_line }}–{{ action.window.end_line }}</a></h3>
-<p>Reason: {{ action.reason }}</p><p class="muted">Parent path: {{ action.parent_path | join(', ') if action.parent_path else 'Initial bounded source window' }} · {{ 'cached' if action.status == 'cached' else action.elapsed_seconds ~ 's' }} · response {{ action.response_status }} · request {{ action.request_hash[:12] }}</p>
+<p>Reason: {{ action.reason }}</p><p class="muted">Parent path: {{ action.parent_path | join(', ') if action.parent_path else 'Initial bounded source window' }} · answerability {{ action.answerability or 'invalid or missing' }} · {{ 'cached' if action.status == 'cached' else action.elapsed_seconds ~ 's' }} · response {{ action.response_status }} · request {{ action.request_hash[:12] }}</p>
 <details><summary>Budget at this action</summary><dl>{% for key, value in action.budget_state.items() %}<dt>{{ key | replace('_', ' ') }}</dt><dd>{{ value }}</dd>{% endfor %}</dl></details></article>
 {% else %}<p>No exploration action was persisted.</p>{% endfor %}
 <p class="notice">Exploration stopped with frontier <strong>{{ manifest.frontier_state | replace('_', ' ') }}</strong>. Budgets: {% for key, value in manifest.budgets.items() %}{{ key | replace('_', ' ') }} {{ value }}{% if not loop.last %}; {% endif %}{% endfor %}.</p>

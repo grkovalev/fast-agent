@@ -169,6 +169,18 @@ cohort, implement the bounded generic `answerability`/continuation follow-up rec
 in [PROGRESS.md](PROGRESS.md). It must remain model-directed and source-range-bound;
 do not add document-layout or financial-target heuristics.
 
+### G6a — Insufficiency-directed graph continuation
+
+Each bounded exploration response must declare typed `answerability` as either
+`sufficient` or `insufficient`. This remains a model-supplied graph decision: the
+application may validate and persist it, but must not infer it from headings, tables,
+rows, values, page positions, or document type. Only a `sufficient` frontier may
+enter answer synthesis. An `insufficient` frontier must provide at least one valid,
+unvisited, bounded continuation window linked to accepted or uncertain evidence from
+that action; otherwise the explorer persists a `partial` terminal frontier and makes
+no answer call. Range validation, source/action/wall-time budgets, and normalized
+interval no-revisit remain application-owned.
+
 ## Superseded exploratory draft (preserved for context; do not implement)
 
 ## Objective

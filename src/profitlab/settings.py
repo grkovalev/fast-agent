@@ -155,7 +155,7 @@ class Settings(BaseSettings):
     # V3 is an isolated source-grounded graph experiment.  None of these settings
     # participate in V2 run identity or storage.
     v3_model: str | None = None
-    v3_prompt_version: str = 'evidence-graph-v4'
+    v3_prompt_version: str = 'evidence-graph-v5'
     v3_window_lines: int = Field(120, ge=10, le=1000)
     v3_window_overlap_lines: int = Field(20, ge=0, le=300)
     v3_max_actions: int = Field(12, ge=1, le=100)

@@ -52,6 +52,9 @@ class ExplorationAction(V3Contract):
     budget_state: dict[str, int | float] = Field(default_factory=dict)
     request_hash: str = Field(pattern=r'^[a-f0-9]{64}$')
     response_status: str
+    # A model declaration about this source-cited frontier; never inferred by
+    # application policy from document structure or graph labels.
+    answerability: Literal['sufficient', 'insufficient'] | None = None
     elapsed_seconds: float = Field(ge=0)
     created_at: datetime
 
@@ -112,7 +115,7 @@ class ExperimentManifest(V3Contract):
     non_leak_inventory: tuple[str, ...]
     created_at: datetime
     finished_at: datetime | None = None
-    frontier_state: Literal['active', 'exhausted', 'answered', 'budget_exhausted'] = 'active'
+    frontier_state: Literal['active', 'exhausted', 'partial', 'answered', 'budget_exhausted'] = 'active'
 
 
 class GraphAnswer(V3Contract):

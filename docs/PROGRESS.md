@@ -127,20 +127,26 @@
   were intentionally stopped because repeating the same unaddressed planner failure
   would not be a meaningful comparison.
 
-  **Next task (G6a — insufficiency-directed graph continuation):** preserve the
-  generic, model-built graph boundary while adding a typed model-supplied
-  `answerability` decision to every exploration action. It distinguishes `sufficient`
-  from `insufficient`; an insufficient frontier must not enter answer synthesis. For
-  insufficient evidence, require a bounded model-proposed next source window linked
-  to accepted/uncertain action evidence, or persist an explicit partial terminal
-  state. Do not add financial, table, heading, row, page-number, or layout heuristics;
-  the application still owns only range validation, provenance, budgets, deduplication,
-  and terminal-state persistence. Preserve the existing no-revisit and action/source/
-  wall-time bounds. Add focused contracts for insufficient-with-expansion,
-  insufficient-without-expansion partial state, sufficient answer eligibility, and no
-  answer call from an insufficient frontier. Then run a fresh, new-revision pilot;
-  only after it demonstrates source-path progress should a separate frozen five-case
-  held-out G6 cohort begin. CRVL, SPRO, and WOR are excluded from that held-out cohort.
+  G6a insufficiency-directed graph continuation (2026-09-27): every exploration
+  action now persists the validated model `answerability` (`sufficient` or
+  `insufficient`; malformed responses remain visibly null/partial). Only a
+  `sufficient` frontier can call answer synthesis. An `insufficient` frontier must
+  issue an unvisited, bounded, accepted/uncertain-evidence-linked continuation or
+  persist terminal frontier `partial`; it cannot synthesize an answer. No-revisit,
+  exact range validation, and source/action/wall-time budgets remain unchanged. The
+  generic request now states the configured maximum continuation size and is versioned
+  `evidence-graph-v5`; no financial, layout, table, or heading policy was added.
+  Focused contracts cover continuation, no-continuation partials, sufficient-only
+  synthesis eligibility, and the no-answer-call invariant. Focused V3 tests pass
+  (`19 passed`); full-suite revalidation passes (`58 passed`). Fresh live development
+  pilot `v3-358e57c01e560ea2` used revision
+  `g6a-pilot-20260927-v5` and the annual net-income/EPS/shares question on MSFT. Its
+  first insufficient frontier validly continued from L1–120 to L121–240 through an
+  accepted parent node, demonstrating source-path progress. The second insufficient
+  frontier proposed malformed exact evidence/provenance, so validation persisted
+  `partial` and made no answer call. This is a development diagnostic, not a held-out
+  result. Do not begin the frozen five-case G6 cohort yet; CRVL, SPRO, and WOR remain
+  excluded when a cohort is separately authorized.
 - Deferred V2 follow-up: define one bounded evaluator-representativeness task from
   the T41 cohort; do not tune Findings prompts, vocabulary, or thresholds from that
   cohort on this graph branch.
