@@ -1,4 +1,5 @@
 """V3 remains source-cited and physically isolated from the V2 baseline."""
+import json
 import sqlite3
 
 import pytest
@@ -6,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from profitlab.settings import Settings
 from profitlab.v2.canonical import CanonicalDocument, CanonicalLine
-from profitlab.v2.contracts import CanonicalDocumentRef
+from profitlab.v2.contracts import CanonicalDocumentRef, SourceRange
 from profitlab.v2.storage import V2Repository
 from profitlab.v3.service import V3GraphService, _Trace
 from profitlab.web.app import create_app
@@ -98,6 +99,56 @@ async def test_v3_limits_but_keeps_an_exact_answer_when_model_mangles_opaque_pat
     assert result.answer.status == 'limited'
     assert result.answer.path_ids == [result.paths[0].path_id]
     assert 'derived mechanically' in result.answer.limitation
+
+
+@pytest.mark.asyncio
+async def test_v3_persists_each_material_answer_claim_with_its_exact_graph_path(tmp_path):
+    async def caller(payload):
+        if payload['kind'] == 'explore':
+            return {'nodes': [{'label': 'revenue', 'status': 'accepted',
+                               'evidence': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}], 'edges': []}
+        path = payload['paths'][0]
+        return {'answer': 'Revenue was 100.', 'limitation': None, 'path_ids': [path['path_id']],
+                'claims': [{'claim': 'Revenue was 100.', 'path_ids': [path['path_id']],
+                            'citations': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}]}
+
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, v3_window_lines=10)
+    result = await V3GraphService(settings, caller=caller).answer_document('TEST', 'Question?', _document())
+    assert result.answer.claims[0].path_ids == result.answer.path_ids
+    assert result.answer.claims[0].source_ranges[0].start_line == 1
+
+
+@pytest.mark.asyncio
+async def test_v3_refuses_a_claim_citation_outside_its_graph_path(tmp_path):
+    async def caller(payload):
+        if payload['kind'] == 'explore':
+            return {'nodes': [{'label': 'revenue', 'status': 'accepted',
+                               'evidence': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}], 'edges': []}
+        path = payload['paths'][0]
+        return {'answer': 'Unsupported claim.', 'path_ids': [path['path_id']],
+                'claims': [{'claim': 'Unsupported claim.', 'path_ids': [path['path_id']],
+                            'citations': [{'start_line': 2, 'exact_text': 'The increase supports growth.'}]}]}
+
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, v3_window_lines=10)
+    with pytest.raises(ValueError, match='selected graph path'):
+        await V3GraphService(settings, caller=caller).answer_document('TEST', 'Question?', _document())
+
+
+@pytest.mark.asyncio
+async def test_v3_returns_explicitly_limited_answer_from_uncertain_graph(tmp_path):
+    async def caller(payload):
+        if payload['kind'] == 'explore':
+            return {'nodes': [{'label': 'possible revenue', 'status': 'uncertain',
+                               'evidence': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}], 'edges': []}
+        path = payload['paths'][0]
+        return {'answer': 'The source may report revenue of 100.', 'path_ids': [path['path_id']],
+                'claims': [{'claim': 'The source may report revenue of 100.', 'path_ids': [path['path_id']],
+                            'citations': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}]}
+
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, v3_window_lines=10)
+    result = await V3GraphService(settings, caller=caller).answer_document('TEST', 'Question?', _document())
+    assert result.answer.status == 'limited'
+    assert 'uncertain or conflicting' in result.answer.limitation
 
 
 @pytest.mark.asyncio
@@ -247,3 +298,28 @@ async def test_v3_explorer_shows_one_path_exact_source_and_frontier_audit(tmp_pa
     assert 'Model label:' in page.text
     assert 'unresolved context' in page.text and 'discarded claim' in page.text
     assert 'Only canonical visible text is shown here.' in source.text
+
+
+def test_v3_explorer_reads_pre_g5_answer_rows(tmp_path):
+    """Existing isolated experiments remain inspectable after claim persistence."""
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
+    service = V3GraphService(settings)
+    document = _document()
+    manifest = __import__('profitlab.v3.contracts', fromlist=['ExperimentManifest']).ExperimentManifest(
+        experiment_id='v3-' + 'a' * 16, question='Question?', document=document.ref, ticker='TEST',
+        filing={}, application_revision='legacy', model='model', prompt_version='old', budgets={},
+        non_leak_inventory=service._NON_LEAK, created_at=__import__('datetime').datetime.now(__import__('datetime').UTC))
+    service.repo.create(manifest, document, b'', b'')
+    with service.repo.connect() as db:
+        db.execute('INSERT INTO answers VALUES (?, ?, ?)', (manifest.experiment_id, 'answer-' + 'b' * 16,
+            json.dumps({'schema_version': 3, 'answer_id': 'answer-' + 'b' * 16,
+                        'experiment_id': manifest.experiment_id, 'answer': 'Revenue was 100.',
+                        'limitation': None, 'path_ids': ['path-' + 'c' * 16],
+                        'source_ranges': [SourceRange(document_id=document.ref.document_id,
+                                                      source_hash=document.ref.source_hash,
+                                                      start_line=1, end_line=1).model_dump(mode='json')],
+                        'status': 'limited',
+                        'model': 'model', 'prompt_version': 'old'})))
+    with TestClient(create_app(settings)) as client:
+        response = client.get('/v3/experiments/' + manifest.experiment_id)
+    assert response.status_code == 200

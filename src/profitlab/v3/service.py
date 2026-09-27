@@ -18,6 +18,7 @@ from profitlab.v2.contracts import SourceRange
 
 from .contracts import (
     AnswerCandidate,
+    AnswerClaim,
     EvidenceEdge,
     EvidenceNode,
     ExperimentManifest,
@@ -252,20 +253,24 @@ class V3GraphService:
     def _paths(self, document, nodes, edges):
         paths = []
         for node in nodes:
-            if node.status != 'accepted':
+            if node.status == 'rejected':
                 continue
             paths.append(GraphPath(path_id=_id('path', [node.node_id]), document_id=document.ref.document_id,
-                source_hash=document.ref.source_hash, node_ids=[node.node_id], source_ranges=node.evidence_ranges))
+                source_hash=document.ref.source_hash, node_ids=[node.node_id], source_ranges=node.evidence_ranges,
+                status=node.status))
         for edge in edges:
-            if edge.status != 'accepted':
+            if edge.status == 'rejected':
                 continue
             source_nodes = {item.node_id: item for item in nodes}
             if (edge.from_node_id in source_nodes and edge.to_node_id in source_nodes and
-                    source_nodes[edge.from_node_id].status == 'accepted' and
-                    source_nodes[edge.to_node_id].status == 'accepted'):
+                    source_nodes[edge.from_node_id].status != 'rejected' and
+                    source_nodes[edge.to_node_id].status != 'rejected'):
                 ranges = source_nodes[edge.from_node_id].evidence_ranges + source_nodes[edge.to_node_id].evidence_ranges + edge.evidence_ranges
                 paths.append(GraphPath(path_id=_id('path', [edge.edge_id]), document_id=document.ref.document_id,
-                    source_hash=document.ref.source_hash, node_ids=[edge.from_node_id, edge.to_node_id], edge_ids=[edge.edge_id], source_ranges=ranges))
+                    source_hash=document.ref.source_hash, node_ids=[edge.from_node_id, edge.to_node_id], edge_ids=[edge.edge_id], source_ranges=ranges,
+                    status='accepted' if edge.status == 'accepted' and
+                    source_nodes[edge.from_node_id].status == source_nodes[edge.to_node_id].status == 'accepted'
+                    else 'uncertain'))
         return paths
 
     def _answer_range(self, document, value, selected_paths):
@@ -323,20 +328,25 @@ class V3GraphService:
             for source in ranges for graph_source in path.source_ranges
         )]
 
-    async def _answer(self, manifest, document, nodes, paths):
-        usable = [path for path in paths]
+    async def _answer(self, manifest, document, nodes, edges, paths):
+        accepted = [path for path in paths if path.status == 'accepted']
+        uncertain = [path for path in paths if path.status == 'uncertain']
+        usable = accepted or uncertain
         if not usable:
             raise ValueError('V3 frontier exhausted without accepted source-cited graph support; no answer was fabricated.')
+        conflicted = any(edge.status == 'accepted' and edge.relation == 'contradicts' for edge in edges)
+        limited_mode = bool(uncertain) or conflicted
         path_packet = [{**path.model_dump(mode='json'), 'evidence': [
             {'source_range': source.model_dump(mode='json'), 'exact_text': document.slice(source)}
             for source in path.source_ranges
         ]} for path in usable]
         packet = {'kind': 'answer', 'question': manifest.question, 'paths': path_packet,
-                  'nodes': [node.model_dump(mode='json') for node in nodes if node.status == 'accepted'],
                   'instruction': ('Answer only from the exact_text evidence in these paths. Labels are navigational metadata, not source. '
                                   'Return {"answer": string, "limitation": string|null, "path_ids": [...], '
-                                  '"citations": [{"start_line":int,"end_line":int,"start_character":int|null,"end_character":int|null,"exact_text":string}]}. '
-                                  'Every material claim needs a non-empty exact-text citation and path.')}
+                                  '"claims": [{"claim":string,"path_ids":[...],"citations":[{"start_line":int,"end_line":int,"start_character":int|null,"end_character":int|null,"exact_text":string}]}]}. '
+                                  'Every material claim needs a non-empty exact-text citation and path. '
+                                  + ('The selected graph is uncertain or conflicting: provide a limited answer and state that limitation; do not force a conclusion.'
+                                     if limited_mode else 'State unresolved information as a limitation rather than guessing.'))}
         response = await self._live_call(packet)
         self.repo.save_answer_attempt(manifest.experiment_id, packet, response)
         supplied_path_ids = response.get('path_ids')
@@ -346,10 +356,35 @@ class V3GraphService:
                           set(supplied_path_ids) <= valid_ids else [])
         # If opaque IDs are mangled, an answer remains useful only when its exact
         # source quotes mechanically identify accepted graph paths.
-        ranges = [self._answer_range(document, item, selected_paths or usable)
-                  for item in response.get('citations', [])]
-        if not ranges:
-            raise ValueError('V3 answer has no source citation.')
+        raw_claims = response.get('claims')
+        # Older saved callers used one answer-level citation list.  Preserve that
+        # wire compatibility by treating it as one explicitly source-bound claim;
+        # live prompts always request the stricter per-claim shape above.
+        if not isinstance(raw_claims, list):
+            raw_claims = [{'claim': response.get('answer'), 'path_ids': response.get('path_ids'),
+                           'citations': response.get('citations', [])}]
+        claims = []
+        for item in raw_claims:
+            if not isinstance(item, dict) or not isinstance(item.get('claim'), str) or not item['claim'].strip():
+                raise ValueError('V3 answer claim is missing.')
+            raw_ids = item.get('path_ids', response.get('path_ids'))
+            claim_paths = ([path for path in usable if path.path_id in raw_ids]
+                           if isinstance(raw_ids, list) and raw_ids and set(raw_ids) <= valid_ids else [])
+            ranges = [self._answer_range(document, citation, claim_paths or usable)
+                      for citation in item.get('citations', [])]
+            if not ranges:
+                raise ValueError('V3 answer claim has no source citation.')
+            if not claim_paths:
+                claim_paths = self._paths_for_ranges(usable, ranges)
+            if not claim_paths:
+                raise ValueError('V3 answer claim citation is absent from every selected graph path.')
+            claims.append(AnswerClaim(claim=item['claim'].strip(), path_ids=[path.path_id for path in claim_paths],
+                                      source_ranges=ranges))
+        ranges = [source for claim in claims for source in claim.source_ranges]
+        claim_path_ids = {path_id for claim in claims for path_id in claim.path_ids}
+        if selected_paths:
+            selected_paths = [path for path in usable if path.path_id in
+                              ({path.path_id for path in selected_paths} | claim_path_ids)]
         derived_paths = False
         if not selected_paths:
             selected_paths = self._paths_for_ranges(usable, ranges)
@@ -361,12 +396,15 @@ class V3GraphService:
         if not isinstance(answer, str) or not answer.strip():
             raise ValueError('V3 answer text is missing.')
         limitation = response.get('limitation') if isinstance(response.get('limitation'), str) else None
+        if limited_mode and not limitation:
+            limitation = ('The selected graph includes uncertain or conflicting source-cited evidence; '
+                          'this answer is explicitly limited and does not resolve that ambiguity.')
         if derived_paths:
             note = 'Graph paths were derived mechanically from exact citations because the model returned missing or invalid path IDs.'
             limitation = f'{limitation} {note}' if limitation else note
         return AnswerCandidate(answer_id=_id('answer', [manifest.experiment_id, response]), experiment_id=manifest.experiment_id,
             answer=answer.strip(), limitation=limitation, path_ids=path_ids, source_ranges=ranges,
-            status='limited' if limitation else 'accepted',
+            claims=claims, status='limited' if limitation or limited_mode else 'accepted',
             model=self.model, prompt_version=self.settings.v3_prompt_version)
 
     async def answer_document(self, ticker: str, question: str, document: CanonicalDocument, *, raw_html=b'', visible_html=b'', filing=None):
@@ -455,7 +493,7 @@ class V3GraphService:
         # particular, a graph with no accepted path must remain inspectable even
         # though _answer deliberately refuses to fabricate a claim.
         self.repo.update_manifest(manifest)
-        answer = await self._answer(manifest, document, nodes, paths)
+        answer = await self._answer(manifest, document, nodes, edges, paths)
         manifest = manifest.model_copy(update={'frontier_state': 'answered', 'finished_at': datetime.now(UTC)})
         self.repo.update_manifest(manifest); self.repo.save_answer(answer)
         cited = {f'L{line}': document.lines[line - 1].text for source in answer.source_ranges for line in range(source.start_line, source.end_line + 1)}

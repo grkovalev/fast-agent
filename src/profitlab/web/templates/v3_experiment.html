@@ -26,7 +26,9 @@
 <section><p class="eyebrow">Answer candidates</p><h2>Separate model output</h2>
 {% for answer in answers %}<article class="graph-item"><span class="graph-status {{ answer.status }}">{{ answer.status }}</span><p>{{ answer.answer }}</p>
 {% if answer.limitation %}<p class="muted">Limitation: {{ answer.limitation }}</p>{% endif %}
-<p>{% for path_id in answer.path_ids %}<a href="?path_id={{ path_id }}">Inspect {{ path_id }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p></article>
+<h3>Claim-to-source paths</h3><ul>{% for claim in answer.claims %}<li><strong>{{ claim.claim }}</strong><br>
+{% for source in claim.source_ranges %}<a href="/v3/experiments/{{ manifest.experiment_id }}/source?line={{ source.start_line }}#line-{{ source.start_line }}">Canonical L{{ source.start_line }}{% if source.end_line != source.start_line %}–{{ source.end_line }}{% endif %}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+<br>{% for path_id in claim.path_ids %}<a href="?path_id={{ path_id }}">Inspect {{ path_id }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</li>{% endfor %}</ul></article>
 {% else %}<p>No answer candidate was persisted. The explorer keeps the unsupported graph visible rather than inventing an answer.</p>{% endfor %}
 </section>
 

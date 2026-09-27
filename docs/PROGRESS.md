@@ -60,10 +60,39 @@
   reason/parent path/budget with the terminal frontier notice. Confirm uncertain and
   rejected inventory entries remain visibly non-promoted. No live check was attempted
   because it requires configured SEC and LLM credentials.
-- Next task (this branch): **G5 — Graph-grounded answer candidate and exact
-  validation** from
+- G5 graph-grounded answer validation: V3 now persists each material answer claim
+  with its own exact canonical ranges and selected graph-path IDs. The answer request
+  is bounded to those path packets and labels remain navigational metadata, never
+  source. A citation outside its selected path is rejected; missing/mangled opaque
+  path IDs can only be mechanically derived from exact citations and make the result
+  limited. An uncertain subgraph (or an accepted `contradicts` relationship) is
+  explicitly limited rather than allowed to force a conclusion. The explorer now
+  renders each claim's source links and inspectable full path. This remains isolated
+  in the V3 repository and does not read or write V2 Findings.
+
+  Focused `time uv run pytest tests/task_gates/test_v3_graph.py -q` — **14 passed**
+  in 1.30s (1.67s wall time; one existing Starlette/AnyIO deprecation warning).
+  Full `time uv run pytest -q` — **53 passed** in 2.93s (3.28s wall), with the same
+  warning. `uv run ruff check .` and `git diff --check` passed. The focused gate adds
+  claim/path persistence, out-of-path-citation rejection, and uncertainty-limited
+  answer coverage; no obsolete tests were removed. No live check was attempted: it
+  requires configured SEC and LLM credentials, and local fixtures are not presented
+  as live evidence. Browser automation was not run per policy.
+
+  Manual verification: after the one-time `uv run profitlab serve`, open
+  `http://127.0.0.1:8000/v3/experiments`, choose an experiment, and inspect an answer
+  card's **Claim-to-source paths**. Open every canonical-line and path link; confirm
+  each claim maps to its exact visible source and that a limited answer exposes its
+  limitation rather than a forced conclusion.
+
+  Follow-up compatibility fix: an existing experiment returned a 500 because its
+  pre-G5 persisted answer had no `claims` field. `AnswerCandidate` now derives one
+  legacy claim from the existing answer/path/range fields during read validation;
+  the explorer route has a regression test. Focused V3 tests now pass **15** and the
+  full suite **54** (`time uv run pytest -q`, 2.90s test time / 3.19s wall); Ruff and
+  diff checks pass.
+- Next task (this branch): **G6 — Post-seal rubric and controlled comparison** from
   [SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md](SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md).
-  G6 remains subsequent work.
 - Deferred V2 follow-up: define one bounded evaluator-representativeness task from
   the T41 cohort; do not tune Findings prompts, vocabulary, or thresholds from that
   cohort on this graph branch.

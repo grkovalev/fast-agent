@@ -63,6 +63,14 @@ class GraphPath(V3Contract):
     node_ids: list[str] = Field(min_length=1)
     edge_ids: list[str] = Field(default_factory=list)
     source_ranges: list[SourceRange] = Field(min_length=1)
+    status: Status = 'accepted'
+
+
+class AnswerClaim(V3Contract):
+    """One answer assertion with its independently inspectable source path."""
+    claim: str = Field(min_length=1, max_length=4000)
+    path_ids: list[str] = Field(min_length=1)
+    source_ranges: list[SourceRange] = Field(min_length=1)
 
 
 class AnswerCandidate(V3Contract):
@@ -72,9 +80,23 @@ class AnswerCandidate(V3Contract):
     limitation: str | None = Field(default=None, max_length=2000)
     path_ids: list[str] = Field(min_length=1)
     source_ranges: list[SourceRange] = Field(min_length=1)
+    claims: list[AnswerClaim] = Field(min_length=1)
     status: Literal['accepted', 'limited', 'rejected']
     model: str
     prompt_version: str
+
+    @model_validator(mode='before')
+    @classmethod
+    def upgrade_legacy_claims(cls, value):
+        """Read answer rows written before G5 added claim-level provenance."""
+        if isinstance(value, dict) and 'claims' not in value:
+            value = dict(value)
+            value['claims'] = [{
+                'claim': value.get('answer', ''),
+                'path_ids': value.get('path_ids', []),
+                'source_ranges': value.get('source_ranges', []),
+            }]
+        return value
 
 
 class ExperimentManifest(V3Contract):
@@ -101,6 +123,9 @@ class GraphAnswer(V3Contract):
 
     @model_validator(mode='after')
     def citations_have_paths(self):
-        if not set(self.answer.path_ids) <= {path.path_id for path in self.paths}:
+        available = {path.path_id for path in self.paths}
+        if not set(self.answer.path_ids) <= available:
             raise ValueError('Answer cites a missing graph path')
+        if any(not set(claim.path_ids) <= available for claim in self.answer.claims):
+            raise ValueError('Answer claim cites a missing graph path')
         return self
