@@ -1,9 +1,10 @@
-# V3 G6 post-seal comparison cohort
+# V3 G6c post-seal comparison cohort
 
-Use `uv run profitlab v3 score cohort.json` only after every compared run is
-sealed. The JSON is stored exclusively in V3’s experiment database and is never
-sent to a provider. `required_ranges` are reviewer-entered, post-seal coverage
-references—not graph targets or prompt material.
+This is the deferred controlled-comparison stage, after G6b has selected one generic
+configuration from fresh development cohorts. Use `uv run profitlab v3 score
+cohort.json` only after every compared run is sealed. The JSON is stored exclusively
+in V3’s experiment database and is never sent to a provider. `required_ranges` are
+reviewer-entered, post-seal coverage references—not graph targets or prompt material.
 
 The cohort must use `rubric_version` `g6-post-seal-v1`, set `held_out` to `true`,
 and contain all three frozen methods for each case: `graph`, `v2_packet`, and

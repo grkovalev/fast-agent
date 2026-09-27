@@ -142,32 +142,25 @@ candidates separately from V2 Findings.
 full source path; an uncertain or conflicting graph returns an explicitly limited
 answer rather than a forced conclusion.
 
-### G6 — Post-seal rubric and controlled comparison
+### G6 — Generic source-grounded evaluation
 
-Only after G0–G5 have live/saved-document evidence, define rubrics that score source
-coverage, path fidelity, answer support, ambiguity handling, provider calls/tokens,
-and latency. Rubric inputs attach after graph construction and are never model inputs.
-Compare frozen V2 packet runs, graph runs, and a simple bounded-window baseline on a
-held-out set. Do not tune graph prompts, relation vocabulary, budgets, and model in
-the same cohort.
+The first post-seal step is not a method comparison. Define one generic, versioned
+evaluation protocol for a development cohort of distinct filings: the question family,
+model, prompt, relation vocabulary, traversal budgets, and stopping rules are fixed
+before that cohort runs. Each run receives only its canonical SEC source and question.
+SEC ground truth is attached only after the run for scoring; it is never graph input,
+provider input, or a source of per-filing retrieval rules.
 
-**Promotion gate:** promote no graph behavior into V2 unless held-out evidence shows
-an inspectable source-path benefit at an acceptable cost, without reducing exact
-citation validity. Otherwise keep the graph as an experiment/explorer and record the
-negative result.
+Measure required-ground-truth coverage, exact citation validity, answer support and
+limitation behavior, explored ranges, continuation reasons, terminal frontier state,
+provider calls/tokens, and latency. The explorer and persisted action trace are the
+diagnostic surface when a run misses required evidence. Diagnose source coverage,
+path construction, answer synthesis, and budget exhaustion separately; do not add
+financial, table, heading, layout, ticker, or accession-specific behavior.
 
-**Implementation status (2026-09-27):** the isolated post-seal scorer and explorer
-view are available. Its frozen cohort format is documented in
-[V3_G6_RUBRIC_COHORT.md](V3_G6_RUBRIC_COHORT.md). A real held-out three-method cohort
-has not yet been collected, so this task remains in progress and makes no promotion
-or performance claim.
-
-**Observed development gate:** three same-configuration live development cases
-produced exact but limited graph answers from cover/contents paths rather than
-expanding to the requested financial-statement evidence. Before collecting a held-out
-cohort, implement the bounded generic `answerability`/continuation follow-up recorded
-in [PROGRESS.md](PROGRESS.md). It must remain model-directed and source-range-bound;
-do not add document-layout or financial-target heuristics.
+**Development rule:** a change must state a generic, source-agnostic hypothesis and
+be evaluated on a fresh development slice. Do not select a configuration from a
+sealed diagnostic or the future held-out cohort.
 
 ### G6a — Insufficiency-directed graph continuation
 
@@ -180,6 +173,37 @@ unvisited, bounded continuation window linked to accepted or uncertain evidence 
 that action; otherwise the explorer persists a `partial` terminal frontier and makes
 no answer call. Range validation, source/action/wall-time budgets, and normalized
 interval no-revisit remain application-owned.
+
+### G6b — Trajectory and ground-truth coverage cohort
+
+Run the fixed generic protocol on several new development filings that exclude all
+prior diagnostics and future held-out cases. Review ground truth only after every
+run has completed. Report the cohort-level coverage, citation, support/limitation,
+cost, and latency measures together with per-run trajectory inspection. A failure is
+an investigation target, not permission to tune toward that filing; any resulting
+generic change requires a new development slice.
+
+**Current status (2026-09-27):** active. The existing FGN result is sealed
+diagnostic-only and excluded from configuration selection. The isolated scorer and
+explorer remain available for post-run inspection, but no frozen V2-packet or
+bounded-window artifact is required for G6b.
+
+### G6c — Controlled held-out three-method comparison
+
+Only after G6b selects one configuration, freeze it and compare graph, a frozen V2
+packet result, and a frozen bounded-window baseline on a separately held-out cohort.
+The comparison rubric scores source coverage, path fidelity, answer support,
+ambiguity handling, provider calls/tokens, and latency. Its records attach after
+graph construction and are never model or provider inputs. Do not tune graph prompts,
+relation vocabulary, budgets, or model from that cohort.
+
+**Promotion gate:** promote no graph behavior into V2 unless this held-out evidence
+shows an inspectable source-path benefit at an acceptable cost without reducing exact
+citation validity. Otherwise keep the graph as an experiment/explorer and record the
+negative result.
+
+The isolated scorer and explorer view are available; its future frozen-cohort format
+is documented in [V3_G6_RUBRIC_COHORT.md](V3_G6_RUBRIC_COHORT.md).
 
 ## Superseded exploratory draft (preserved for context; do not implement)
 

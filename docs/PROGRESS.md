@@ -106,11 +106,27 @@
   methods, persisted/UI inspection, required held-out status, and out-of-path graph
   citation invalidation.
 
-  G6 remains **IN_PROGRESS** until a genuinely held-out, frozen three-method cohort
-  is collected and reviewed. Existing G5 live evidence cannot honestly fill that
-  role. See [V3_G6_RUBRIC_COHORT.md](V3_G6_RUBRIC_COHORT.md) for the immutable input
-  format and manual review flow; do not tune prompts, relation vocabulary, budgets,
-  or model while collecting it.
+  G6 is now split by the current experiment plan: **G6b is ACTIVE** for a generic,
+  fixed-configuration source-grounded trajectory and coverage cohort across new
+  development filings; **G6c is DEFERRED** for the frozen three-method comparison.
+  SEC ground truth attaches only after each G6b run and never enters a graph or
+  provider request. Any change must be a source-agnostic hypothesis tested on a fresh
+  development slice. See [SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md](SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md)
+  for the protocol. Existing G5/live evidence and FGN cannot select a configuration
+  or fill the later held-out role. The G6c immutable input format remains documented
+  in [V3_G6_RUBRIC_COHORT.md](V3_G6_RUBRIC_COHORT.md).
+
+  **Next implementation task — G6b development cohort ledger:** add an isolated V3
+  post-run cohort contract, deterministic scorer, persistence, CLI, and inspection
+  view for one fixed graph configuration across new development filings. It must
+  accept reviewer/SEC ground-truth ranges only after each graph run has ended; score
+  coverage, exact citations, answer support/limitation, action trajectory, calls,
+  tokens, and latency; and never make those records graph/provider input. Keep it
+  distinct from the `held_out: true` G6c three-method rubric. Add focused contracts
+  proving no additional provider call, no G6b record in an answer request, exact
+  canonical-range validation, and persisted/UI inspection. Do not run FGN, CRVL,
+  SPRO, WOR, or MSFT as G6b cases, and do not alter graph prompts, model, relation
+  vocabulary, budgets, traversal, or V2.
 
   G6 live development diagnostic (2026-09-27): two authorized live graph runs used
   explicit revision `g6-heldout-cohort-20260927` and the unchanged
@@ -147,17 +163,17 @@
   `partial` and made no answer call. This is a development diagnostic, not a held-out
   result. Do not begin the frozen five-case G6 cohort yet; CRVL, SPRO, and WOR remain
   excluded when a cohort is separately authorized.
-- G6 held-out graph arm (2026-09-27): one newly selected FGN case ran under the
+- G6 sealed FGN diagnostic (2026-09-27): one newly selected FGN case ran under the
   fixed revision `g6-heldout-cohort-20260927-v5`, unchanged
   `evidence-graph-v5` configuration, and the frozen annual net-income/EPS/shares
   question. Experiment `v3-18dc33e36fd6ecff` reacquired the exact sealed V2 source
   hash `448c2d998090…`. Its first L1–120 frontier declared `insufficient` and
   requested the accepted-evidence-linked L121–240 continuation; the second frontier
   declared `sufficient`, then the answer cited visible net earnings (loss) at
-  canonical lines 133–134. This is one graph arm only, not a completed held-out
-  comparison or a performance claim: the independently reviewer-entered required
-  ranges plus frozen `v2_packet` and `bounded_window` artifacts are still required
-  before creating the immutable three-method cohort. Focused
+  canonical lines 133–134. This is one sealed diagnostic only, not a completed
+  held-out comparison, configuration-selection input, or performance claim. Under
+  the adjusted plan it remains excluded from G6b development and future G6c held-out
+  cohorts. Focused
   `time uv run pytest tests/task_gates/test_v3_graph.py -q` — **19 passed** in
   1.57s (1.95s wall, one existing Starlette/AnyIO deprecation warning); `uv run
   ruff check .` and `git diff --check` passed. No source tests were changed.
