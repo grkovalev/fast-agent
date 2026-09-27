@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T39 — Jev-directed adaptive source context and target eligibility** — **IN_PROGRESS**.
-- Next task: **T39 — Jev-directed adaptive source context and target eligibility.**
+- Current task: **T40 — Preserve valid Findings through citation repair** — **READY**.
+- Next task: **T40 — Preserve valid Findings through citation repair.**
 - T39 experiment record: [recall investigation](T39_RECALL_INVESTIGATION.md). It
   documents failed live cohorts and the controlled next experiment; do not treat its
   unverified working-tree changes as an accepted approach.
@@ -225,6 +225,18 @@
   zero exact matches of four independent expected facts. Next bounded experiment:
   inspect the same audit on one other source-hash-pinned replay before changing
   Findings proposal behavior or type classification.
+- Fresh five-run cohort after local-data reset (all application revision `0.1.0`):
+  TOL, TRC, RSCF, MCHB, and NRP confirm mixed behavior rather than a single universal
+  failure. MCHB recovered all three intended types (one exact and two scale-aware
+  outcomes) but also published three unrelated unresolved values; TOL emitted all
+  three intended types with one scale-aware outcome; TRC omitted diluted EPS despite
+  all 430 audited retained lines reaching Findings; NRP dropped 168 of 397 retained
+  lines at the Findings size fallback and emitted only annual profit. RSCF exposed a
+  deterministic repair-path defect: two first-pass quote-valid findings were discarded
+  when two unrelated invalid proposals triggered repair, leaving zero published
+  findings and three misses. This defect is the next safe implementation slice, now
+  recorded as T40. T41 is intentionally deferred until T40 has a fresh RSCF replay and
+  a new cohort. The new task contracts are in `docs/TASKS.md`.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).

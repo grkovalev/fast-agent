@@ -49,6 +49,8 @@ If a task is too large for one session, finish a coherent working slice, keep it
 | T37 | Sequential random-report batch runner | T36 |
 | T38 | Versioned run timing and evaluation cohorts | T37 |
 | T39 | Context-aware Jev scoring and compact findings evidence | T38 |
+| T40 | Preserve valid Findings through citation repair | T39 |
+| T41 | Measured target-shaped Findings core batches | T40 |
 
 ## T14 — V2 contracts, storage, and live pipeline shell
 
@@ -821,3 +823,75 @@ line; no discovery request contains evaluation/XBRL data; versioned development-
 results expose the first failure modes and baseline comparison; the bounded graph
 separates evidence cores from context/expansion links; and no strategy is declared
 superior beyond what those recorded results support.
+
+## T40 — Preserve valid Findings through citation repair
+
+**Goal:** correct the deterministic Findings repair-path loss observed in fresh RSCF:
+valid first-pass quote-backed findings must survive when other first-pass proposals
+need one bounded citation repair.
+
+**Dependency:** T39. Do this before changing Findings prompts, source routing,
+thresholds, source-context policy, or finding-type classification.
+
+**Implement:**
+
+1. Keep every quote-valid first-pass finding while retaining only invalid proposals as
+   the repair input.
+2. Merge quote-valid repair results with the first-pass valid findings, then apply the
+   existing exact quote/Decimal deduplication once over the combined set.
+3. Extend the persisted Findings selection audit only as needed to distinguish a
+   first-pass valid finding, an invalid proposal, and a repair-produced finding. Do
+   not persist generated quotes or amounts redundantly in the audit.
+4. Add focused contract coverage for a mixed first response: valid findings must
+   remain after a failed repair, and a valid repaired result must merge without
+   duplicating an equivalent first-pass result.
+
+**Do not:** alter provider prompts, request grouping, target vocabulary, quote
+validation, publication rules, evaluation, or any Jev threshold.
+
+**Live gate:** set a new explicit `PROFITLAB_APPLICATION_REVISION`, rerun RSCF, then
+inspect its persisted line audit and Findings/Evaluation results. After that run, the
+user will create a fresh small report cohort; review it before beginning T41.
+
+**Acceptance gate:** an invalid proposal cannot erase an independent valid finding;
+every surviving finding still has an exact core-line quote and Decimal match; the
+repair attempt remains bounded and auditable; and the RSCF replay evidence is recorded
+without claiming an accuracy improvement beyond its observed result.
+
+## T41 — Measured target-shaped Findings core batches
+
+**Goal:** if the post-T40 cohort still shows proposal omissions or unrelated numeric
+claims, test whether compact deterministic source-core batches improve the
+precision/recall trade-off compared with the current broad Findings request.
+
+**Dependency:** T40’s implementation and its fresh RSCF/cohort review. Do not start
+this task until that evidence is recorded.
+
+**Implement experiment:**
+
+1. Build bounded packets from visible source cores matching the existing product-shaped
+   source vocabulary, with only their local heading/table-header/adjacent-row context.
+   This is layout reduction, not a financial eligibility classifier.
+2. Preserve a measured bounded uncertainty reserve for cores that lack a target-shaped
+   match; do not create a top-N per-target recall gate.
+3. Keep an exact finding quote restricted to an independently citable core line;
+   contextual lines may explain interpretation but cannot become the citation.
+4. Version the packet, reserve, request-size, and prompt configuration. Persist which
+   packet/core reached each Findings request, which was excluded by a size budget, and
+   the existing proposal/validation/type audit states.
+5. Keep XBRL, Company Facts, expected rows, findings, and evaluation outputs out of
+   every discovery and Findings provider request.
+
+**Compare after implementation:** run 5–10 fresh reports under one explicit revision
+and compare against the current five-run cohort: exact and scale-aware outcomes,
+explicit misses, unrelated/unresolved findings, sent/dropped source lines, proposal
+and quote-validation rates, type outcomes, LLM/Jev calls, request sizes, and latency.
+
+**Do not:** claim a gain from aggregate counts alone; tune thresholds/prompts during the
+same cohort; or replace the current broad request permanently unless the line audit
+shows required source rows are preserved and the cohort evidence supports the trade-off.
+
+**Acceptance gate:** the experiment is bounded, versioned, non-leaking, and fully
+auditable; every finding remains quote-valid; the comparison records both recall and
+precision failures; and the next decision is based on the fresh cohort rather than one
+filing.
