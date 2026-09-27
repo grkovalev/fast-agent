@@ -1,19 +1,19 @@
-{% extends "base.html" %}{% block page_title %}Graph experiments{% endblock %}{% block content %}
+{% extends "base.html" %}{% block page_title %}V3 metric report experiment{% endblock %}{% block content %}
 <p><a href="/">← Runs</a></p>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
-<section><p class="eyebrow">G6b.1 development-only launch</p><h2>Sealed campaigns</h2>
-<p>Create a campaign once to seal its question and complete V3 configuration before any filing is acquired. Campaign launch accepts only its selected campaign and ticker; it never uses V2 data or G6c records.</p>
-<form method="post" action="/v3/campaigns"><label>Question <input name="question" required maxlength="4000"></label><button type="submit">Create sealed campaign</button></form>
-{% for campaign in campaigns %}<p><a href="/v3/campaigns/{{ campaign.campaign_id }}">{{ campaign.campaign_id }}</a> · {{ campaign.question }} · {{ campaign.configuration.model }}</p>{% else %}<p>No sealed campaign yet.</p>{% endfor %}
+<section><p class="eyebrow">V3 accuracy experiment · same metric question as V2</p><h2>Run a filing report</h2>
+<p>This experiment tests a source-grounded graph against V2’s annual profit, diluted EPS, and diluted-share research target. The question and graph configuration are fixed by the server for comparable runs.</p>
+<form method="post" action="/v3/reports"><label>Ticker <input name="ticker" required pattern="[A-Za-z0-9.-]+" autofocus></label><button type="submit">Run experimental report</button></form>
+<p class="muted">Excluded development tickers: FGN, CRVL, SPRO, WOR, and MSFT. This does not alter V2 data or report results.</p>
 </section>
-<section><p class="eyebrow">V3 experiment-only workspace</p><h2>Source-grounded graph explorer</h2>
-<p>These isolated experiments never read or write the V2 workspace. Open an experiment to inspect its question, source-cited paths, and exploration frontier.</p>
+<section><p class="eyebrow">Experimental reports</p><h2>Source-grounded evidence</h2>
+<p>Open a report to inspect its source-cited paths and exploration frontier. V3 remains isolated from V2.</p>
 {% for experiment in experiments %}
 <article class="graph-listing"><h3><a href="/v3/experiments/{{ experiment.experiment_id }}">{{ experiment.experiment_id }}</a></h3>
 <p>{{ experiment.ticker }} · {{ experiment.question }}</p>
 <p class="muted">{{ experiment.frontier_state | replace('_', ' ') }} · {{ experiment.document.line_count }} canonical lines · {{ experiment.created_at }}</p></article>
-{% else %}<p>No V3 graph experiments have been saved. Run <code>profitlab v3 answer TICKER QUESTION</code> to create one.</p>{% endfor %}
+{% else %}<p>No experimental reports have been saved yet.</p>{% endfor %}
 </section>
-{% if campaign_runs %}<section><p class="eyebrow">G6b campaign lifecycle</p><h2>Campaign runs</h2>{% for run in campaign_runs %}<p><a href="/v3/campaign-runs/{{ run.run_id }}">{{ run.ticker }} · {{ run.status }}</a> · {{ run.campaign_id }}</p>{% endfor %}</section>{% endif %}
+{% if campaign_runs %}<section><p class="eyebrow">Report status</p><h2>Recent reports</h2>{% for run in campaign_runs %}<p><a href="/v3/campaign-runs/{{ run.run_id }}">{{ run.ticker }} · {{ run.status }}</a></p>{% endfor %}</section>{% endif %}
 {% if development_ledger_reports %}<section><p class="eyebrow">G6b post-run development</p><h2>Development ledgers</h2>{% for report in development_ledger_reports %}<p><a href="/v3/development-ledgers/{{ report.cohort.cohort_id }}">{{ report.cohort.cohort_id }}</a> · {{ report.cases | length }} case(s)</p>{% endfor %}</section>{% endif %}
 {% if rubric_reports %}<section><p class="eyebrow">G6c held-out comparison</p><h2>Comparison reports</h2>{% for report in rubric_reports %}<p><a href="/v3/comparisons/{{ report.cohort.cohort_id }}">{{ report.cohort.cohort_id }}</a></p>{% endfor %}</section>{% endif %}{% endblock %}

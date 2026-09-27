@@ -1,6 +1,9 @@
 """The bounded reader UI for fresh V2 runs."""
 import asyncio
+import hashlib
+import json
 import logging
+import sqlite3
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,14 +19,20 @@ from profitlab.sec.ticker_picker import RandomEligibleTickerPicker
 from profitlab.settings import Settings
 from profitlab.v2 import STAGE_NAMES, SequentialReportBatchService, V2PipelineService
 from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
+from profitlab.v2.contracts import SourceRange
 from profitlab.v2.evaluation_service import cross_run_scorecard
 from profitlab.v2.source_replay import SourceReplayService
-from profitlab.v3.contracts import CampaignRun, DevelopmentCampaign
+from profitlab.v3.campaign_review import CampaignReviewService
+from profitlab.v3.contracts import CampaignReview, CampaignRun, DevelopmentCampaign
 from profitlab.v3.repository import V3Repository
 from profitlab.v3.service import V3GraphService
 
 WEB_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
+V3_V2_METRIC_QUESTION = (
+    'What exact annual net income or profit, diluted earnings per share, and diluted '
+    'weighted-average shares does this filing visibly report?'
+)
 
 
 def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
@@ -189,6 +198,24 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         })
         return inspection
 
+    def fixed_metric_campaign():
+        """Server-owned campaign for the sole V2-comparison experiment question."""
+        service = new_graph_service()
+        configuration = service.campaign_configuration()
+        for campaign in graph_repo.campaigns():
+            if campaign.question == V3_V2_METRIC_QUESTION and campaign.configuration == configuration:
+                return campaign
+        identity = json.dumps({'question': V3_V2_METRIC_QUESTION,
+                               'configuration': configuration.model_dump(mode='json')}, sort_keys=True)
+        campaign = DevelopmentCampaign(
+            campaign_id='campaign-' + hashlib.sha256(identity.encode()).hexdigest()[:16],
+            question=V3_V2_METRIC_QUESTION, configuration=configuration, created_at=datetime.now(UTC))
+        try:
+            graph_repo.save_campaign(campaign)
+        except sqlite3.IntegrityError:  # A second local request may have persisted the same identity.
+            return graph_repo.campaign(campaign.campaign_id)
+        return campaign
+
     @app.get('/v3/experiments')
     def graph_experiments(request: Request):
         return templates.TemplateResponse(request=request, name='v3_experiments.html', context={
@@ -197,7 +224,29 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             'campaign_runs': graph_repo.campaign_runs(),
             'rubric_reports': graph_repo.rubric_reports(),
             'development_ledger_reports': graph_repo.development_ledger_reports(),
+            'fixed_question': V3_V2_METRIC_QUESTION,
         })
+
+    @app.post('/v3/reports')
+    async def launch_fixed_metric_report(request: Request):
+        from urllib.parse import parse_qs
+
+        fields = parse_qs((await request.body()).decode())
+        try:
+            campaign = fixed_metric_campaign()
+            ticker = new_graph_service().validate_campaign_launch(campaign, fields.get('ticker', [''])[0])
+            run = CampaignRun(run_id='campaign-run-' + uuid4().hex[:16], campaign_id=campaign.campaign_id,
+                              ticker=ticker, status='queued', created_at=datetime.now(UTC))
+            graph_repo.create_campaign_run(run)
+            start_campaign_run(run)
+        except ValueError as error:
+            return templates.TemplateResponse(request=request, name='v3_experiments.html', status_code=400, context={
+                'experiments': graph_repo.experiments(), 'campaigns': graph_repo.campaigns(),
+                'campaign_runs': graph_repo.campaign_runs(), 'rubric_reports': graph_repo.rubric_reports(),
+                'development_ledger_reports': graph_repo.development_ledger_reports(),
+                'fixed_question': V3_V2_METRIC_QUESTION, 'error': settings.redactor().text(str(error)),
+            })
+        return RedirectResponse(f'/v3/campaign-runs/{run.run_id}', status_code=303)
 
     @app.post('/v3/campaigns')
     async def create_campaign(request: Request):
@@ -260,9 +309,61 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             campaign = graph_repo.campaign(run.campaign_id)
         except FileNotFoundError:
             raise HTTPException(404, 'V3 campaign run not found') from None
+        try:
+            review = graph_repo.campaign_review(run_id)
+            review_report = graph_repo.development_ledger_report(CampaignReviewService.cohort_id(review))
+        except FileNotFoundError:
+            review, review_report = None, None
         return templates.TemplateResponse(request=request, name='v3_campaign_run.html', context={
-            'run': run, 'campaign': campaign,
+            'run': run, 'campaign': campaign, 'review': review, 'review_report': review_report,
+            'show_review_form': False,
         })
+
+    @app.get('/v3/campaign-runs/{run_id}/review')
+    def campaign_review_form(request: Request, run_id: str):
+        try:
+            run = graph_repo.campaign_run(run_id)
+            campaign = graph_repo.campaign(run.campaign_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V3 campaign run not found') from None
+        return templates.TemplateResponse(request=request, name='v3_campaign_run.html', context={
+            'run': run, 'campaign': campaign, 'review': None, 'review_report': None,
+            'show_review_form': True,
+        })
+
+    @app.post('/v3/campaign-runs/{run_id}/review')
+    async def review_campaign_run(request: Request, run_id: str):
+        from urllib.parse import parse_qs
+
+        fields = parse_qs((await request.body()).decode())
+        try:
+            run = graph_repo.campaign_run(run_id)
+            campaign = graph_repo.campaign(run.campaign_id)
+            inspection = graph_repo.inspection(run.experiment_id) if run.experiment_id else None
+            if not inspection:
+                raise ValueError('A sealed experiment is required before review.')
+            document = inspection['document']
+            start, end = int(fields.get('start_line', [''])[0]), int(fields.get('end_line', [''])[0])
+            source = SourceRange(
+                document_id=document.ref.document_id, source_hash=document.ref.source_hash,
+                start_line=start, end_line=end)
+            review = CampaignReview(review_id='campaign-review-' + uuid4().hex[:16], campaign_id=campaign.campaign_id,
+                campaign_run_id=run_id, experiment_id=run.experiment_id, question=campaign.question,
+                ground_truth_ranges=[source], answer_support=fields.get('answer_support', [''])[0],
+                ambiguity_handling=fields.get('ambiguity_handling', [''])[0],
+                notes=fields.get('notes', [None])[0] or None, created_at=datetime.now(UTC))
+            report = CampaignReviewService.submit(review, graph_repo)
+        except (FileNotFoundError, ValueError) as error:
+            if isinstance(error, FileNotFoundError):
+                raise HTTPException(404, 'V3 campaign run not found') from None
+            run = graph_repo.campaign_run(run_id)
+            campaign = graph_repo.campaign(run.campaign_id)
+            return templates.TemplateResponse(request=request, name='v3_campaign_run.html', status_code=400, context={
+                'run': run, 'campaign': campaign, 'review': None, 'review_report': None,
+                'show_review_form': True,
+                'error': settings.redactor().text(str(error)),
+            })
+        return RedirectResponse(f'/v3/development-ledgers/{report.cohort.cohort_id}', status_code=303)
 
     @app.get('/v3/comparisons/{cohort_id}')
     def graph_comparison(request: Request, cohort_id: str):

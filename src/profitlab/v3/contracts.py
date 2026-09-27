@@ -288,3 +288,20 @@ class CampaignRun(V3Contract):
     created_at: datetime
     started_at: datetime | None = None
     finished_at: datetime | None = None
+
+
+# G6b.2 is a post-seal boundary.  This immutable review is deliberately not a
+# graph input and is kept distinct from both the older file-authored ledger and
+# the held-out G6c rubric.
+class CampaignReview(V3Contract):
+    review_id: str = Field(pattern=r'^campaign-review-[a-f0-9]{16}$')
+    review_version: Literal['g6b-campaign-review-v1'] = 'g6b-campaign-review-v1'
+    campaign_id: str = Field(pattern=r'^campaign-[a-f0-9]{16}$')
+    campaign_run_id: str = Field(pattern=r'^campaign-run-[a-f0-9]{16}$')
+    experiment_id: str = Field(pattern=r'^v3-[a-f0-9]{16}$')
+    question: str = Field(min_length=1, max_length=4000)
+    ground_truth_ranges: list[SourceRange] = Field(min_length=1)
+    answer_support: AnswerSupport
+    ambiguity_handling: AmbiguityHandling
+    notes: str | None = Field(default=None, max_length=2000)
+    created_at: datetime

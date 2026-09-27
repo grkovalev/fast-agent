@@ -155,15 +155,58 @@
   rejection before work; focused V3 tests pass (`21 passed`), full suite (`60 passed`),
   Ruff, and `git diff --check` pass. No live provider/SEC or browser run was attempted.
 
-  **Next authorized implementation task — G6b.2 terminal-only review and ledger
-  authoring:** implement the terminal-review workflow in
+  **G6b.2 terminal-only review and ledger authoring — DONE (2026-09-27):** a sealed
+  campaign-run page now accepts one reviewer-entered canonical source range plus
+  support, ambiguity handling, and optional notes. Submission is rejected unless the
+  campaign run is sealed, linked to its terminal manifest, and the review question,
+  experiment, document identity, source hash, bounds, and character coordinates
+  round-trip exactly against that immutable V3 canonical document. Each campaign run
+  permits one immutable `g6b-campaign-review-v1` record. The review is converted into
+  the existing `g6b-development-v1` deterministic ledger input and scored through the
+  existing scorer; it does not alter graph/answer records or cause a SEC, LLM, or
+  provider call. The campaign configuration identity is preserved as a versioned hash
+  on the derived ledger, while historic file-authored ledger reports remain readable.
+
+  Focused `time uv run pytest tests/task_gates/test_v3_graph.py -q` — **22 passed**
+  in 1.91s test time (2.31s wall), one existing Starlette/AnyIO deprecation warning.
+  It covers the terminal-only gate, invalid/cross-document ranges, immutable review
+  storage, no provider calls, deterministic ledger persistence, and the run-page form.
+  Full `time uv run pytest -q` — **61 passed** in 3.55s test time (3.85s wall), with
+  the same warning; `uv run ruff check .` and `git diff --check` passed. No live run
+  or browser automation was attempted. Manual verification: after one-time
+  `uv run profitlab serve`, open a sealed campaign run at
+  `/v3/campaign-runs/<campaign-run-id>`, enter a valid canonical line range under
+  **Attach reviewed canonical evidence**, submit, and inspect the redirected
+  development ledger. Confirm the explorer still has no review data and the run page
+  now labels the review immutable. Next authorized task: **G6b.3 development
+  scorecard and diagnostic navigation**.
+
+  **V3 V2-alignment correction (2026-09-27):** the primary `/v3/experiments`
+  workspace is now a report launcher rather than a campaign operator console. It
+  accepts only a ticker and server-owns the fixed V2 comparison question: annual
+  profit/net income, diluted EPS, and diluted weighted-average shares. It creates or
+  reuses an immutable configuration-matched campaign internally, so users cannot vary
+  the question or graph configuration per report. The normal status page links to the
+  source/action/path explorer; post-seal reviewer annotation is an explicitly optional
+  advanced link, not a report-launch decision. This changes presentation and run
+  initiation only—V3 remains isolated from V2 and review data remains absent from all
+  graph/answer requests. Focused V3 tests: **23 passed** in 2.07s; full suite:
+  **62 passed** in 3.71s (one existing Starlette/AnyIO warning). Ruff and
+  `git diff --check` passed. No live run or browser automation was attempted.
+
+  **Approved next plan (2026-09-27):** the V3 experiment will become a peer **V3
+  experiment** tab beside **V2**, with the same fixed annual-profit/diluted-EPS/
+  diluted-shares question. It will restore V2-like manual ticker, random eligible
+  ticker, and sequential random-batch launch while keeping every V3 record local.
+  Its report workspace will expose V3 source, exploration, evidence-path, findings,
+  post-seal ground-truth, and evaluation stages. It will then report the same macro
+  evaluation metrics and configuration-scoped scorecard accounting as V2, plus
+  graph-specific diagnostics. Ground truth remains post-seal and forbidden from V3
+  provider requests. Arbitrary questions are deferred until the fixed-question
+  comparison is measured. The authoritative delivery order is now in
   [V3_G6B_WORKSPACE_AND_SCORECARD_PLAN.md](V3_G6B_WORKSPACE_AND_SCORECARD_PLAN.md).
-  It may attach immutable reviewer/SEC ranges only after a campaign run has a terminal
-  manifest, must use exact source-hash/range validation and the existing deterministic
-  G6b scorer without provider calls, and must remain distinct from G6c. G6b.3
-  scorecard navigation remains a later task. Do not run a development cohort until
-  terminal review is available; do not alter graph prompts, model, relation vocabulary,
-  budgets, traversal, V2, or G6c.
+  **Next implementation slice:** V2/V3 tab shell and V3-local manual/random/
+  sequential-batch report launch.
 
   G6 live development diagnostic (2026-09-27): two authorized live graph runs used
   explicit revision `g6-heldout-cohort-20260927` and the unchanged

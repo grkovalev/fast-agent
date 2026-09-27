@@ -1,4 +1,81 @@
-# V3 G6b workspace and scorecard plan
+# V3 workspace, evaluation, and scorecard plan
+
+## Product-direction update — V2/V3 comparable research workspace
+
+This section supersedes the campaign-operator presentation described below. The
+immediate objective is to test the V3 source-grounded approach on **the same fixed
+annual profit/net income, diluted EPS, and diluted weighted-average shares question
+as V2**, not to expose arbitrary-question research controls. Arbitrary questions are
+explicitly deferred until this comparison workflow is reliable and measured.
+
+### Workspace shape
+
+The application has two peer top-level tabs:
+
+| Tab | Purpose | Storage and data boundary |
+| --- | --- | --- |
+| **V2** | Current production-style eight-stage earnings-research pipeline. | Existing V2 namespace and behavior. |
+| **V3 experiment** | Same ticker/report question, evaluated as a source-grounded graph alternative. | `data/evidence-graph-experiment/` only; never reads or mutates V2 rows. |
+
+The V3 landing page must mirror the useful V2 launch experience. It offers a manual
+ticker, a random eligible report, and a bounded sequential batch of random eligible
+reports. The only operator-selected input for a normal V3 report is its ticker (or
+the batch count). The fixed question, model, prompts, graph configuration, and
+version identity are server-owned and sealed. V3 random selection and batch records
+must be V3-local; they may use live SEC discovery but must not query V2 run history or
+reuse V2 batch rows.
+
+### V3 report workspace
+
+Each V3 report presents a compact, refresh-safe stage rail analogous to V2. These
+are V3 stages, not renamed V2 stages:
+
+1. **Source** — live SEC filing acquisition and immutable canonical visible source.
+2. **Explore** — bounded source-window graph actions, continuations, budgets, and
+   explicit partial/exhausted states.
+3. **Evidence paths** — accepted, uncertain, and rejected nodes/edges with exact
+   source ranges; generated labels remain visibly non-source metadata.
+4. **Findings** — only source-cited graph answer claims projected into the three
+   fixed metric slots. A value/period/unit/attribution that cannot be established
+   from the cited graph path remains unresolved; no V2 finding is copied in.
+5. **Ground truth** — independently retrieve and normalize V3-local SEC Company
+   Facts only after graph exploration and findings are sealed.
+6. **Evaluate** — compare V3 findings with V3-local ground truth and retain
+   source/path links for every state.
+
+The stage rail is a navigation and lifecycle surface, not a claim that graph evidence
+is linear. A selected stage opens the existing bounded explorer/source view or its
+corresponding findings, ground-truth, and evaluation detail. Running/failed/partial
+states must be as explicit as in V2 and survive refresh/restart.
+
+### Comparable evaluation and scorecard
+
+V3 must calculate the same macro metrics and denominator accounting shown by V2 for
+the fixed three-metric experiment: expected facts, exact matches, scale-aware
+equivalents (clearly separated from exact), misses, additional visible values,
+unsupported/unresolved output, value/period accuracy, source coverage, provider
+calls/tokens, and latency. It may additionally report graph-specific diagnostics
+(frontier state, action/continuation count, path coverage, citation validity), but
+must not substitute them for the V2-comparable metrics.
+
+Ground truth and evaluation are post-seal, V3-local records. They never enter a graph
+exploration or answer request. The V3 scorecard groups only runs with the same sealed
+V3 configuration/version, accounts for all selected/failed/partial runs, and links
+each aggregate cell to its V3 report, exact visible source, graph path, and ground
+truth record. It must not silently pool V2 and V3 or claim a population-accuracy
+result from a development cohort.
+
+### Delivery order
+
+1. Add the V2/V3 tab shell and restore V3 manual, random, and sequential random-batch
+   launch with V3-local persistence and one-at-a-time execution.
+2. Convert the V3 report status/explorer into the six-stage V3 workspace, preserving
+   existing graph provenance and explicit terminal states.
+3. Add source-cited fixed-metric V3 findings, then post-seal V3-local Company Facts
+   and the V2-compatible per-report evaluation contract.
+4. Add the selected-configuration V3 scorecard with V2-comparable macro metrics and
+   graph diagnostics. Only after a measured fixed-question cohort review may the team
+   decide whether to add arbitrary questions.
 
 ## Purpose
 
@@ -44,7 +121,9 @@ say “not evaluated,” not imply correctness.
   Attaching or rescoring must make no provider call.
 - A run may fail or end `partial`, `exhausted`, or `budget_exhausted`. Those are
   first-class inspectable outcomes; the UI must not fabricate an answer or a score.
-- Do not alter V2 tables, routes, data, evaluation behavior, or its scorecard.
+- Do not alter V2 pipeline semantics, tables, stored data, evaluation behavior, or
+  scorecard denominators. Shared navigation may expose the V2 and V3 tabs, but every
+  V3 run, batch, fact, finding, and evaluation record remains in V3 storage.
 
 ## V2 patterns to retain and adapt
 

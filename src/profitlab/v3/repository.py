@@ -9,6 +9,7 @@ from profitlab.v2.canonical import CanonicalDocument
 
 from .contracts import (
     AnswerCandidate,
+    CampaignReview,
     CampaignRun,
     DevelopmentCampaign,
     DevelopmentLedgerReport,
@@ -51,6 +52,8 @@ class V3Repository:
             db.execute('CREATE TABLE IF NOT EXISTS development_campaigns (campaign_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS campaign_runs (run_id TEXT PRIMARY KEY, campaign_id TEXT NOT NULL, '
                        'ticker TEXT NOT NULL, payload TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS campaign_reviews (review_id TEXT PRIMARY KEY, campaign_run_id TEXT NOT NULL UNIQUE, '
+                       'payload TEXT NOT NULL)')
 
     @contextmanager
     def connect(self):
@@ -226,6 +229,23 @@ class V3Repository:
                     'status': 'interrupted', 'finished_at': datetime.now(UTC),
                     'error': 'Run interrupted by workspace restart; no sealed result was recorded.',
                 }))
+
+    def save_campaign_review(self, review: CampaignReview):
+        """Append one immutable, terminal-only review per campaign run."""
+        with self.connect() as db:
+            if db.execute('SELECT 1 FROM campaign_reviews WHERE campaign_run_id=?',
+                          (review.campaign_run_id,)).fetchone():
+                raise ValueError('This sealed campaign run already has an immutable review.')
+            db.execute('INSERT INTO campaign_reviews VALUES (?, ?, ?)',
+                       (review.review_id, review.campaign_run_id, self._dump(review)))
+
+    def campaign_review(self, campaign_run_id: str) -> CampaignReview:
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM campaign_reviews WHERE campaign_run_id=?',
+                             (campaign_run_id,)).fetchone()
+        if not row:
+            raise FileNotFoundError(campaign_run_id)
+        return CampaignReview.model_validate_json(row['payload'])
 
     def experiments(self):
         """Return immutable experiment identities, newest first, for the explorer."""

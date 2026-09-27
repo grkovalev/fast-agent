@@ -10,7 +10,10 @@ from profitlab.settings import Settings
 from profitlab.v2.canonical import CanonicalDocument, CanonicalLine
 from profitlab.v2.contracts import CanonicalDocumentRef, SourceRange
 from profitlab.v2.storage import V2Repository
+from profitlab.v3.campaign_review import CampaignReviewService
 from profitlab.v3.contracts import (
+    CampaignReview,
+    CampaignRun,
     DevelopmentCampaign,
     DevelopmentCase,
     DevelopmentCohort,
@@ -527,4 +530,88 @@ def test_g6b_campaign_seals_server_configuration_and_workspace_rejects_excluded_
         rejected = client.post(created.headers['location'] + '/runs', data={'ticker': 'MSFT'})
     assert rejected.status_code == 400
     assert 'excluded' in rejected.text
+    assert V3Repository(tmp_path).campaign_runs() == []
+
+
+@pytest.mark.asyncio
+async def test_g6b_campaign_review_is_terminal_only_exact_immutable_and_uses_the_existing_scorer(tmp_path):
+    calls = []
+
+    async def caller(payload):
+        calls.append(payload)
+        if payload['kind'] == 'explore':
+            return {'answerability': 'sufficient', 'nodes': [{'label': 'revenue', 'status': 'accepted',
+                'evidence': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}], 'edges': []}
+        path = payload['paths'][0]
+        return {'answer': 'Revenue was 100.', 'path_ids': [path['path_id']],
+                'citations': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}
+
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, v3_window_lines=10)
+    service = V3GraphService(settings, caller=caller)
+    result = await service.answer_document('NEW', 'Question?', _document())
+    campaign = DevelopmentCampaign(campaign_id='campaign-' + 'b' * 16, question='Question?',
+                                   configuration=service.campaign_configuration(), created_at=datetime.now(UTC))
+    repo = service.repo
+    repo.save_campaign(campaign)
+    run = CampaignRun(run_id='campaign-run-' + 'b' * 16, campaign_id=campaign.campaign_id, ticker='NEW',
+                      status='sealed', experiment_id=result.manifest.experiment_id, created_at=datetime.now(UTC),
+                      finished_at=datetime.now(UTC))
+    repo.create_campaign_run(run)
+    source = SourceRange(document_id='v3-document', source_hash='b' * 64, start_line=1, end_line=1)
+    review = CampaignReview(review_id='campaign-review-' + 'b' * 16, campaign_id=campaign.campaign_id,
+        campaign_run_id=run.run_id, experiment_id=result.manifest.experiment_id, question='Question?',
+        ground_truth_ranges=[source], answer_support='supported', ambiguity_handling='handled', created_at=datetime.now(UTC))
+    before = len(calls)
+    report = CampaignReviewService.submit(review, repo)
+    assert len(calls) == before
+    assert report.cohort.cases[0].ground_truth_ranges == [source]
+    assert repo.campaign_review(run.run_id) == review
+    assert repo.development_ledger_report(report.cohort.cohort_id) == report
+    with pytest.raises(ValueError, match='already has an immutable review'):
+        CampaignReviewService.submit(review.model_copy(update={'review_id': 'campaign-review-' + 'c' * 16}), repo)
+    unsealed = run.model_copy(update={'run_id': 'campaign-run-' + 'c' * 16, 'status': 'failed'})
+    repo.create_campaign_run(unsealed)
+    with pytest.raises(ValueError, match='sealed'):
+        CampaignReviewService.submit(review.model_copy(update={
+            'review_id': 'campaign-review-' + 'd' * 16, 'campaign_run_id': unsealed.run_id}), repo)
+    invalid_run = run.model_copy(update={'run_id': 'campaign-run-' + 'd' * 16})
+    repo.create_campaign_run(invalid_run)
+    with pytest.raises(ValueError, match='exact canonical range'):
+        CampaignReviewService.submit(review.model_copy(update={
+            'review_id': 'campaign-review-' + 'e' * 16, 'campaign_run_id': invalid_run.run_id,
+            'ground_truth_ranges': [source.model_copy(update={'end_line': 3})]}), repo)
+    cross_document_run = run.model_copy(update={'run_id': 'campaign-run-' + 'f' * 16})
+    repo.create_campaign_run(cross_document_run)
+    with pytest.raises(ValueError, match='exact canonical range'):
+        CampaignReviewService.submit(review.model_copy(update={
+            'review_id': 'campaign-review-' + 'f' * 16, 'campaign_run_id': cross_document_run.run_id,
+            'ground_truth_ranges': [source.model_copy(update={'document_id': 'other-document'})]}), repo)
+    web_run = run.model_copy(update={'run_id': 'campaign-run-' + 'e' * 16})
+    repo.create_campaign_run(web_run)
+    with TestClient(create_app(settings)) as client:
+        page = client.get('/v3/campaign-runs/' + web_run.run_id)
+        assert page.status_code == 200
+        assert 'optional' in page.text
+        review_page = client.get('/v3/campaign-runs/' + web_run.run_id + '/review')
+        assert 'Attach reviewed canonical evidence' in review_page.text
+        submitted = client.post('/v3/campaign-runs/' + web_run.run_id + '/review', data={
+            'start_line': '1', 'end_line': '1', 'answer_support': 'supported',
+            'ambiguity_handling': 'handled', 'notes': 'Post-seal review.'}, follow_redirects=False)
+    assert submitted.status_code == 303
+    assert submitted.headers['location'].startswith('/v3/development-ledgers/')
+
+
+def test_v3_primary_workspace_launches_the_fixed_v2_metric_experiment_without_question_or_campaign_input(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, sec_user_agent='Tester test@example.org',
+                        llm_api_key='test-key', v3_window_lines=10)
+    with TestClient(create_app(settings)) as client:
+        page = client.get('/v3/experiments')
+        assert page.status_code == 200
+        assert 'Run experimental report' in page.text
+        assert 'name="question"' not in page.text
+        assert 'name="ticker"' in page.text
+        rejected = client.post('/v3/reports', data={'ticker': 'MSFT'})
+    assert rejected.status_code == 400
+    assert 'excluded' in rejected.text
+    assert V3Repository(tmp_path).campaigns()  # Server owns the fixed, sealed campaign.
     assert V3Repository(tmp_path).campaign_runs() == []
