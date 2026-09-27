@@ -156,6 +156,19 @@ an inspectable source-path benefit at an acceptable cost, without reducing exact
 citation validity. Otherwise keep the graph as an experiment/explorer and record the
 negative result.
 
+**Implementation status (2026-09-27):** the isolated post-seal scorer and explorer
+view are available. Its frozen cohort format is documented in
+[V3_G6_RUBRIC_COHORT.md](V3_G6_RUBRIC_COHORT.md). A real held-out three-method cohort
+has not yet been collected, so this task remains in progress and makes no promotion
+or performance claim.
+
+**Observed development gate:** three same-configuration live development cases
+produced exact but limited graph answers from cover/contents paths rather than
+expanding to the requested financial-statement evidence. Before collecting a held-out
+cohort, implement the bounded generic `answerability`/continuation follow-up recorded
+in [PROGRESS.md](PROGRESS.md). It must remain model-directed and source-range-bound;
+do not add document-layout or financial-target heuristics.
+
 ## Superseded exploratory draft (preserved for context; do not implement)
 
 ## Objective

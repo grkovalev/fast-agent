@@ -1,4 +1,6 @@
 """Supported commands for the fresh V2 workspace."""
+from pathlib import Path
+
 import typer
 import uvicorn
 
@@ -32,3 +34,19 @@ def v3_answer(ticker: str, question: str):
 
     result = asyncio.run(V3GraphService(Settings()).answer_live(ticker, question))
     typer.echo(json.dumps(result.model_dump(mode='json'), indent=2))
+
+
+@v3_app.command('score')
+def v3_score(cohort_file: Path):
+    """Score a frozen, held-out post-seal G6 comparison JSON file."""
+    import json
+
+    from profitlab.v3.contracts import RubricCohort
+    from profitlab.v3.repository import V3Repository
+    from profitlab.v3.rubric import PostSealRubricService
+
+    cohort = RubricCohort.model_validate_json(cohort_file.read_text())
+    repository = V3Repository(Settings().data_dir)
+    report = PostSealRubricService.score(cohort, repository)
+    repository.save_rubric_report(report)
+    typer.echo(json.dumps(report.model_dump(mode='json'), indent=2))

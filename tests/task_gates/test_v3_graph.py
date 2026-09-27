@@ -1,6 +1,7 @@
 """V3 remains source-cited and physically isolated from the V2 baseline."""
 import json
 import sqlite3
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +10,8 @@ from profitlab.settings import Settings
 from profitlab.v2.canonical import CanonicalDocument, CanonicalLine
 from profitlab.v2.contracts import CanonicalDocumentRef, SourceRange
 from profitlab.v2.storage import V2Repository
+from profitlab.v3.contracts import FrozenArtifact, PostSealCase, RubricCohort
+from profitlab.v3.rubric import PostSealRubricService
 from profitlab.v3.service import V3GraphService, _Trace
 from profitlab.web.app import create_app
 
@@ -323,3 +326,78 @@ def test_v3_explorer_reads_pre_g5_answer_rows(tmp_path):
     with TestClient(create_app(settings)) as client:
         response = client.get('/v3/experiments/' + manifest.experiment_id)
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_v3_post_seal_rubric_compares_frozen_methods_without_provider_input(tmp_path):
+    calls = []
+
+    async def caller(payload):
+        calls.append(payload)
+        if payload['kind'] == 'explore':
+            return {'nodes': [{'label': 'revenue', 'status': 'accepted',
+                               'evidence': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}], 'edges': []}
+        path = payload['paths'][0]
+        return {'answer': 'Revenue was 100.', 'path_ids': [path['path_id']],
+                'citations': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}
+
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, v3_window_lines=10)
+    service = V3GraphService(settings, caller=caller)
+    result = await service.answer_document('TEST', 'Question?', _document())
+    source = SourceRange(document_id='v3-document', source_hash='b' * 64, start_line=1, end_line=1)
+    cohort = RubricCohort(
+        cohort_id='cohort-' + 'd' * 16, rubric_version='g6-post-seal-v1', configuration_id='frozen-v1',
+        held_out=True, created_at=datetime.now(UTC), cases=[PostSealCase(
+            case_id='held-out-1', experiment_id=result.manifest.experiment_id, question='Question?',
+            required_ranges=[source], artifacts=[
+                FrozenArtifact(artifact_id='graph-result', method='graph', source_ranges=[source],
+                               citation_ranges=[source], graph_path_ids=result.answer.path_ids,
+                               answer_support='supported', ambiguity_handling='handled', provider_calls=2,
+                               provider_input_tokens=10, provider_output_tokens=4, latency_seconds=.4),
+                FrozenArtifact(artifact_id='frozen-v2', method='v2_packet', source_ranges=[source],
+                               citation_ranges=[source], answer_support='partial',
+                               ambiguity_handling='disclosed', provider_calls=3, latency_seconds=.7),
+                FrozenArtifact(artifact_id='window', method='bounded_window', source_ranges=[source],
+                               citation_ranges=[], answer_support='unresolved',
+                               ambiguity_handling='disclosed', provider_calls=1),
+            ])])
+
+    report = PostSealRubricService.score(cohort, service.repo)
+    assert len(calls) == 2
+    assert report.method_summary['graph']['citation_valid_artifacts'] == 1
+    assert report.method_summary['v2_packet']['path_fidelity_valid_artifacts'] == 0
+    assert report.method_summary['bounded_window']['citation_valid_artifacts'] == 0
+    service.repo.save_rubric_report(report)
+    assert service.repo.rubric_report(cohort.cohort_id).artifacts[0].source_coverage == 1
+    with TestClient(create_app(settings)) as client:
+        page = client.get('/v3/comparisons/' + cohort.cohort_id)
+    assert page.status_code == 200
+    assert 'These reviewer inputs are attached after graph construction.' in page.text
+
+
+@pytest.mark.asyncio
+async def test_v3_post_seal_rubric_rejects_non_heldout_and_out_of_path_graph_citation(tmp_path):
+    async def caller(payload):
+        if payload['kind'] == 'explore':
+            return {'nodes': [{'label': 'revenue', 'status': 'accepted',
+                               'evidence': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}], 'edges': []}
+        path = payload['paths'][0]
+        return {'answer': 'Revenue was 100.', 'path_ids': [path['path_id']],
+                'citations': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}
+
+    service = V3GraphService(Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, v3_window_lines=10), caller=caller)
+    result = await service.answer_document('TEST', 'Question?', _document())
+    first = SourceRange(document_id='v3-document', source_hash='b' * 64, start_line=1, end_line=1)
+    second = SourceRange(document_id='v3-document', source_hash='b' * 64, start_line=2, end_line=2)
+    base = {'cohort_id': 'cohort-' + 'e' * 16, 'rubric_version': 'g6-post-seal-v1',
+            'configuration_id': 'frozen-v1', 'created_at': datetime.now(UTC), 'cases': [PostSealCase(
+                case_id='held-out-2', experiment_id=result.manifest.experiment_id, question='Question?',
+                required_ranges=[first], artifacts=[FrozenArtifact(
+                    artifact_id='bad-graph', method='graph', source_ranges=[first, second], citation_ranges=[second],
+                    graph_path_ids=result.answer.path_ids, answer_support='unsupported',
+                    ambiguity_handling='forced', provider_calls=2)])]}
+    with pytest.raises(ValueError, match='explicitly held out'):
+        PostSealRubricService.score(RubricCohort(held_out=False, **base), service.repo)
+    report = PostSealRubricService.score(RubricCohort(held_out=True, **base), service.repo)
+    assert report.artifacts[0].citation_valid is False
+    assert report.artifacts[0].path_fidelity == 'invalid'

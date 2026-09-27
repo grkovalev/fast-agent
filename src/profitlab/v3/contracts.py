@@ -129,3 +129,67 @@ class GraphAnswer(V3Contract):
         if any(not set(claim.path_ids) <= available for claim in self.answer.claims):
             raise ValueError('Answer claim cites a missing graph path')
         return self
+
+
+# G6 contracts are deliberately post-seal.  They describe a reviewer-supplied,
+# frozen comparison record; none are accepted by graph construction or answer
+# synthesis.
+ReviewMethod = Literal['graph', 'v2_packet', 'bounded_window']
+AnswerSupport = Literal['supported', 'partial', 'unsupported', 'unresolved']
+AmbiguityHandling = Literal['handled', 'disclosed', 'forced', 'not_applicable']
+
+
+class FrozenArtifact(V3Contract):
+    """One immutable method result attached after every provider call has ended."""
+    artifact_id: str = Field(min_length=1, max_length=200)
+    method: ReviewMethod
+    source_ranges: list[SourceRange] = Field(min_length=1)
+    citation_ranges: list[SourceRange] = Field(default_factory=list)
+    graph_path_ids: list[str] = Field(default_factory=list)
+    answer_support: AnswerSupport
+    ambiguity_handling: AmbiguityHandling
+    provider_calls: int = Field(ge=0)
+    provider_input_tokens: int | None = Field(default=None, ge=0)
+    provider_output_tokens: int | None = Field(default=None, ge=0)
+    latency_seconds: float | None = Field(default=None, ge=0)
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class PostSealCase(V3Contract):
+    """A held-out question and its reviewed coverage ranges, never model input."""
+    case_id: str = Field(pattern=r'^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$')
+    experiment_id: str = Field(pattern=r'^v3-[a-f0-9]{16}$')
+    question: str = Field(min_length=1, max_length=4000)
+    required_ranges: list[SourceRange] = Field(min_length=1)
+    artifacts: list[FrozenArtifact] = Field(min_length=1)
+
+
+class RubricCohort(V3Contract):
+    """An immutable, held-out evaluation cohort in the isolated V3 repository."""
+    cohort_id: str = Field(pattern=r'^cohort-[a-f0-9]{16}$')
+    rubric_version: str = Field(min_length=1, max_length=200)
+    configuration_id: str = Field(min_length=1, max_length=200)
+    held_out: bool
+    cases: list[PostSealCase] = Field(min_length=1)
+    created_at: datetime
+
+
+class ArtifactRubric(V3Contract):
+    case_id: str
+    artifact_id: str
+    method: ReviewMethod
+    source_coverage: float = Field(ge=0, le=1)
+    citation_valid: bool
+    path_fidelity: Literal['valid', 'invalid', 'not_applicable']
+    answer_support: AnswerSupport
+    ambiguity_handling: AmbiguityHandling
+    provider_calls: int = Field(ge=0)
+    provider_input_tokens: int | None = Field(default=None, ge=0)
+    provider_output_tokens: int | None = Field(default=None, ge=0)
+    latency_seconds: float | None = Field(default=None, ge=0)
+
+
+class RubricReport(V3Contract):
+    cohort: RubricCohort
+    artifacts: list[ArtifactRubric]
+    method_summary: dict[ReviewMethod, dict[str, int | float | None]]

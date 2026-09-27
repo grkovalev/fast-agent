@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block page_title %}Graph comparison{% endblock %}{% block content %}
+<p><a href="/v3/experiments">← Graph experiments</a></p>
+<section><p class="eyebrow">Post-seal held-out comparison</p><h2>{{ report.cohort.cohort_id }}</h2>
+<p>{{ report.cohort.rubric_version }} · configuration {{ report.cohort.configuration_id }} · {{ report.cohort.cases | length }} held-out case(s)</p>
+<p class="notice">These reviewer inputs are attached after graph construction. They are never provider inputs and cannot tune this cohort.</p></section>
+<section><p class="eyebrow">Method summaries</p><h2>Coverage, support, and cost</h2>
+{% for method, summary in report.method_summary.items() %}<article class="graph-item"><h3>{{ method | replace('_', ' ') }}</h3><dl>{% for key, value in summary.items() %}<dt>{{ key | replace('_', ' ') }}</dt><dd>{{ value if value is not none else 'unavailable' }}</dd>{% endfor %}</dl></article>{% endfor %}
+</section>
+<section><p class="eyebrow">Artifact rubric</p><h2>Inspectable scored records</h2>
+{% for item in report.artifacts %}<article class="graph-item"><h3>{{ item.case_id }} · {{ item.artifact_id }}</h3><p>{{ item.method | replace('_', ' ') }} · coverage {{ '%.0f' | format(item.source_coverage * 100) }}% · citation {{ 'valid' if item.citation_valid else 'invalid' }} · path {{ item.path_fidelity }}</p><p class="muted">Support: {{ item.answer_support }} · ambiguity: {{ item.ambiguity_handling }} · {{ item.provider_calls }} provider call(s) · {{ item.provider_input_tokens if item.provider_input_tokens is not none else 'unknown' }} input tokens · {{ item.latency_seconds if item.latency_seconds is not none else 'unknown' }}s</p></article>{% endfor %}
+</section>{% endblock %}

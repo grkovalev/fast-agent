@@ -13,6 +13,7 @@ from .contracts import (
     ExperimentManifest,
     ExplorationAction,
     GraphPath,
+    RubricReport,
 )
 
 
@@ -33,6 +34,10 @@ class V3Repository:
             # malformed answer proposals inspectable without altering V2 data.
             db.execute('CREATE TABLE IF NOT EXISTS answer_attempts (experiment_id TEXT NOT NULL, '
                        'attempt_id INTEGER PRIMARY KEY AUTOINCREMENT, request TEXT NOT NULL, response TEXT NOT NULL)')
+            # G6 records only post-seal reviewer inputs and deterministic results.
+            # It is intentionally not readable by graph construction services.
+            db.execute('CREATE TABLE IF NOT EXISTS rubric_cohorts (cohort_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS rubric_reports (cohort_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
 
     @contextmanager
     def connect(self):
@@ -107,6 +112,27 @@ class V3Repository:
     def cache(self, request_hash, payload):
         with self.connect() as db:
             db.execute('INSERT OR IGNORE INTO proposal_cache VALUES (?, ?)', (request_hash, json.dumps(payload, sort_keys=True)))
+
+    def save_rubric_report(self, report: RubricReport):
+        """Append-only cohort identity plus its deterministic post-seal score."""
+        with self.connect() as db:
+            db.execute('INSERT INTO rubric_cohorts VALUES (?, ?)',
+                       (report.cohort.cohort_id, self._dump(report.cohort)))
+            db.execute('INSERT INTO rubric_reports VALUES (?, ?)',
+                       (report.cohort.cohort_id, self._dump(report)))
+
+    def rubric_report(self, cohort_id: str) -> RubricReport:
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM rubric_reports WHERE cohort_id=?', (cohort_id,)).fetchone()
+        if not row:
+            raise FileNotFoundError(cohort_id)
+        return RubricReport.model_validate_json(row['payload'])
+
+    def rubric_reports(self):
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM rubric_reports').fetchall()
+        return sorted((RubricReport.model_validate_json(row['payload']) for row in rows),
+                      key=lambda report: report.cohort.created_at, reverse=True)
 
     def experiments(self):
         """Return immutable experiment identities, newest first, for the explorer."""

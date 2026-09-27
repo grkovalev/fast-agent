@@ -91,8 +91,56 @@
   the explorer route has a regression test. Focused V3 tests now pass **15** and the
   full suite **54** (`time uv run pytest -q`, 2.90s test time / 3.19s wall); Ruff and
   diff checks pass.
-- Next task (this branch): **G6 — Post-seal rubric and controlled comparison** from
-  [SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md](SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md).
+- G6 post-seal rubric implementation: V3 now accepts a frozen, explicitly held-out
+  cohort containing graph, V2-packet, and bounded-window artifacts, without opening
+  V2 storage. It validates every reviewer range against the linked immutable V3
+  canonical document and scores source coverage, citation validity, graph-path
+  fidelity, reviewer-recorded answer support and ambiguity handling, provider
+  calls/tokens, and latency. The `profitlab v3 score COHORT.json` command persists
+  the deterministic result only in the V3 repository; `/v3/comparisons/<cohort-id>`
+  renders the inspection view. Rubric records have no graph-service call path and
+  are not provider inputs. Focused `uv run pytest tests/task_gates/test_v3_graph.py
+  -q` — **17 passed** in 1.65s; full `uv run pytest -q` — **56 passed** in 3.11s;
+  Ruff and `git diff --check` passed. No obsolete tests were removed. The focused
+  gate covers the non-leak/no-additional-provider-call invariant, all three frozen
+  methods, persisted/UI inspection, required held-out status, and out-of-path graph
+  citation invalidation.
+
+  G6 remains **IN_PROGRESS** until a genuinely held-out, frozen three-method cohort
+  is collected and reviewed. Existing G5 live evidence cannot honestly fill that
+  role. See [V3_G6_RUBRIC_COHORT.md](V3_G6_RUBRIC_COHORT.md) for the immutable input
+  format and manual review flow; do not tune prompts, relation vocabulary, budgets,
+  or model while collecting it.
+
+  G6 live development diagnostic (2026-09-27): two authorized live graph runs used
+  explicit revision `g6-heldout-cohort-20260927` and the unchanged
+  `evidence-graph-v4` configuration for the question “What exact annual net income,
+  diluted earnings per share, or diluted shares does this filing visibly report?”
+  CRVL experiment `v3-3d48becbd41c7d7d` reacquired the exact frozen V2 source hash
+  `063e9bcaec1b…` and SPRO experiment `v3-d736ca619cf0de87` likewise matched
+  `3fe3f61118e9…`. Both emitted exact, accepted graph paths but stopped at the cover
+  fiscal-year line and Item 8 table-of-contents line, then correctly persisted a
+  limited non-answer rather than fabricating a financial claim. WOR also completed
+  under this revision with a matching source and limited result. An initial SPRO
+  attempt produced no result and was retried once successfully. These are development
+  diagnostics, not a held-out cohort or a graph-performance result. Remaining calls
+  were intentionally stopped because repeating the same unaddressed planner failure
+  would not be a meaningful comparison.
+
+  **Next task (G6a — insufficiency-directed graph continuation):** preserve the
+  generic, model-built graph boundary while adding a typed model-supplied
+  `answerability` decision to every exploration action. It distinguishes `sufficient`
+  from `insufficient`; an insufficient frontier must not enter answer synthesis. For
+  insufficient evidence, require a bounded model-proposed next source window linked
+  to accepted/uncertain action evidence, or persist an explicit partial terminal
+  state. Do not add financial, table, heading, row, page-number, or layout heuristics;
+  the application still owns only range validation, provenance, budgets, deduplication,
+  and terminal-state persistence. Preserve the existing no-revisit and action/source/
+  wall-time bounds. Add focused contracts for insufficient-with-expansion,
+  insufficient-without-expansion partial state, sufficient answer eligibility, and no
+  answer call from an insufficient frontier. Then run a fresh, new-revision pilot;
+  only after it demonstrates source-path progress should a separate frozen five-case
+  held-out G6 cohort begin. CRVL, SPRO, and WOR are excluded from that held-out cohort.
 - Deferred V2 follow-up: define one bounded evaluator-representativeness task from
   the T41 cohort; do not tune Findings prompts, vocabulary, or thresholds from that
   cohort on this graph branch.
