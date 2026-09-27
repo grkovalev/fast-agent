@@ -694,3 +694,49 @@ async def test_v3_report_workspace_keeps_six_stages_and_graph_provenance_distinc
     assert 'Revenue was 100.' in findings.text
     assert 'not implemented' in future.text
     assert 'Per-report comparison waits for V3-local ground truth' in future.text
+
+
+@pytest.mark.asyncio
+async def test_v3_campaign_scorecard_is_selected_campaign_only_and_post_seal_read_only(tmp_path):
+    calls = []
+
+    async def caller(payload):
+        calls.append(payload['kind'])
+        if payload['kind'] == 'explore':
+            return {'answerability': 'sufficient', 'nodes': [{'label': 'visible revenue', 'status': 'accepted',
+                'evidence': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}], 'edges': []}
+        path = payload['paths'][0]
+        return {'answer': 'Revenue was 100.', 'path_ids': [path['path_id']],
+                'citations': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}
+
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, v3_window_lines=10)
+    service = V3GraphService(settings, caller=caller)
+    result = await service.answer_document('TEST', 'Question?', _document())
+    campaign = DevelopmentCampaign(campaign_id='campaign-' + '1' * 16, question='Question?',
+        configuration=service.campaign_configuration(), created_at=datetime.now(UTC))
+    repo = V3Repository(tmp_path)
+    repo.save_campaign(campaign)
+    reviewed = CampaignRun(run_id='campaign-run-' + '1' * 16, campaign_id=campaign.campaign_id, ticker='TEST',
+        status='sealed', experiment_id=result.manifest.experiment_id, created_at=datetime.now(UTC))
+    awaiting = CampaignRun(run_id='campaign-run-' + '2' * 16, campaign_id=campaign.campaign_id, ticker='NEXT',
+        status='sealed', experiment_id=result.manifest.experiment_id, created_at=datetime.now(UTC))
+    failed = CampaignRun(run_id='campaign-run-' + '3' * 16, campaign_id=campaign.campaign_id, ticker='FAIL',
+        status='failed', error='SEC request failed', created_at=datetime.now(UTC))
+    for run in (reviewed, awaiting, failed):
+        repo.create_campaign_run(run)
+    source = SourceRange(document_id='v3-document', source_hash='b' * 64, start_line=1, end_line=1)
+    CampaignReviewService.submit(CampaignReview(review_id='campaign-review-' + '1' * 16,
+        campaign_id=campaign.campaign_id, campaign_run_id=reviewed.run_id,
+        experiment_id=result.manifest.experiment_id, question='Question?', ground_truth_ranges=[source],
+        answer_support='supported', ambiguity_handling='handled', created_at=datetime.now(UTC)), repo)
+    before = len(calls)
+    with TestClient(create_app(settings)) as client:
+        page = client.get(f'/v3/campaigns/{campaign.campaign_id}/development-scorecard')
+    assert page.status_code == 200
+    assert len(calls) == before
+    assert 'G6b development evaluation' in page.text
+    assert '1 / 1' in page.text
+    assert 'terminal awaiting review' in page.text
+    assert 'SEC request failed' in page.text
+    assert 'Reviewed canonical L1' in page.text
+    assert 'held-out comparison' in page.text

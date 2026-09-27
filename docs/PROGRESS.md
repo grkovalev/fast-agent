@@ -269,6 +269,32 @@
   state that they are not yet implemented. Next implementation slice: **V3-local
   fixed-metric findings, post-seal Company Facts, and per-report evaluation**.
 
+  **G6b.3 development scorecard and diagnostic navigation — DONE (2026-09-27):**
+  the V3-only `/v3/campaigns/<campaign-id>/development-scorecard` is a read-only,
+  selected-campaign evaluation surface. It accounts for every campaign run as
+  running, terminal-awaiting-review, included, or excluded with a persisted reason;
+  aggregates reviewed-range coverage and exact-citation denominators; separates
+  support, ambiguity, terminal-frontier, action, continuation, call, token, and
+  latency accounting; and renders missing telemetry as unavailable rather than zero.
+  Included rows link directly to the campaign report, graph frontier, and exact
+  post-seal reviewed canonical range. It states the fixed question and complete
+  configuration identity, does not mix campaigns or display G6c data, and performs
+  no graph, SEC, or provider action on render.
+
+  Focused `time uv run pytest tests/task_gates/test_v3_graph.py -q` — **26 passed**
+  in 2.29s (one existing Starlette/AnyIO deprecation warning). The new contract
+  covers selected-campaign-only aggregation, included/awaiting/excluded accounting,
+  denominator/source links, unavailable-safe telemetry, and no provider call during
+  scorecard rendering. Full `uv run pytest -q` — **65 passed** in 3.92s with the
+  same warning; `uv run ruff check .` and `git diff --check` passed. No obsolete
+  tests were removed, and browser automation was not run. Manual verification: after
+  one-time `uv run profitlab serve`, open a campaign's
+  `/v3/campaigns/<campaign-id>/development-scorecard`; inspect each disposition,
+  follow an included case's frontier and reviewed canonical line, and confirm the
+  page labels missing tokens unavailable and calls itself a development—not held-out—
+  evaluation. Next implementation slice remains **V3-local fixed-metric findings,
+  post-seal Company Facts, and per-report evaluation**.
+
   G6 live development diagnostic (2026-09-27): two authorized live graph runs used
   explicit revision `g6-heldout-cohort-20260927` and the unchanged
   `evidence-graph-v4` configuration for the question “What exact annual net income,

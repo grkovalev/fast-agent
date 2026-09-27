@@ -311,6 +311,62 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
              'summary': 'Per-report comparison waits for V3-local ground truth and never changes graph findings.'},
         ]
 
+    def v3_development_scorecard(campaign: DevelopmentCampaign):
+        """Read-only G6b.3 aggregation for exactly one sealed campaign.
+
+        Reviews and their one-case ledgers are post-seal records.  Keeping this
+        assembly in the web boundary prevents a scorecard refresh from becoming
+        another graph, SEC, or provider workflow.
+        """
+        rows = []
+        configuration_id = CampaignReviewService._configuration_id(campaign)
+        for run in graph_repo.campaign_runs(campaign.campaign_id):
+            review = ledger = rubric = None
+            disposition, reason = 'excluded', run.error or run.status
+            if run.status in {'queued', 'running'}:
+                disposition, reason = 'running', run.status
+            elif run.status == 'sealed':
+                try:
+                    review = graph_repo.campaign_review(run.run_id)
+                    ledger = graph_repo.development_ledger_report(CampaignReviewService.cohort_id(review))
+                    if (ledger.cohort.configuration_id != configuration_id or
+                            ledger.cohort.cases[0].experiment_id != run.experiment_id):
+                        reason = 'review ledger does not match this sealed campaign configuration'
+                    else:
+                        rubric, disposition, reason = ledger.cases[0], 'included', 'reviewed post-seal'
+                except FileNotFoundError:
+                    disposition, reason = 'terminal awaiting review', 'no immutable post-seal review'
+            rows.append({'run': run, 'review': review, 'rubric': rubric,
+                         'disposition': disposition, 'reason': reason})
+
+        included = [row['rubric'] for row in rows if row['rubric']]
+        ground_truth_ranges = sum(len(row['review'].ground_truth_ranges)
+                                  for row in rows if row['review'] and row['rubric'])
+        covered_ranges = sum(round(row.ground_truth_coverage * len(item['review'].ground_truth_ranges))
+                             for item in rows if (row := item['rubric']))
+        token_values = [getattr(row, field) for row in included for field in
+                        ('provider_input_tokens', 'provider_output_tokens')]
+        summary = {
+            'all_campaign_cases': len(rows),
+            'included_reviewed_cases': len(included),
+            'reviewed_ground_truth_coverage': f'{covered_ranges} / {ground_truth_ranges}' if ground_truth_ranges else 'unavailable',
+            'exact_citation_valid_cases': f"{sum(row.exact_citations_valid for row in included)} / {len(included)}" if included else 'unavailable',
+            'provider_calls': sum(row.provider_calls for row in included),
+            'provider_tokens': sum(token_values) if token_values and all(value is not None for value in token_values) else 'unavailable',
+            'latency_seconds': sum(row.latency_seconds for row in included)
+                if included and all(row.latency_seconds is not None for row in included) else 'unavailable',
+        }
+        return {'campaign': campaign, 'configuration_id': configuration_id, 'rows': rows,
+                'summary': summary,
+                'support_counts': {key: sum(row.answer_support == key for row in included)
+                                   for key in ('supported', 'partial', 'unsupported', 'unresolved')},
+                'ambiguity_counts': {key: sum(row.ambiguity_handling == key for row in included)
+                                     for key in ('handled', 'disclosed', 'forced', 'not_applicable')},
+                'frontier_counts': {key: sum(row.terminal_frontier_state == key for row in included)
+                                    for key in ('answered', 'partial', 'exhausted', 'budget_exhausted')},
+                'action_count': sum(row.action_count for row in included),
+                'continuation_count': sum(row.continuation_count for row in included)}
+
     def fixed_metric_campaign():
         """Server-owned campaign for the sole V2-comparison experiment question."""
         service = new_graph_service()
@@ -446,6 +502,15 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         return templates.TemplateResponse(request=request, name='v3_campaign.html', context={
             'campaign': campaign, 'runs': graph_repo.campaign_runs(campaign_id), 'readiness': settings.readiness(),
         })
+
+    @app.get('/v3/campaigns/{campaign_id}/development-scorecard')
+    def campaign_development_scorecard(request: Request, campaign_id: str):
+        try:
+            campaign = graph_repo.campaign(campaign_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V3 campaign not found') from None
+        return templates.TemplateResponse(request=request, name='v3_development_scorecard.html',
+                                          context=v3_development_scorecard(campaign))
 
     @app.post('/v3/campaigns/{campaign_id}/runs')
     async def launch_campaign_run(request: Request, campaign_id: str):
