@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import json
 import time
+from collections import deque
 from collections.abc import Awaitable, Callable
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -109,6 +110,79 @@ class V3GraphService:
                 return
             start += step
 
+    def _initial_windows(self, document: CanonicalDocument):
+        """Return a generic seed, rather than a filing-wide deterministic sweep.
+
+        Subsequent windows are model proposals attached to graph evidence.  The
+        first source window has no semantic claim: it merely gives the explorer a
+        bounded place from which to construct the initial frontier.
+        """
+        end = min(document.ref.line_count, self.settings.v3_window_lines)
+        return [(1, end)]
+
+    def _budget_state(self, action_count, source_characters, started):
+        return {
+            'actions_used': action_count,
+            'actions_remaining': max(0, self.settings.v3_max_actions - action_count),
+            'source_characters_used': source_characters,
+            'source_characters_remaining': max(0, self.settings.v3_max_total_source_characters - source_characters),
+            'wall_seconds_used': round(time.monotonic() - started, 6),
+            'wall_seconds_remaining': max(0.0, round(self.settings.v3_max_wall_seconds - (time.monotonic() - started), 6)),
+        }
+
+    @staticmethod
+    def _frontier_ref(raw, local_nodes, local_edges):
+        """Resolve only accepted/uncertain evidence from this action's graph."""
+        if (isinstance(raw, int) and 0 <= raw < len(local_nodes) and local_nodes[raw] and
+                local_nodes[raw].status != 'rejected'):
+            return local_nodes[raw].node_id
+        if isinstance(raw, str):
+            for node in local_nodes:
+                if node and raw in (node.node_id, node.label) and node.status != 'rejected':
+                    return node.node_id
+            for edge in local_edges:
+                if raw == edge.edge_id and edge.status != 'rejected':
+                    return edge.edge_id
+        return None
+
+    def _next_windows(self, proposal, document, local_nodes, local_edges):
+        """Validate model-requested expansions without inventing candidates.
+
+        A next window must be bounded and justified by accepted/uncertain graph
+        evidence created in the action that requested it.  We intentionally do
+        not rank headings, rows, tables, or financial-looking text here.
+        """
+        plans, errors = [], []
+        if not isinstance(proposal, dict):
+            return plans, errors
+        requested = proposal.get('next_windows', [])
+        if not isinstance(requested, list):
+            return plans, ['next_windows is not a list']
+        for index, raw in enumerate(requested):
+            try:
+                if not isinstance(raw, dict):
+                    raise TypeError('next window is not an object')
+                start, end = int(raw['start_line']), int(raw['end_line'])
+                if start < 1 or end < start or end > document.ref.line_count:
+                    raise ValueError('next window is outside the canonical document')
+                if end - start + 1 > self.settings.v3_window_lines:
+                    raise ValueError('next window exceeds the configured window bound')
+                reason = raw.get('reason')
+                if not isinstance(reason, str) or not reason.strip():
+                    raise ValueError('next window lacks a model-supplied reason')
+                raw_refs = raw.get('parent_refs', raw.get('parent_nodes', []))
+                if not isinstance(raw_refs, list) or not raw_refs:
+                    raise ValueError('next window lacks accepted or uncertain parent evidence')
+                refs = [self._frontier_ref(item, local_nodes, local_edges) for item in raw_refs]
+                if any(ref is None for ref in refs):
+                    raise ValueError('next window references rejected or unknown graph evidence')
+                # Preserve order while making the stored provenance unambiguous.
+                refs = list(dict.fromkeys(refs))
+                plans.append((start, end, reason.strip(), refs))
+            except (KeyError, TypeError, ValueError) as error:
+                errors.append(f'next window {index} rejected: {error}')
+        return plans, errors
+
     def _range(self, document, value, start, end) -> SourceRange:
         if not isinstance(value, dict):
             raise TypeError('evidence span is not an object')
@@ -137,7 +211,7 @@ class V3GraphService:
 
     def _proposal_graph(self, document, proposal, start, end, experiment_id):
         if not isinstance(proposal, dict):
-            return [], [], ['response is not an object']
+            return [], [], ['response is not an object'], [], []
         nodes, edges, errors, local = [], [], [], []
         for index, raw in enumerate(proposal.get('nodes', [])):
             try:
@@ -173,7 +247,7 @@ class V3GraphService:
                     uncertainty=raw.get('uncertainty') if isinstance(raw.get('uncertainty'), str) else None))
             except (KeyError, TypeError, ValueError) as error:
                 errors.append(f'edge {index} rejected: {error}')
-        return nodes, edges, errors
+        return nodes, edges, errors, local, edges
 
     def _paths(self, document, nodes, edges):
         paths = []
@@ -304,36 +378,83 @@ class V3GraphService:
             prompt_version=self.settings.v3_prompt_version, budgets={'max_actions': self.settings.v3_max_actions, 'max_source_characters': self.settings.v3_max_total_source_characters, 'max_wall_seconds': self.settings.v3_max_wall_seconds}, non_leak_inventory=self._NON_LEAK, created_at=now)
         self.repo.create(manifest, document, raw_html, visible_html)
         nodes, edges, seen, source_chars, started = [], [], set(), 0, time.monotonic()
-        for sequence, (start, end) in enumerate(self._window(document), 1):
-            if sequence > self.settings.v3_max_actions or source_chars >= self.settings.v3_max_total_source_characters or time.monotonic() - started >= self.settings.v3_max_wall_seconds:
-                manifest = manifest.model_copy(update={'frontier_state': 'budget_exhausted', 'finished_at': datetime.now(UTC)}); break
-            window = SourceRange(document_id=document.ref.document_id, source_hash=document.ref.source_hash, start_line=start, end_line=end)
-            if (start, end) in seen: continue
-            seen.add((start, end)); lines = [{'line_number': line.line_number, 'text': line.text} for line in document.lines[start - 1:end]]
-            source_chars += sum(len(line['text']) for line in lines)
-            request = {'kind': 'explore', 'question': question, 'window': {'start_line': start, 'end_line': end}, 'lines': lines,
+        frontier = deque((start, end, 'initial generic source coverage', [])
+                         for start, end in self._initial_windows(document))
+        sequence, budget_exhausted = 0, False
+        while frontier:
+            if (sequence >= self.settings.v3_max_actions or
+                    source_chars >= self.settings.v3_max_total_source_characters or
+                    time.monotonic() - started >= self.settings.v3_max_wall_seconds):
+                budget_exhausted = True
+                break
+            start, end, reason, parent_path = frontier.popleft()
+            # The normalized line interval is the identity of an exploration
+            # window. A model cannot keep re-opening an equivalent interval.
+            if (start, end) in seen:
+                continue
+            lines = [{'line_number': line.line_number, 'text': line.text}
+                     for line in document.lines[start - 1:end]]
+            characters = sum(len(line['text']) for line in lines)
+            if source_chars + characters > self.settings.v3_max_total_source_characters:
+                budget_exhausted = True
+                break
+            sequence += 1
+            seen.add((start, end)); source_chars += characters
+            window = SourceRange(document_id=document.ref.document_id, source_hash=document.ref.source_hash,
+                                 start_line=start, end_line=end)
+            request = {
+                'kind': 'explore', 'question': question,
+                'window': {'start_line': start, 'end_line': end}, 'lines': lines,
+                'document_bounds': {'start_line': 1, 'end_line': document.ref.line_count},
                 'relation_vocabulary': ['supports', 'qualifies', 'contradicts', 'same_claim', 'narrows', 'related_to'],
-                'output': {'nodes': '[{label,status,evidence:[{start_line,end_line?,start_character?,end_character?,exact_text}]}]', 'edges': '[{from_node,to_node,relation,status,evidence:[...]}]'},
+                'output': {
+                    'nodes': '[{label,status,evidence:[{start_line,end_line?,start_character?,end_character?,exact_text}]}]',
+                    'edges': '[{from_node,to_node,relation,status,evidence:[...]}]',
+                    'next_windows': '[{start_line,end_line,reason,parent_refs:[node index or node id]}]',
+                },
                 'constraints': ('Use only supplied lines. Cite exact spans. Never emit an answer. '
                                 'Node and edge status MUST be exactly accepted, uncertain, or rejected. '
-                                'Edges must refer to nodes using their zero-based index, not their labels.')}
+                                'Edges must refer to nodes using their zero-based index, not their labels. '
+                                'If more source is needed, request only bounded next_windows within document_bounds, '
+                                'each justified by accepted or uncertain nodes from this response in parent_refs. '
+                                'Do not request a window already supplied; return an empty list when no justified expansion remains.'),
+            }
             request_hash = _digest({'request': request, 'model': self.model, 'prompt': self.settings.v3_prompt_version})
             cached = self.repo.cached(request_hash); tick = time.monotonic()
             try:
                 response = cached if cached is not None else await self._live_call(request)
-                if cached is None: self.repo.cache(request_hash, response)
-                proposed_nodes, proposed_edges, errors = self._proposal_graph(
+                if cached is None:
+                    self.repo.cache(request_hash, response)
+                proposed_nodes, proposed_edges, errors, local_nodes, local_edges = self._proposal_graph(
                     document, response, start, end, manifest.experiment_id)
                 nodes.extend(proposed_nodes); edges.extend(proposed_edges)
+                next_plans, next_errors = self._next_windows(
+                    response, document, local_nodes, local_edges)
+                errors.extend(next_errors)
+                for plan in next_plans:
+                    if plan[:2] not in seen:
+                        frontier.append(plan)
                 state = 'cached' if cached else ('partial' if errors else 'completed')
             except Exception as error:  # noqa: BLE001 - audit a malformed/provider response and continue.
                 response, errors, state = {'error': str(error)}, [str(error)], 'partial'
-            action = ExplorationAction(action_id=_id('action', [manifest.experiment_id, sequence, request_hash]), experiment_id=manifest.experiment_id, sequence=sequence, window=window, reason='initial bounded source coverage', status=state, request_hash=request_hash, response_status='; '.join(errors)[:2000] or 'validated', elapsed_seconds=time.monotonic()-tick, created_at=datetime.now(UTC))
+            action = ExplorationAction(
+                action_id=_id('action', [manifest.experiment_id, sequence, request_hash]),
+                experiment_id=manifest.experiment_id, sequence=sequence, window=window,
+                reason=reason, parent_path=parent_path, status=state,
+                budget_state=self._budget_state(sequence, source_chars, started), request_hash=request_hash,
+                response_status='; '.join(errors)[:2000] or 'validated',
+                elapsed_seconds=time.monotonic() - tick, created_at=datetime.now(UTC))
             self.repo.save_action(action, request, response)
-        else:
-            manifest = manifest.model_copy(update={'frontier_state': 'exhausted', 'finished_at': datetime.now(UTC)})
+        manifest = manifest.model_copy(update={
+            'frontier_state': 'budget_exhausted' if budget_exhausted else 'exhausted',
+            'finished_at': datetime.now(UTC),
+        })
         paths = self._paths(document, nodes, edges)
         self.repo.save_graph(manifest.experiment_id, nodes, edges, paths)
+        # Record terminal frontier state before attempting synthesis.  In
+        # particular, a graph with no accepted path must remain inspectable even
+        # though _answer deliberately refuses to fabricate a claim.
+        self.repo.update_manifest(manifest)
         answer = await self._answer(manifest, document, nodes, paths)
         manifest = manifest.model_copy(update={'frontier_state': 'answered', 'finished_at': datetime.now(UTC)})
         self.repo.update_manifest(manifest); self.repo.save_answer(answer)

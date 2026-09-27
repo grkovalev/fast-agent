@@ -19,13 +19,30 @@
   declined to claim a quantitative growth rate absent from its supplied evidence.
   The source/graph/answer audit is in the experiment-local database. Focused and full
   tests passed (`47 passed`) after this implementation; V2 storage isolation is covered.
-- Next task (this branch): **G3 — Dynamic graph exploration planner** from
+- G3 dynamic graph exploration planner: V3 now seeds one generic bounded canonical
+  source window rather than sweeping the filing. A model response may request a next
+  bounded window only with a non-empty model reason and accepted/uncertain node
+  provenance from that action; rejected or unknown evidence, out-of-document spans,
+  and over-size windows become explicit action partials. Exact normalized intervals
+  are visited once, so a repeated model request cannot create an unbounded loop.
+  Every action persists its parent path, reason, source/call/wall-time budget state,
+  request, response, and validation state. The terminal `exhausted` or
+  `budget_exhausted` manifest snapshot is persisted before answer synthesis, so an
+  unsupported graph remains inspectable and no answer is fabricated. This uses no
+  document-layout/financial-target policy, V2 reads, or evaluation data. Focused
+  `uv run pytest tests/task_gates/test_v3_graph.py -q` — **10 passed** in 1.04s;
+  `uv run pytest -q` — **49 passed** (one existing Starlette/AnyIO deprecation
+  warning); `uv run ruff check .` and `git diff --check` passed. The focused suite was extended
+  with dynamic accepted/uncertain expansion provenance and equivalent-window revisit
+  coverage; no obsolete tests were removed. No live check was attempted because it
+  requires configured SEC and LLM credentials. Manual inspection after one-time
+  `uv run profitlab serve` is not yet available (G4); inspect the experiment-local
+  `actions` and manifest snapshots under `data/evidence-graph-experiment/` to confirm
+  the parent path, reason, budget state, and terminal frontier state.
+- Next task (this branch): **G4 — Graph explorer UI and inspection workflow** from
   [SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md](SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md).
-  Replace the current fixed initial-window sweep with bounded model-requested next
-  windows that are justified by accepted/uncertain graph paths. Persist the parent
-  path, reason, budget state, and frontier exhaustion; prevent equivalent-window
-  revisits. Do not add document-layout/financial-target heuristics, V2 reads, or any
-  evaluation data to V3 model requests. G4–G6 remain subsequent work.
+  Build the experiment-only UI over the persisted G3 frontier/path trace. G5–G6
+  remain subsequent work.
 - Deferred V2 follow-up: define one bounded evaluator-representativeness task from
   the T41 cohort; do not tune Findings prompts, vocabulary, or thresholds from that
   cohort on this graph branch.

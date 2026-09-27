@@ -49,6 +49,7 @@ class ExplorationAction(V3Contract):
     reason: str = Field(min_length=1, max_length=1000)
     parent_path: list[str] = Field(default_factory=list)
     status: Literal['completed', 'partial', 'budget_exhausted', 'cached']
+    budget_state: dict[str, int | float] = Field(default_factory=dict)
     request_hash: str = Field(pattern=r'^[a-f0-9]{64}$')
     response_status: str
     elapsed_seconds: float = Field(ge=0)
