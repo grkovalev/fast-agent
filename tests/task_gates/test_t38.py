@@ -2,7 +2,7 @@
 from datetime import UTC, datetime
 from time import monotonic
 
-from profitlab.settings import Settings
+from profitlab.settings import Settings, _default_application_revision
 from profitlab.v2.contracts import FactComparison, StageSnapshot, V2Run
 from profitlab.v2.evaluation_service import cross_run_scorecard
 from profitlab.v2.pipeline import V2PipelineService
@@ -21,6 +21,17 @@ def test_pipeline_captures_immutable_version_and_setting_change_creates_new_coho
     assert changed.version_components['findings_prompt_version'] == 'findings-next'
     # Persisted run provenance does not change when a later service uses new settings.
     assert V2Repository(tmp_path).get_run(first.run_id).version_id == first.version_id
+
+
+def test_default_application_revision_identifies_the_checkout_and_explicit_value_wins(tmp_path):
+    automatic = _default_application_revision()
+    assert automatic.startswith(('git-', 'package-'))
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, SEC_USER_AGENT='ProfitLab test@example.org',
+                        _env_file=None)
+    assert settings.application_revision == automatic
+    explicit = Settings(PROFITLAB_DATA_DIR=tmp_path, SEC_USER_AGENT='ProfitLab test@example.org',
+                        PROFITLAB_APPLICATION_REVISION='named-experiment', _env_file=None)
+    assert explicit.application_revision == 'named-experiment'
 
 
 def test_terminal_timing_is_monotonic_and_stage_active_time_is_preserved(tmp_path):

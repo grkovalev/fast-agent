@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T40 — Preserve valid Findings through citation repair** — **LOCAL ACCEPTANCE COMPLETE; LIVE GATE PENDING**.
-- Next task: **T40 — Preserve valid Findings through citation repair.**
+- Current task: **T41 — Measured target-shaped Findings core batches** — **COHORT REVIEW COMPLETE; IMPLEMENTATION NEXT**.
+- Next task: **T41 — Measured target-shaped Findings core batches.**
 - T39 experiment record: [recall investigation](T39_RECALL_INVESTIGATION.md). It
   documents failed live cohorts and the controlled next experiment; do not treat its
   unverified working-tree changes as an accepted approach.
@@ -284,6 +284,39 @@
   application revision `0.1.0` rather than a new explicit T40 revision. Rerun the same
   RSCF replay under a new immutable `PROFITLAB_APPLICATION_REVISION`, then inspect the
   same audit before beginning T41. No additional code change is supported by this replay.
+- T40 RSCF live gate: on 2026-09-27, fresh run `v2-13f3c7582c1a` used explicit
+  application revision `t40-rscf-replay-v1` / version `v2-7e6d908ec96e5ea3`.
+  It completed all eight stages on RSCF's 2023-12-31 10-K. The persisted Findings
+  audit records two first-pass invalid proposals (lines 529 and 532, both
+  `amount is not visible in the exact quote`) and two independent quote-valid
+  first-pass findings: annual loss `459,028` (line 261) and diluted shares
+  `85,217,785` (line 535). The single bounded repair call returned two still-invalid
+  proposals for the same lines, but both first-pass valid findings were published,
+  exactly as T40 requires. Evaluation independently exact-matched diluted shares,
+  marked annual loss scale-aware equivalent, and missed diluted EPS. This closes
+  T40's live gate without changing exact quote/Decimal validation, prompts, routing,
+  thresholds, classification, or evaluation. T41 must still not begin: its required
+  fresh post-T40 small report cohort has not been created and reviewed.
+- T40 post-gate cohort review: the user reset local data and ran batch
+  `batch-9ba7b20075c1` on 2026-09-27. Four reports completed (ALIS, SPEGU, JBL,
+  and PLUS); its fifth bounded picker attempt was explicitly skipped because no
+  eligible ticker was found. The runs retain the then-default revision `0.1.0`,
+  which denotes the current checkout rather than old code but is not a useful
+  experiment label. The persisted line audits establish T41's trigger: SPEGU's
+  Findings size fallback sent 148 retained core lines and dropped 39, then published
+  competing Class A and Class B diluted-EPS values; ALIS published competing
+  class-specific diluted-EPS and diluted-share values. JBL published three intended
+  types with scale-aware outcomes; PLUS published all three intended types but its
+  annual-profit and diluted-share comparisons were Jev-rejected. All 16 proposals
+  across the completed runs were quote-valid first-pass findings; no repair call ran.
+  This is cohort evidence of the broad-request precision/layout problem, not a claim
+  that a new packet design will improve accuracy. T41 is now unblocked.
+- Automatic application revision slice: new Settings instances now default to a
+  deterministic Git commit plus tracked-worktree/untracked-file-manifest fingerprint,
+  rather than static package label `0.1.0`. An explicit
+  `PROFITLAB_APPLICATION_REVISION` still overrides it for named experiments. This
+  makes new local pipeline runs comparable only when they share both checkout and
+  worktree state; focused T38 provenance coverage passed (5 tests).
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -485,6 +518,8 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T37 | Sequential random-report batch runner | DONE | Manual browser and live SEC/provider batch verification pending |
 | T38 | Versioned run timing and evaluation cohorts | DONE | Manual browser inspection pending |
 | T39 | Jev-directed adaptive source context and target eligibility | IN_PROGRESS | Batched IWAL diagnostic replay ran; no semantic improvement established |
+| T40 | Preserve valid Findings through citation repair | DONE | Fresh, explicitly versioned RSCF mixed-response replay passed |
+| T41 | Measured target-shaped Findings core batches | IN_PROGRESS | Cohort reviewed; bounded packet implementation is next |
 
 ## T32 final evidence
 

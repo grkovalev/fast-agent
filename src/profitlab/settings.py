@@ -1,8 +1,33 @@
+import hashlib
+import subprocess
 from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _default_application_revision() -> str:
+    """Identify the executable checkout unless an experiment names a revision.
+
+    A package version is intentionally not sufficient during local development: it
+    stays unchanged while pipeline behavior is edited. Include the complete tracked
+    Git worktree patch and untracked-file manifest when available, so uncommitted
+    checkouts do not silently enter the same evaluation cohort. Installed builds fall
+    back to the package version rather than failing at settings construction.
+    """
+    try:
+        root = Path(__file__).resolve().parents[2]
+        head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, check=True,
+                              capture_output=True, text=True, timeout=1).stdout.strip()
+        patch = subprocess.run(['git', 'diff', '--binary', 'HEAD'], cwd=root, check=True,
+                               capture_output=True, timeout=2).stdout
+        untracked = subprocess.run(['git', 'ls-files', '--others', '--exclude-standard'], cwd=root,
+                                   check=True, capture_output=True, text=True, timeout=1).stdout
+        fingerprint = hashlib.sha256(patch + untracked.encode()).hexdigest()[:12]
+        return f'git-{head[:12]}-{fingerprint}'
+    except (OSError, subprocess.SubprocessError):
+        return 'package-0.1.0'
 
 
 class Settings(BaseSettings):
@@ -12,7 +37,8 @@ class Settings(BaseSettings):
     # This is the packaged executable release; deployments may override it with an
     # immutable build/VCS revision. ``unknown`` remains an explicit non-comparable
     # opt-in for environments where neither identity can be established.
-    application_revision: str = Field('0.1.0', validation_alias='PROFITLAB_APPLICATION_REVISION')
+    application_revision: str = Field(default_factory=_default_application_revision,
+                                      validation_alias='PROFITLAB_APPLICATION_REVISION')
     host: str = Field("127.0.0.1", validation_alias="PROFITLAB_HOST")
     port: int = Field(8000, ge=1, le=65535, validation_alias="PROFITLAB_PORT")
     stage_timeout: float = Field(2400, gt=0, le=3600)
