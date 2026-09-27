@@ -42,3 +42,18 @@ uv run ruff check .
 See [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the
 [V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md). The next task is
 T39: Jev-directed adaptive source context and target eligibility.
+
+## V3 graph experiment
+
+V3 is a separate, opt-in graph exploration experiment. It downloads one live 10-K,
+stores its own canonical source and graph only under `data/evidence-graph-experiment/`,
+and never reads or writes V2 findings, facts, or evaluation rows.
+
+```sh
+uv run profitlab v3 answer MSFT "What does the filing say about revenue growth?"
+```
+
+It requires the same live `SEC_USER_AGENT` contact and `LLM_API_KEY` configuration.
+The JSON result includes only an answer whose cited spans appear on accepted graph
+paths; malformed model spans are retained as action audit state and cannot become an
+answer citation.

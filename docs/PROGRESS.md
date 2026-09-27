@@ -6,11 +6,26 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task (this branch): **G0 — Frozen graph-experiment harness and evidence
-  handoff**. Implement only G0 from
+- Current task (this branch): V3 source-grounded graph experiment. The runnable
+  `profitlab v3 answer TICKER QUESTION` path acquires one live 10-K into an isolated
+  repository, explores bounded canonical-source windows, validates model-proposed
+  generic graph evidence, and emits only answers with cited accepted graph paths.
+  V3 storage remains under `data/evidence-graph-experiment/`; V2 remains the product
+  baseline and is neither read nor written by V3.
+- Completed V3 proof: live command `uv run profitlab v3 answer MSFT "What does the
+  filing say about revenue growth?"` completed as experiment
+  `v3-b010c04ebc0276c8` against accession `0001193125-26-323660`. Its limited answer
+  cited accepted graph paths to canonical lines 102, 245, and 263, and explicitly
+  declined to claim a quantitative growth rate absent from its supplied evidence.
+  The source/graph/answer audit is in the experiment-local database. Focused and full
+  tests passed (`47 passed`) after this implementation; V2 storage isolation is covered.
+- Next task (this branch): **G3 — Dynamic graph exploration planner** from
   [SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md](SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md).
-- Next task (this branch): G1 only after G0's isolated repository, manifest,
-  non-leak inventory, local contracts, and saved-document inspection are recorded.
+  Replace the current fixed initial-window sweep with bounded model-requested next
+  windows that are justified by accepted/uncertain graph paths. Persist the parent
+  path, reason, budget state, and frontier exhaustion; prevent equivalent-window
+  revisits. Do not add document-layout/financial-target heuristics, V2 reads, or any
+  evaluation data to V3 model requests. G4–G6 remain subsequent work.
 - Deferred V2 follow-up: define one bounded evaluator-representativeness task from
   the T41 cohort; do not tune Findings prompts, vocabulary, or thresholds from that
   cohort on this graph branch.
@@ -20,7 +35,7 @@
   It preserves the T41 cohort evidence and isolates a model-built, source-cited,
   question-conditioned graph from V2. The graph must not use deterministic
   document-type/layout inference; only provenance validation, budgets, storage, and
-  traversal are deterministic. Begin with G0 only. Graph output cannot alter V2 or
+  traversal are deterministic. Graph output cannot alter V2 or
   receive Company Facts, findings, expectations, comparisons, rubrics, or evaluation
   output as provider input.
 - T41 15-run cohort review: three completed five-report batches

@@ -152,6 +152,15 @@ class Settings(BaseSettings):
     evaluation_scale_prompt_version: str = 'evaluation-scale-v1'
     evaluation_scale_max_pairs: int = Field(12, ge=0, le=100)
     evaluation_scale_request_char_budget: int = Field(12000, ge=1000, le=30000)
+    # V3 is an isolated source-grounded graph experiment.  None of these settings
+    # participate in V2 run identity or storage.
+    v3_model: str | None = None
+    v3_prompt_version: str = 'evidence-graph-v4'
+    v3_window_lines: int = Field(120, ge=10, le=1000)
+    v3_window_overlap_lines: int = Field(20, ge=0, le=300)
+    v3_max_actions: int = Field(12, ge=1, le=100)
+    v3_max_total_source_characters: int = Field(120000, ge=1000, le=1000000)
+    v3_max_wall_seconds: float = Field(300, gt=0, le=1800)
 
     def redactor(self):
         from profitlab.trace import Redactor

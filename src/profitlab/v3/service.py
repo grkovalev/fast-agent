@@ -1,0 +1,345 @@
+"""Runnable bounded V3 graph exploration over one live, canonical SEC filing."""
+import asyncio
+import hashlib
+import json
+import time
+from collections.abc import Awaitable, Callable
+from contextlib import contextmanager
+from datetime import UTC, datetime
+from uuid import uuid4
+
+import httpx
+
+from profitlab.sec.client import SECClient, SECError
+from profitlab.sec.service import DiscoveryService, normalize_ticker
+from profitlab.v2.canonical import CanonicalDocument, canonicalize_html
+from profitlab.v2.contracts import SourceRange
+
+from .contracts import (
+    AnswerCandidate,
+    EvidenceEdge,
+    EvidenceNode,
+    ExperimentManifest,
+    ExplorationAction,
+    GraphAnswer,
+    GraphPath,
+)
+from .repository import V3Repository
+
+ProposalCaller = Callable[[dict], Awaitable[dict]]
+
+
+class _Trace:
+    """SEC transport adapter; V3 persists its own source and action audit."""
+    def __init__(self, redactor):
+        self.redact = redactor
+
+    @contextmanager
+    def operation(self, _name, _request, **_metadata):
+        yield {}
+
+
+def _digest(value: object) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def _id(prefix: str, value: object) -> str:
+    return f'{prefix}-{_digest(value)[:16]}'
+
+
+class V3GraphService:
+    """Generic graph mechanics only: models supply semantics, source validates them."""
+    _NON_LEAK = ('V2 findings', 'Company Facts', 'reviewed expectations', 'comparisons',
+                 'rubrics', 'evaluation output', 'XBRL payloads')
+
+    def __init__(self, settings, repository: V3Repository | None = None, *, caller: ProposalCaller | None = None):
+        self.settings = settings
+        self.repo = repository or V3Repository(settings.data_dir)
+        self.caller = caller
+        self.model = settings.v3_model or settings.llm_model
+
+    def _acquire_live(self, ticker: str):
+        if not self.settings.sec_contact_ready():
+            raise ValueError('SEC_USER_AGENT with a real contact email is required for V3 live filing acquisition.')
+        normalized = normalize_ticker(ticker)
+        client = SECClient(self.settings, _Trace(self.settings.redactor()))
+        try:
+            result = DiscoveryService(self.settings).discover(client, normalized, 1, synthetic=False)
+            if result.outcome != 'found' or not result.filings:
+                raise ValueError(result.message)
+            filing = next((item for item in result.filings if item.form == '10-K'), result.filings[0])
+            raw_html, _ = client.get(filing.primary_document_url, bytes, stage='v3_source', document=True)
+        except SECError as error:
+            raise ValueError(str(error)) from None
+        finally:
+            client.close()
+        document_id = 'v3-document-' + filing.accession.replace('-', '')
+        document, visible_html = canonicalize_html(raw_html, document_id=document_id, filing_id=filing.filing_id)
+        metadata = {'filing_id': filing.filing_id, 'accession': filing.accession, 'form': filing.form,
+                    'report_date': filing.report_date.isoformat(), 'source_url': filing.primary_document_url}
+        return normalized, document, raw_html, visible_html, metadata
+
+    async def _live_call(self, payload: dict) -> dict:
+        if self.caller:
+            return await self.caller(payload)
+        if not self.settings.llm_api_key.get_secret_value():
+            raise ValueError('LLM_API_KEY is required for V3 graph exploration.')
+        instructions = ('Return JSON only. You are proposing source-cited generic evidence graph data. '
+                        'Generated labels are navigational metadata and never source text. Do not use knowledge outside supplied lines.')
+        async with httpx.AsyncClient(timeout=self.settings.provider_timeout) as client:
+            response = await client.post(self.settings.llm_base_url.rstrip('/') + '/chat/completions',
+                headers={'Authorization': 'Bearer ' + self.settings.llm_api_key.get_secret_value()},
+                json={'model': self.model, 'response_format': {'type': 'json_object'}, 'messages': [
+                    {'role': 'system', 'content': instructions}, {'role': 'user', 'content': json.dumps(payload)}]})
+            response.raise_for_status()
+            body = response.json()
+        content = body['choices'][0]['message']['content'] or '{}'
+        parsed = json.loads(content)
+        if not isinstance(parsed, dict):
+            raise TypeError('V3 model returned non-object JSON.')
+        return parsed
+
+    def _window(self, document: CanonicalDocument):
+        size, overlap = self.settings.v3_window_lines, self.settings.v3_window_overlap_lines
+        step, start = max(1, size - overlap), 1
+        while start <= document.ref.line_count:
+            end = min(document.ref.line_count, start + size - 1)
+            yield start, end
+            if end == document.ref.line_count:
+                return
+            start += step
+
+    def _range(self, document, value, start, end) -> SourceRange:
+        if not isinstance(value, dict):
+            raise TypeError('evidence span is not an object')
+        first, last = int(value['start_line']), int(value.get('end_line', value['start_line']))
+        if first < start or last > end or last < first:
+            raise ValueError('evidence span is outside supplied source window')
+        begin, finish = value.get('start_character'), value.get('end_character')
+        source_range = SourceRange(document_id=document.ref.document_id, source_hash=document.ref.source_hash,
+                                   start_line=first, end_line=last, start_character=begin, end_character=finish)
+        exact = value.get('exact_text')
+        if not isinstance(exact, str) or document.slice(source_range) != exact:
+            raise ValueError('evidence span does not round-trip exactly from canonical source')
+        return source_range
+
+    @staticmethod
+    def _status(value: object) -> str:
+        """Map model-facing evidence language to the immutable three-state audit contract."""
+        normalized = str(value or 'uncertain').strip().lower()
+        if normalized in ('accepted', 'stated', 'supported', 'confirmed'):
+            return 'accepted'
+        if normalized in ('uncertain', 'qualified', 'qualifying', 'possible', 'ambiguous'):
+            return 'uncertain'
+        if normalized in ('rejected', 'unsupported', 'invalid'):
+            return 'rejected'
+        raise ValueError('invalid node or edge status')
+
+    def _proposal_graph(self, document, proposal, start, end, experiment_id):
+        if not isinstance(proposal, dict):
+            return [], [], ['response is not an object']
+        nodes, edges, errors, local = [], [], [], []
+        for index, raw in enumerate(proposal.get('nodes', [])):
+            try:
+                status = self._status(raw.get('status'))
+                ranges = [self._range(document, item, start, end) for item in raw['evidence']]
+                label = raw['label']
+                if not isinstance(label, str) or not label.strip():
+                    raise ValueError('node label is missing')
+                node = EvidenceNode(node_id=_id('node', [experiment_id, document.ref.source_hash, start, index, raw]),
+                    document_id=document.ref.document_id, source_hash=document.ref.source_hash, label=label.strip(),
+                    evidence_ranges=ranges, status=status, model=self.model, prompt_version=self.settings.v3_prompt_version,
+                    uncertainty=raw.get('uncertainty') if isinstance(raw.get('uncertainty'), str) else None)
+                nodes.append(node); local.append(node)
+            except (KeyError, TypeError, ValueError) as error:
+                errors.append(f'node {index} rejected: {error}')
+                local.append(None)
+        for index, raw in enumerate(proposal.get('edges', [])):
+            try:
+                by_label = {node.label: index for index, node in enumerate(local) if node}
+                left = by_label.get(raw['from_node'], raw['from_node'])
+                right = by_label.get(raw['to_node'], raw['to_node'])
+                left, right = int(left), int(right)
+                if left < 0 or right < 0 or left >= len(local) or right >= len(local) or not local[left] or not local[right]:
+                    raise ValueError('edge references invalid node')
+                relation, status = raw['relation'], self._status(raw.get('status'))
+                if relation not in ('supports', 'qualifies', 'contradicts', 'same_claim', 'narrows', 'related_to'):
+                    raise ValueError('invalid relation')
+                ranges = [self._range(document, item, start, end) for item in raw['evidence']]
+                edges.append(EvidenceEdge(edge_id=_id('edge', [experiment_id, document.ref.source_hash, start, index, raw]),
+                    document_id=document.ref.document_id, source_hash=document.ref.source_hash,
+                    from_node_id=local[left].node_id, to_node_id=local[right].node_id, relation=relation,
+                    evidence_ranges=ranges, status=status, model=self.model, prompt_version=self.settings.v3_prompt_version,
+                    uncertainty=raw.get('uncertainty') if isinstance(raw.get('uncertainty'), str) else None))
+            except (KeyError, TypeError, ValueError) as error:
+                errors.append(f'edge {index} rejected: {error}')
+        return nodes, edges, errors
+
+    def _paths(self, document, nodes, edges):
+        paths = []
+        for node in nodes:
+            if node.status != 'accepted':
+                continue
+            paths.append(GraphPath(path_id=_id('path', [node.node_id]), document_id=document.ref.document_id,
+                source_hash=document.ref.source_hash, node_ids=[node.node_id], source_ranges=node.evidence_ranges))
+        for edge in edges:
+            if edge.status != 'accepted':
+                continue
+            source_nodes = {item.node_id: item for item in nodes}
+            if (edge.from_node_id in source_nodes and edge.to_node_id in source_nodes and
+                    source_nodes[edge.from_node_id].status == 'accepted' and
+                    source_nodes[edge.to_node_id].status == 'accepted'):
+                ranges = source_nodes[edge.from_node_id].evidence_ranges + source_nodes[edge.to_node_id].evidence_ranges + edge.evidence_ranges
+                paths.append(GraphPath(path_id=_id('path', [edge.edge_id]), document_id=document.ref.document_id,
+                    source_hash=document.ref.source_hash, node_ids=[edge.from_node_id, edge.to_node_id], edge_ids=[edge.edge_id], source_ranges=ranges))
+        return paths
+
+    def _answer_range(self, document, value, selected_paths):
+        """Validate an answer quote and derive omitted character offsets from graph source.
+
+        Models often quote a sentence from a supplied whole-line graph span without
+        returning its character offsets.  The application may derive those offsets
+        only when the quote has one exact occurrence inside a selected graph path.
+        """
+        allowed = [source for path in selected_paths for source in path.source_ranges]
+        try:
+            direct = self._range(document, value, 1, document.ref.line_count)
+            if any(self._contained(direct, source) for source in allowed):
+                return direct
+        except (KeyError, TypeError, ValueError):
+            pass
+        if not isinstance(value, dict) or not isinstance(value.get('exact_text'), str):
+            raise TypeError('answer citation lacks exact source text')
+        quote = value['exact_text']
+        if not quote:
+            raise ValueError('answer citation cannot be empty')
+        supplied_start = value.get('start_line')
+        for source in allowed:
+            if supplied_start is not None and not source.start_line <= int(supplied_start) <= source.end_line:
+                continue
+            # A character-range source already is its exact canonical slice; do
+            # not broaden it while repairing an incomplete model citation.
+            if source.start_character is not None:
+                if document.slice(source) == quote:
+                    return source
+                continue
+            for line_number in range(source.start_line, source.end_line + 1):
+                text = document.lines[line_number - 1].text
+                if text.count(quote) == 1:
+                    begin = text.index(quote)
+                    return SourceRange(document_id=document.ref.document_id, source_hash=document.ref.source_hash,
+                        start_line=line_number, end_line=line_number, start_character=begin,
+                        end_character=begin + len(quote))
+        raise ValueError('answer citation is not an exact unique substring of its selected graph path')
+
+    @staticmethod
+    def _contained(inner, outer):
+        if inner.start_line < outer.start_line or inner.end_line > outer.end_line:
+            return False
+        if outer.start_character is None:
+            return True
+        return (inner.start_line == inner.end_line == outer.start_line == outer.end_line and
+                inner.start_character is not None and outer.start_character <= inner.start_character and
+                inner.end_character <= outer.end_character)
+
+    def _paths_for_ranges(self, paths, ranges):
+        """Return only graph paths that mechanically contain an answer citation."""
+        return [path for path in paths if any(
+            self._contained(source, graph_source)
+            for source in ranges for graph_source in path.source_ranges
+        )]
+
+    async def _answer(self, manifest, document, nodes, paths):
+        usable = [path for path in paths]
+        if not usable:
+            raise ValueError('V3 frontier exhausted without accepted source-cited graph support; no answer was fabricated.')
+        path_packet = [{**path.model_dump(mode='json'), 'evidence': [
+            {'source_range': source.model_dump(mode='json'), 'exact_text': document.slice(source)}
+            for source in path.source_ranges
+        ]} for path in usable]
+        packet = {'kind': 'answer', 'question': manifest.question, 'paths': path_packet,
+                  'nodes': [node.model_dump(mode='json') for node in nodes if node.status == 'accepted'],
+                  'instruction': ('Answer only from the exact_text evidence in these paths. Labels are navigational metadata, not source. '
+                                  'Return {"answer": string, "limitation": string|null, "path_ids": [...], '
+                                  '"citations": [{"start_line":int,"end_line":int,"start_character":int|null,"end_character":int|null,"exact_text":string}]}. '
+                                  'Every material claim needs a non-empty exact-text citation and path.')}
+        response = await self._live_call(packet)
+        self.repo.save_answer_attempt(manifest.experiment_id, packet, response)
+        supplied_path_ids = response.get('path_ids')
+        valid_ids = {path.path_id for path in usable}
+        selected_paths = ([path for path in usable if path.path_id in supplied_path_ids]
+                          if isinstance(supplied_path_ids, list) and supplied_path_ids and
+                          set(supplied_path_ids) <= valid_ids else [])
+        # If opaque IDs are mangled, an answer remains useful only when its exact
+        # source quotes mechanically identify accepted graph paths.
+        ranges = [self._answer_range(document, item, selected_paths or usable)
+                  for item in response.get('citations', [])]
+        if not ranges:
+            raise ValueError('V3 answer has no source citation.')
+        derived_paths = False
+        if not selected_paths:
+            selected_paths = self._paths_for_ranges(usable, ranges)
+            if not selected_paths:
+                raise ValueError('V3 answer citation is absent from every accepted graph path.')
+            derived_paths = True
+        path_ids = [path.path_id for path in selected_paths]
+        answer = response.get('answer')
+        if not isinstance(answer, str) or not answer.strip():
+            raise ValueError('V3 answer text is missing.')
+        limitation = response.get('limitation') if isinstance(response.get('limitation'), str) else None
+        if derived_paths:
+            note = 'Graph paths were derived mechanically from exact citations because the model returned missing or invalid path IDs.'
+            limitation = f'{limitation} {note}' if limitation else note
+        return AnswerCandidate(answer_id=_id('answer', [manifest.experiment_id, response]), experiment_id=manifest.experiment_id,
+            answer=answer.strip(), limitation=limitation, path_ids=path_ids, source_ranges=ranges,
+            status='limited' if limitation else 'accepted',
+            model=self.model, prompt_version=self.settings.v3_prompt_version)
+
+    async def answer_document(self, ticker: str, question: str, document: CanonicalDocument, *, raw_html=b'', visible_html=b'', filing=None):
+        if not question.strip():
+            raise ValueError('Question is required.')
+        now = datetime.now(UTC)
+        manifest = ExperimentManifest(experiment_id=_id('v3', [uuid4().hex]), question=question.strip(), document=document.ref,
+            ticker=ticker, filing=filing or {}, application_revision=self.settings.application_revision, model=self.model,
+            prompt_version=self.settings.v3_prompt_version, budgets={'max_actions': self.settings.v3_max_actions, 'max_source_characters': self.settings.v3_max_total_source_characters, 'max_wall_seconds': self.settings.v3_max_wall_seconds}, non_leak_inventory=self._NON_LEAK, created_at=now)
+        self.repo.create(manifest, document, raw_html, visible_html)
+        nodes, edges, seen, source_chars, started = [], [], set(), 0, time.monotonic()
+        for sequence, (start, end) in enumerate(self._window(document), 1):
+            if sequence > self.settings.v3_max_actions or source_chars >= self.settings.v3_max_total_source_characters or time.monotonic() - started >= self.settings.v3_max_wall_seconds:
+                manifest = manifest.model_copy(update={'frontier_state': 'budget_exhausted', 'finished_at': datetime.now(UTC)}); break
+            window = SourceRange(document_id=document.ref.document_id, source_hash=document.ref.source_hash, start_line=start, end_line=end)
+            if (start, end) in seen: continue
+            seen.add((start, end)); lines = [{'line_number': line.line_number, 'text': line.text} for line in document.lines[start - 1:end]]
+            source_chars += sum(len(line['text']) for line in lines)
+            request = {'kind': 'explore', 'question': question, 'window': {'start_line': start, 'end_line': end}, 'lines': lines,
+                'relation_vocabulary': ['supports', 'qualifies', 'contradicts', 'same_claim', 'narrows', 'related_to'],
+                'output': {'nodes': '[{label,status,evidence:[{start_line,end_line?,start_character?,end_character?,exact_text}]}]', 'edges': '[{from_node,to_node,relation,status,evidence:[...]}]'},
+                'constraints': ('Use only supplied lines. Cite exact spans. Never emit an answer. '
+                                'Node and edge status MUST be exactly accepted, uncertain, or rejected. '
+                                'Edges must refer to nodes using their zero-based index, not their labels.')}
+            request_hash = _digest({'request': request, 'model': self.model, 'prompt': self.settings.v3_prompt_version})
+            cached = self.repo.cached(request_hash); tick = time.monotonic()
+            try:
+                response = cached if cached is not None else await self._live_call(request)
+                if cached is None: self.repo.cache(request_hash, response)
+                proposed_nodes, proposed_edges, errors = self._proposal_graph(
+                    document, response, start, end, manifest.experiment_id)
+                nodes.extend(proposed_nodes); edges.extend(proposed_edges)
+                state = 'cached' if cached else ('partial' if errors else 'completed')
+            except Exception as error:  # noqa: BLE001 - audit a malformed/provider response and continue.
+                response, errors, state = {'error': str(error)}, [str(error)], 'partial'
+            action = ExplorationAction(action_id=_id('action', [manifest.experiment_id, sequence, request_hash]), experiment_id=manifest.experiment_id, sequence=sequence, window=window, reason='initial bounded source coverage', status=state, request_hash=request_hash, response_status='; '.join(errors)[:2000] or 'validated', elapsed_seconds=time.monotonic()-tick, created_at=datetime.now(UTC))
+            self.repo.save_action(action, request, response)
+        else:
+            manifest = manifest.model_copy(update={'frontier_state': 'exhausted', 'finished_at': datetime.now(UTC)})
+        paths = self._paths(document, nodes, edges)
+        self.repo.save_graph(manifest.experiment_id, nodes, edges, paths)
+        answer = await self._answer(manifest, document, nodes, paths)
+        manifest = manifest.model_copy(update={'frontier_state': 'answered', 'finished_at': datetime.now(UTC)})
+        self.repo.update_manifest(manifest); self.repo.save_answer(answer)
+        cited = {f'L{line}': document.lines[line - 1].text for source in answer.source_ranges for line in range(source.start_line, source.end_line + 1)}
+        return GraphAnswer(manifest=manifest, answer=answer, paths=[path for path in paths if path.path_id in answer.path_ids], cited_text=cited)
+
+    async def answer_live(self, ticker: str, question: str):
+        ticker, document, raw, visible, filing = await asyncio.to_thread(self._acquire_live, ticker)
+        return await self.answer_document(ticker, question, document, raw_html=raw, visible_html=visible, filing=filing)
