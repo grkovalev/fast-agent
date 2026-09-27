@@ -6,7 +6,7 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T40 — Preserve valid Findings through citation repair** — **READY**.
+- Current task: **T40 — Preserve valid Findings through citation repair** — **LOCAL ACCEPTANCE COMPLETE; LIVE GATE PENDING**.
 - Next task: **T40 — Preserve valid Findings through citation repair.**
 - T39 experiment record: [recall investigation](T39_RECALL_INVESTIGATION.md). It
   documents failed live cohorts and the controlled next experiment; do not treat its
@@ -237,6 +237,53 @@
   findings and three misses. This defect is the next safe implementation slice, now
   recorded as T40. T41 is intentionally deferred until T40 has a fresh RSCF replay and
   a new cohort. The new task contracts are in `docs/TASKS.md`.
+- T40 citation-repair preservation slice: the Findings service now retains every
+  quote-valid first-pass finding while passing only invalid proposals to its one bounded
+  repair call. Quote-valid repair output is combined with the retained first-pass set
+  before the existing exact-quote/Decimal deduplication, so an unrelated invalid
+  proposal cannot erase a valid finding. The persisted proposal audit now labels
+  first-pass valid findings, invalid proposals, and repair-produced findings without
+  duplicating generated quotes or amounts. Focused contracts cover both a failed repair
+  retaining a valid first-pass finding and a valid repair merging without an equivalent
+  duplicate: `uv run pytest tests/task_gates/test_t40.py -q` — **2 passed**;
+  `uv run pytest tests/task_gates/test_t39.py -q` — **14 passed** (one existing
+  Starlette/AnyIO deprecation warning); `uv run ruff check .` and `git diff --check`
+  passed. The required next step remains a fresh RSCF replay under a new explicit
+  application revision, followed by its persisted selection-audit and Findings/
+  Evaluation review; no accuracy improvement is claimed from local contract coverage.
+- T40 post-implementation five-run cohort observation: on 2026-09-27, fresh runs
+  `v2-20ce18218fba` (DXCM), `v2-8fac68c9a1d4` (MDRR), `v2-d4bb088cd2ea`
+  (DBVTF), `v2-2bc1c9632f29` (MGM), and `v2-88b68473aece` (CAR) all used
+  application revision `0.1.0`, so they are not the required explicitly versioned
+  T40 RSCF replay. Each made one Findings extraction call, published only first-pass
+  quote-valid findings (respectively 4, 3, 4, 5, and 4), and persisted zero invalid
+  proposals, repair attempts, or repair-produced findings. The cohort therefore shows
+  that the normal exact-citation path remains intact but does not exercise or verify
+  T40's mixed-response preservation branch. No citation-repair behavior change is
+  supported before the RSCF gate. MDRR retained three quote-valid but unresolved
+  findings because its type-classification requests exceeded their visible-context
+  budget; this is post-extraction metadata, not a citation loss. CAR and DBVTF also
+  surfaced quote-valid competing/older-period values, while MGM surfaced unrelated
+  visible values. These are observations for the deferred T41 core-selection question,
+  not a basis to change T40 prompts, routing, thresholds, classification, or
+  evaluation. The next required evidence remains a fresh RSCF run under a new explicit
+  application revision whose persisted audit includes both a first-pass valid finding
+  and an invalid proposal, then confirms the valid finding survives the bounded repair.
+- T40 RSCF mixed-response replay (provenance excluded): run `v2-4013d843a59f` on
+  2026-09-27 did exercise the target repair path. Its first Findings response had two
+  invalid proposals (both amount-not-visible errors on lines 529 and 532) and two
+  quote-valid first-pass findings: annual loss `459,028` on line 261 and diluted shares
+  `85,217,785` on line 535. Its one bounded repair call returned two still-invalid
+  proposals; nevertheless both independent first-pass findings survived publication.
+  The audit therefore records two `first_pass_valid_finding` entries, four
+  `invalid_proposal` entries (two with `repair_attempted`), zero repair-produced
+  findings, two Findings calls, and two final rejected citations. Evaluation independently
+  exact-matched the diluted shares, marked the annual loss scale-aware equivalent, and
+  missed diluted EPS. This confirms the intended preservation behavior without weakening
+  exact quote or Decimal validation, but must not close T40's live gate: the run persisted
+  application revision `0.1.0` rather than a new explicit T40 revision. Rerun the same
+  RSCF replay under a new immutable `PROFITLAB_APPLICATION_REVISION`, then inspect the
+  same audit before beginning T41. No additional code change is supported by this replay.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).

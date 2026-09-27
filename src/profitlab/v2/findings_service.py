@@ -354,7 +354,9 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             source_line = proposal.get('source_line') if isinstance(proposal, dict) else None
             proposal_audit.append({'source_line': source_line,
                                    'quote_validated': bool(finding), 'validation_error': error,
-                                   'repair_attempted': False})
+                                   'repair_attempted': False,
+                                   'outcome': ('first_pass_valid_finding' if finding
+                                               else 'invalid_proposal')})
             if source_line in audit_by_line:
                 audit_by_line[source_line]['proposal_count'] += 1
                 audit_by_line[source_line]['quote_validated_count'] += bool(finding)
@@ -366,21 +368,30 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
         if rejected and calls < self.settings.findings_max_requests:
             repaired, repair_model = await self._live(state, rejected)
             calls += 1
-            findings, rejected = [], []
+            # Retain independent first-pass findings.  Repair is constrained to the
+            # invalid proposals above, so it must not turn a citation failure in one
+            # proposal into the loss of every already quote-valid finding.
+            repair_rejected = []
             for proposal in repaired:
                 finding, error = self._validate(document, chunks, proposal, repair_model,
                                                   repaired=True)
                 source_line = proposal.get('source_line') if isinstance(proposal, dict) else None
                 proposal_audit.append({'source_line': source_line,
                                        'quote_validated': bool(finding), 'validation_error': error,
-                                       'repair_attempted': True})
+                                       'repair_attempted': True,
+                                       'outcome': ('repair_produced_finding' if finding
+                                                   else 'invalid_proposal')})
                 if source_line in audit_by_line:
                     audit_by_line[source_line]['proposal_count'] += 1
                     audit_by_line[source_line]['quote_validated_count'] += bool(finding)
                 if finding:
                     findings.append(finding)
                 else:
-                    rejected.append({'proposal': proposal, 'reason': error})
+                    repair_rejected.append({'proposal': proposal, 'reason': error})
+            # A successful repair supersedes the original invalid proposal; a failed
+            # repair remains the final rejected citation outcome.  The full sequence
+            # is still visible in proposal_audit without duplicating generated text.
+            rejected = repair_rejected
             actual_model = repair_model
         # Overlap may repeat a quoted number. Preserve one source-validated finding.
         unique = {}
