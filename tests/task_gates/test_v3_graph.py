@@ -2,12 +2,14 @@
 import sqlite3
 
 import pytest
+from fastapi.testclient import TestClient
 
 from profitlab.settings import Settings
 from profitlab.v2.canonical import CanonicalDocument, CanonicalLine
 from profitlab.v2.contracts import CanonicalDocumentRef
 from profitlab.v2.storage import V2Repository
 from profitlab.v3.service import V3GraphService, _Trace
+from profitlab.web.app import create_app
 
 
 def _document():
@@ -212,3 +214,36 @@ def test_v3_sec_trace_supports_shared_client_cache_redaction(tmp_path):
     settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
     trace = _Trace(settings.redactor())
     assert trace.redact({'authorization': 'Bearer secret'}) == {'authorization': '[REDACTED]'}
+
+
+@pytest.mark.asyncio
+async def test_v3_explorer_shows_one_path_exact_source_and_frontier_audit(tmp_path):
+    async def caller(payload):
+        if payload['kind'] == 'explore':
+            return {'nodes': [
+                {'label': 'revenue statement', 'status': 'accepted',
+                 'evidence': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]},
+                {'label': 'unresolved context', 'status': 'uncertain', 'uncertainty': 'not enough support',
+                 'evidence': [{'start_line': 2, 'exact_text': 'The increase supports growth.'}]},
+                {'label': 'discarded claim', 'status': 'rejected',
+                 'evidence': [{'start_line': 2, 'exact_text': 'The increase supports growth.'}]},
+            ], 'edges': []}
+        path = payload['paths'][0]
+        return {'answer': 'Revenue was 100.', 'path_ids': [path['path_id']],
+                'citations': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}
+
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, v3_window_lines=10)
+    result = await V3GraphService(settings, caller=caller).answer_document('TEST', 'Question?', _document())
+    with TestClient(create_app(settings)) as client:
+        listing = client.get('/v3/experiments')
+        page = client.get(f'/v3/experiments/{result.manifest.experiment_id}')
+        source = client.get(f'/v3/experiments/{result.manifest.experiment_id}/source?line=1')
+
+    assert listing.status_code == page.status_code == source.status_code == 200
+    assert result.manifest.experiment_id in listing.text
+    assert 'Why each window was explored' in page.text
+    assert 'Initial bounded source window' in page.text
+    assert 'Revenue was 100.' in page.text
+    assert 'Model label:' in page.text
+    assert 'unresolved context' in page.text and 'discarded claim' in page.text
+    assert 'Only canonical visible text is shown here.' in source.text

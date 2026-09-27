@@ -1,0 +1,50 @@
+{% extends "base.html" %}{% block page_title %}Graph explorer{% endblock %}{% block content %}
+<p><a href="/v3/experiments">← Graph experiments</a></p>
+<section><p class="eyebrow">Question and immutable source</p><h2>{{ manifest.question }}</h2>
+<p>{{ manifest.ticker }} · {{ manifest.document.filing_id }} · {{ manifest.document.line_count }} canonical lines</p>
+<p class="muted">Experiment {{ manifest.experiment_id }} · source hash {{ manifest.document.source_hash }} · frontier: <strong>{{ manifest.frontier_state | replace('_', ' ') }}</strong></p>
+<p><a href="/v3/experiments/{{ manifest.experiment_id }}/source?line=1">Open canonical source</a></p>
+</section>
+
+<section><p class="eyebrow">Selected provenance path</p><h2>{% if selected_path %}{{ selected_path.path_id }}{% else %}No persisted path{% endif %}</h2>
+{% if selected_path %}
+<p>Only this path is expanded below. Generated labels are model inference; quoted canonical lines are the immutable source.</p>
+<ol class="graph-path">
+{% for node_id in selected_path.node_ids %}{% set node = node_lookup[node_id] %}
+<li><span class="graph-status {{ node.status }}">{{ node.status }}</span> <strong>Model label:</strong> {{ node.label }}
+  {% if node.uncertainty %}<p class="muted">Uncertainty: {{ node.uncertainty }}</p>{% endif %}
+  <ul>{% for source in node.evidence_ranges %}<li><a href="/v3/experiments/{{ manifest.experiment_id }}/source?line={{ source.start_line }}#line-{{ source.start_line }}">Canonical L{{ source.start_line }}{% if source.end_line != source.start_line %}–{{ source.end_line }}{% endif %}</a>: {{ document.slice(source) }}</li>{% endfor %}</ul>
+</li>{% endfor %}
+{% for edge_id in selected_path.edge_ids %}{% set edge = edge_lookup[edge_id] %}
+<li><span class="graph-status {{ edge.status }}">{{ edge.status }}</span> <strong>Model relationship:</strong> {{ edge.relation }}
+  {% if edge.uncertainty %}<p class="muted">Uncertainty: {{ edge.uncertainty }}</p>{% endif %}
+  <ul>{% for source in edge.evidence_ranges %}<li><a href="/v3/experiments/{{ manifest.experiment_id }}/source?line={{ source.start_line }}#line-{{ source.start_line }}">Canonical L{{ source.start_line }}{% if source.end_line != source.start_line %}–{{ source.end_line }}{% endif %}</a>: {{ document.slice(source) }}</li>{% endfor %}</ul>
+</li>{% endfor %}
+</ol>{% endif %}
+</section>
+
+<section><p class="eyebrow">Answer candidates</p><h2>Separate model output</h2>
+{% for answer in answers %}<article class="graph-item"><span class="graph-status {{ answer.status }}">{{ answer.status }}</span><p>{{ answer.answer }}</p>
+{% if answer.limitation %}<p class="muted">Limitation: {{ answer.limitation }}</p>{% endif %}
+<p>{% for path_id in answer.path_ids %}<a href="?path_id={{ path_id }}">Inspect {{ path_id }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p></article>
+{% else %}<p>No answer candidate was persisted. The explorer keeps the unsupported graph visible rather than inventing an answer.</p>{% endfor %}
+</section>
+
+<section><p class="eyebrow">Why each window was explored</p><h2>Frontier trace</h2>
+{% for action in actions %}<article class="graph-item"><span class="graph-status {{ action.status }}">{{ action.status | replace('_', ' ') }}</span>
+<h3><a href="/v3/experiments/{{ manifest.experiment_id }}/source?line={{ action.window.start_line }}#line-{{ action.window.start_line }}">L{{ action.window.start_line }}–{{ action.window.end_line }}</a></h3>
+<p>Reason: {{ action.reason }}</p><p class="muted">Parent path: {{ action.parent_path | join(', ') if action.parent_path else 'Initial bounded source window' }} · {{ 'cached' if action.status == 'cached' else action.elapsed_seconds ~ 's' }} · response {{ action.response_status }} · request {{ action.request_hash[:12] }}</p>
+<details><summary>Budget at this action</summary><dl>{% for key, value in action.budget_state.items() %}<dt>{{ key | replace('_', ' ') }}</dt><dd>{{ value }}</dd>{% endfor %}</dl></details></article>
+{% else %}<p>No exploration action was persisted.</p>{% endfor %}
+<p class="notice">Exploration stopped with frontier <strong>{{ manifest.frontier_state | replace('_', ' ') }}</strong>. Budgets: {% for key, value in manifest.budgets.items() %}{{ key | replace('_', ' ') }} {{ value }}{% if not loop.last %}; {% endif %}{% endfor %}.</p>
+</section>
+
+<section><p class="eyebrow">Graph inventory</p><h2>Unexpanded inference, including uncertainty and rejection</h2>
+<p>These entries are not source truth and are not promoted by appearing here. Select a linked path to inspect its source evidence one at a time.</p>
+{% for node in nodes %}<article class="graph-item"><span class="graph-status {{ node.status }}">{{ node.status }}</span> <strong>Node:</strong> {{ node.label }}
+{% if path_for_node[node.node_id] %}<a href="?path_id={{ path_for_node[node.node_id] }}">Inspect path</a>{% endif %}
+{% for source in node.evidence_ranges %}<a href="/v3/experiments/{{ manifest.experiment_id }}/source?line={{ source.start_line }}#line-{{ source.start_line }}">Source L{{ source.start_line }}{% if source.end_line != source.start_line %}–{{ source.end_line }}{% endif %}</a>{% endfor %}</article>{% endfor %}
+{% for edge in edges %}<article class="graph-item"><span class="graph-status {{ edge.status }}">{{ edge.status }}</span> <strong>Edge:</strong> {{ edge.relation }}
+{% if path_for_edge[edge.edge_id] %}<a href="?path_id={{ path_for_edge[edge.edge_id] }}">Inspect path</a>{% endif %}
+{% for source in edge.evidence_ranges %}<a href="/v3/experiments/{{ manifest.experiment_id }}/source?line={{ source.start_line }}#line-{{ source.start_line }}">Source L{{ source.start_line }}{% if source.end_line != source.start_line %}–{{ source.end_line }}{% endif %}</a>{% endfor %}</article>{% endfor %}
+</section>{% endblock %}

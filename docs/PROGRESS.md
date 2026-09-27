@@ -39,10 +39,31 @@
   `uv run profitlab serve` is not yet available (G4); inspect the experiment-local
   `actions` and manifest snapshots under `data/evidence-graph-experiment/` to confirm
   the parent path, reason, budget state, and terminal frontier state.
-- Next task (this branch): **G4 — Graph explorer UI and inspection workflow** from
+- G4 graph explorer UI: the experiment-only `/v3/experiments` workspace now lists
+  isolated V3 experiments and opens one persisted provenance path at a time. It
+  explicitly separates model labels/relationships and answer candidates from
+  immutable canonical source text; every displayed path evidence range links to its
+  canonical lines. The frontier trace answers why a window was explored (reason and
+  parent path), and exposes response status, request hash, elapsed/cache state,
+  per-action budgets, and the terminal frontier state without making raw database
+  rows or provider payloads the review surface. Accepted, uncertain, and rejected
+  nodes/edges remain distinct, including when they cannot form an answer path. V3
+  data remains exclusively in its experiment repository; no V2 path changed.
+  Focused `time uv run pytest tests/task_gates/test_v3_graph.py -q` — **11 passed**
+  in 1.23s (1.60s wall time; one existing Starlette/AnyIO deprecation warning);
+  `uv run ruff check .` and `git diff --check` passed. The focused gate gained one
+  UI integration path over a persisted accepted/uncertain/rejected graph; no
+  obsolete tests were removed. Browser automation was not run per task policy.
+  Manual verification: after one-time `uv run profitlab serve`, open
+  `http://127.0.0.1:8000/v3/experiments`, select an experiment, follow a canonical
+  line link from the selected provenance path, then compare its frontier card's
+  reason/parent path/budget with the terminal frontier notice. Confirm uncertain and
+  rejected inventory entries remain visibly non-promoted. No live check was attempted
+  because it requires configured SEC and LLM credentials.
+- Next task (this branch): **G5 — Graph-grounded answer candidate and exact
+  validation** from
   [SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md](SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md).
-  Build the experiment-only UI over the persisted G3 frontier/path trace. G5–G6
-  remain subsequent work.
+  G6 remains subsequent work.
 - Deferred V2 follow-up: define one bounded evaluator-representativeness task from
   the T41 cohort; do not tune Findings prompts, vocabulary, or thresholds from that
   cohort on this graph branch.

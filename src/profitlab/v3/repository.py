@@ -4,6 +4,17 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
+from profitlab.v2.canonical import CanonicalDocument
+
+from .contracts import (
+    AnswerCandidate,
+    EvidenceEdge,
+    EvidenceNode,
+    ExperimentManifest,
+    ExplorationAction,
+    GraphPath,
+)
+
 
 class V3Repository:
     _APPLICATION_ID = 0x56334752  # V3GR
@@ -96,3 +107,43 @@ class V3Repository:
     def cache(self, request_hash, payload):
         with self.connect() as db:
             db.execute('INSERT OR IGNORE INTO proposal_cache VALUES (?, ?)', (request_hash, json.dumps(payload, sort_keys=True)))
+
+    def experiments(self):
+        """Return immutable experiment identities, newest first, for the explorer."""
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM experiments').fetchall()
+        return sorted((ExperimentManifest.model_validate_json(row['payload']) for row in rows),
+                      key=lambda item: item.created_at, reverse=True)
+
+    def inspection(self, experiment_id):
+        """Load the persisted graph audit without exposing provider request bodies."""
+        with self.connect() as db:
+            experiment = db.execute('SELECT payload FROM experiments WHERE experiment_id=?',
+                                    (experiment_id,)).fetchone()
+            if not experiment:
+                raise FileNotFoundError(experiment_id)
+            snapshot = db.execute(
+                'SELECT payload FROM manifest_snapshots WHERE experiment_id=? '
+                'ORDER BY sequence DESC LIMIT 1', (experiment_id,)).fetchone()
+            document = db.execute('SELECT canonical_json FROM documents WHERE experiment_id=?',
+                                  (experiment_id,)).fetchone()
+            actions = db.execute('SELECT payload FROM actions WHERE experiment_id=? ORDER BY rowid',
+                                 (experiment_id,)).fetchall()
+            nodes = db.execute('SELECT payload FROM nodes WHERE experiment_id=? ORDER BY rowid',
+                               (experiment_id,)).fetchall()
+            edges = db.execute('SELECT payload FROM edges WHERE experiment_id=? ORDER BY rowid',
+                               (experiment_id,)).fetchall()
+            paths = db.execute('SELECT payload FROM paths WHERE experiment_id=? ORDER BY rowid',
+                               (experiment_id,)).fetchall()
+            answers = db.execute('SELECT payload FROM answers WHERE experiment_id=? ORDER BY rowid',
+                                 (experiment_id,)).fetchall()
+        return {
+            'manifest': ExperimentManifest.model_validate_json(
+                snapshot['payload'] if snapshot else experiment['payload']),
+            'document': CanonicalDocument.model_validate_json(document['canonical_json']),
+            'actions': [ExplorationAction.model_validate_json(row['payload']) for row in actions],
+            'nodes': [EvidenceNode.model_validate_json(row['payload']) for row in nodes],
+            'edges': [EvidenceEdge.model_validate_json(row['payload']) for row in edges],
+            'paths': [GraphPath.model_validate_json(row['payload']) for row in paths],
+            'answers': [AnswerCandidate.model_validate_json(row['payload']) for row in answers],
+        }

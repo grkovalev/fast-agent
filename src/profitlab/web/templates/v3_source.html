@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block page_title %}Graph canonical source{% endblock %}{% block content %}
+<p><a href="/v3/experiments/{{ experiment_id }}">← Graph explorer</a></p>
+<section><p class="eyebrow">Immutable canonical source</p><h2>Lines around L{{ focus_line }}</h2>
+<p class="muted">Only canonical visible text is shown here. Blue citation marks identify lines cited by at least one graph proposal; they do not make that proposal accepted.</p>
+<ol class="source-lines" start="{{ lines[0].line_number }}">{% for line in lines %}
+<li id="line-{{ line.line_number }}" class="{% if (line.line_number, line.line_number) in cited %}graph-cited{% endif %}"><a href="#line-{{ line.line_number }}">{{ line.line_number }}</a> <span class="badge">{{ line.element_type | replace('_', ' ') }}</span> {{ line.text }}</li>
+{% endfor %}</ol></section>{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block page_title %}Graph experiments{% endblock %}{% block content %}
+<p><a href="/">← Runs</a></p>
+<section><p class="eyebrow">V3 experiment-only workspace</p><h2>Source-grounded graph explorer</h2>
+<p>These isolated experiments never read or write the V2 workspace. Open an experiment to inspect its question, source-cited paths, and exploration frontier.</p>
+{% for experiment in experiments %}
+<article class="graph-listing"><h3><a href="/v3/experiments/{{ experiment.experiment_id }}">{{ experiment.experiment_id }}</a></h3>
+<p>{{ experiment.ticker }} · {{ experiment.question }}</p>
+<p class="muted">{{ experiment.frontier_state | replace('_', ' ') }} · {{ experiment.document.line_count }} canonical lines · {{ experiment.created_at }}</p></article>
+{% else %}<p>No V3 graph experiments have been saved. Run <code>profitlab v3 answer TICKER QUESTION</code> to create one.</p>{% endfor %}
+</section>{% endblock %}

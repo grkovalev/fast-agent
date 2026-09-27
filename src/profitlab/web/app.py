@@ -17,6 +17,7 @@ from profitlab.v2 import STAGE_NAMES, SequentialReportBatchService, V2PipelineSe
 from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
 from profitlab.v2.evaluation_service import cross_run_scorecard
 from profitlab.v2.source_replay import SourceReplayService
+from profitlab.v3.repository import V3Repository
 
 WEB_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                benchmark_dataset=None) -> FastAPI:
     settings = settings or Settings()
     pipeline, tasks, batch_tasks = V2PipelineService(settings), {}, {}
+    graph_repo = V3Repository(settings.data_dir)
 
     def new_picker():
         return (ticker_picker_factory(pipeline.repo) if ticker_picker_factory
@@ -114,7 +116,8 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
 
     def home_context(**extra):
         return {'v2_runs': pipeline.repo.recent(), 'batches': pipeline.repo.report_batches(),
-                'batch_maximum': settings.random_batch_max_reports, 'readiness': settings.readiness(), **extra}
+                'batch_maximum': settings.random_batch_max_reports, 'readiness': settings.readiness(),
+                'graph_experiments': graph_repo.experiments(), **extra}
 
     @app.get('/health')
     def health():
@@ -123,6 +126,60 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
     @app.get('/')
     def home(request: Request):
         return templates.TemplateResponse(request=request, name='home.html', context=home_context())
+
+    def graph_context(experiment_id: str, path_id: str | None = None):
+        inspection = graph_repo.inspection(experiment_id)
+        paths = {item.path_id: item for item in inspection['paths']}
+        answer_paths = [path_id for answer in inspection['answers'] for path_id in answer.path_ids]
+        selected_id = path_id if path_id in paths else next(
+            (item for item in answer_paths if item in paths), next(iter(paths), None))
+        selected = paths.get(selected_id)
+        nodes = {item.node_id: item for item in inspection['nodes']}
+        edges = {item.edge_id: item for item in inspection['edges']}
+        inspection.update({
+            'selected_path': selected,
+            'node_lookup': nodes,
+            'edge_lookup': edges,
+            'path_lookup': paths,
+            'path_for_node': {node_id: next((path.path_id for path in paths.values()
+                                              if node_id in path.node_ids), None)
+                              for node_id in nodes},
+            'path_for_edge': {edge_id: next((path.path_id for path in paths.values()
+                                              if edge_id in path.edge_ids), None)
+                              for edge_id in edges},
+        })
+        return inspection
+
+    @app.get('/v3/experiments')
+    def graph_experiments(request: Request):
+        return templates.TemplateResponse(request=request, name='v3_experiments.html', context={
+            'experiments': graph_repo.experiments(),
+        })
+
+    @app.get('/v3/experiments/{experiment_id}')
+    def graph_experiment(request: Request, experiment_id: str, path_id: str | None = None):
+        try:
+            context = graph_context(experiment_id, path_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V3 graph experiment not found') from None
+        return templates.TemplateResponse(request=request, name='v3_experiment.html', context=context)
+
+    @app.get('/v3/experiments/{experiment_id}/source')
+    def graph_source(request: Request, experiment_id: str, line: int = 1):
+        try:
+            inspection = graph_repo.inspection(experiment_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V3 graph experiment not found') from None
+        document = inspection['document']
+        line = min(max(1, line), document.ref.line_count)
+        start, end = max(1, line - 12), min(document.ref.line_count, line + 12)
+        cited = {(source.start_line, source.end_line)
+                 for item in [*inspection['nodes'], *inspection['edges']]
+                 for source in item.evidence_ranges}
+        return templates.TemplateResponse(request=request, name='v3_source.html', context={
+            'experiment_id': experiment_id, 'document': document, 'focus_line': line,
+            'lines': document.lines[start - 1:end], 'cited': cited,
+        })
 
     @app.get('/v2/benchmark')
     def benchmark_overview(request: Request, version: str | None = None):
