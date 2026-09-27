@@ -188,6 +188,12 @@ diagnostic-only and excluded from configuration selection. The isolated scorer a
 explorer remain available for post-run inspection, but no frozen V2-packet or
 bounded-window artifact is required for G6b.
 
+**Operational-workflow plan:** the next bounded G6b work is the V3-only campaign,
+terminal review, and development-scorecard sequence in
+[V3_G6B_WORKSPACE_AND_SCORECARD_PLAN.md](V3_G6B_WORKSPACE_AND_SCORECARD_PLAN.md).
+It retains V2's inspectable run/scorecard experience while preserving V3's fixed
+configuration and post-seal review boundaries; it does not begin G6c.
+
 ### G6c — Controlled held-out three-method comparison
 
 Only after G6b selects one configuration, freeze it and compare graph, a frozen V2

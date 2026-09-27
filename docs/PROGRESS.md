@@ -116,7 +116,7 @@
   or fill the later held-out role. The G6c immutable input format remains documented
   in [V3_G6_RUBRIC_COHORT.md](V3_G6_RUBRIC_COHORT.md).
 
-  **Next implementation task — G6b development cohort ledger:** add an isolated V3
+  **Completed implementation task — G6b development cohort ledger:** add an isolated V3
   post-run cohort contract, deterministic scorer, persistence, CLI, and inspection
   view for one fixed graph configuration across new development filings. It must
   accept reviewer/SEC ground-truth ranges only after each graph run has ended; score
@@ -137,6 +137,17 @@
   inspection page are separate from G6c's held-out three-method rubric. Focused
   contracts cover no additional provider calls, no ledger data in answer payloads,
   canonical-range rejection, and persisted/UI inspection.
+
+  **Next authorized implementation task — G6b.1 sealed campaign and V3 run
+  workspace:** plan the V3-only campaign configuration seal and UI launch described
+  in [V3_G6B_WORKSPACE_AND_SCORECARD_PLAN.md](V3_G6B_WORKSPACE_AND_SCORECARD_PLAN.md).
+  It must freeze the full request/traversal configuration and question before the
+  first development run, permit only ticker plus campaign selection in the UI, and
+  retain V3-only lifecycle/status inspection. G6b.2 terminal review/ledger authoring
+  and G6b.3 scorecard navigation are planned follow-ons; G6c remains deferred. Do
+  not begin live cohort execution until the campaign boundary exists. Do not alter
+  graph prompts, model, relation vocabulary, budgets, traversal, V2, or G6c as part
+  of this task.
 
   G6 live development diagnostic (2026-09-27): two authorized live graph runs used
   explicit revision `g6-heldout-cohort-20260927` and the unchanged
