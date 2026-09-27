@@ -22,6 +22,11 @@ _TARGET_PATTERNS = {
 }
 
 
+def target_matches(text: str) -> list[str]:
+    """Return source-vocabulary matches only; this is not an eligibility verdict."""
+    return [target for target, pattern in _TARGET_PATTERNS.items() if pattern.search(text)]
+
+
 def reserve_sections(document: CanonicalDocument, sections: list[OutlineSection], maximum: int) -> set[str]:
     """Return at most ``maximum`` source-order-stable target-shaped sections."""
     if maximum == 0:
@@ -29,7 +34,7 @@ def reserve_sections(document: CanonicalDocument, sections: list[OutlineSection]
     candidates = []
     for section in sections:
         visible = document.slice(section.primary_range)
-        targets = {target for target, pattern in _TARGET_PATTERNS.items() if pattern.search(visible)}
+        targets = set(target_matches(visible))
         if targets:
             candidates.append((section, targets))
     selected, covered = [], set()

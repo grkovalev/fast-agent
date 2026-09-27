@@ -69,9 +69,15 @@ class SourceReplayService:
                    if item['action_id'] == 'findings-request']
         action = actions[-1] if actions else None
         request = action.get('request', {}) if action else {}
-        requested_lines = {line.get('line_number')
-                           for chunk in request.get('retained_chunks', [])
-                           for line in chunk.get('core_evidence_lines', [])}
+        # T41 records individual packet cores. Older completed runs have the prior
+        # retained-chunk shape and remain readable as historical diagnostics.
+        requested_lines = {core.get('source_line')
+                           for packet in request.get('core_packets', [])
+                           for core in packet.get('cores', [])}
+        if not requested_lines:
+            requested_lines = {line.get('line_number')
+                               for chunk in request.get('retained_chunks', [])
+                               for line in chunk.get('core_evidence_lines', [])}
         audit = action.get('proposal_audit') if action else None
         selection_audit = action.get('selection_audit') if action else None
         selection_by_line = ({item['line_number']: item for item in selection_audit}

@@ -6,8 +6,46 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T41 — Measured target-shaped Findings core batches** — **COHORT REVIEW COMPLETE; IMPLEMENTATION NEXT**.
-- Next task: **T41 — Measured target-shaped Findings core batches.**
+- Current task: **T41 — Measured target-shaped Findings core batches** — **LIVE COHORT REVIEWED; AUDIT-CORRECTED REPLAY PENDING**.
+- Next task: **T41 — Run a fresh bounded comparison cohort with the corrected line-audit provenance; do not tune during it.**
+- T41 first live cohort review: batch `batch-8f51756183f1` completed five reports
+  (KIM, AAP, TFC, PNFP-PB, GNSS) under version `v2-c8ba15f4b5935cfe`.
+  Each Findings request contained all planned packets: respectively 51, 34, 40,
+  46, and 42 cores, including the measured 12-core non-target reserve and 39, 22,
+  28, 34, and 30 target-shaped cores. Findings published 4, 3, 4, 4, and 3
+  quote-valid findings. GNSS made one bounded repair: three first-pass citations
+  failed Decimal/quote validation, then one repair-produced finding was valid.
+  The aggregate independent outcomes were two exact matches, four scale-aware
+  equivalents, three Jev-rejected comparisons, eight structured-fact misses, and
+  seven unsupported additional findings. This mixed result does not demonstrate a
+  precision or recall gain over the prior cohort.
+
+  Review found a provenance defect in that cohort's persisted selection audit only:
+  non-target lines outside the 12-core reserve were incorrectly labelled as
+  `packet excluded by findings request size budget`. They were never packet cores or
+  provider inputs; the saved request payload proves every planned packet was sent.
+  The implementation now distinguishes `not_in_bounded_uncertainty_reserve` from a
+  true size-budget packet exclusion, with focused contracts passing. Because historical
+  audit rows are immutable and cannot be relabelled, this cohort cannot close T41's
+  fully-auditable live gate. Run one fresh 5–10 report cohort under an explicit new
+  application revision before deciding whether the compact layout trade-off is useful.
+- T41 local implementation slice: Findings now sends bounded, versioned, source-order
+  packets of independently citable visible core lines. A core is included when it
+  matches the existing product-shaped source vocabulary, with a separately measured,
+  bounded source-order reserve for non-matching lines; this is layout reduction, not
+  an eligibility or top-N recall gate. Each core carries only a small local
+  heading/table-header/adjacent-row context, while validation permits a quote only
+  from the exact included core line. The request trace persists packet identifiers,
+  per-line inclusion kind, sent packet, and explicit request-size exclusions beside
+  the existing proposal, quote-validation, and type-classification audits. Packet,
+  reserve, request-size, and prompt settings are cohort-versioned; no XBRL, Company
+  Facts, review expectations, findings, or evaluation values enter the request.
+  Focused contracts include reserve behavior, core-only citations, size exclusions,
+  and versioning. Local acceptance: `uv run pytest -q` — **39 passed** (one existing
+  Starlette/AnyIO deprecation warning); focused `uv run pytest tests/task_gates/test_t39.py
+  tests/task_gates/test_t40.py tests/task_gates/test_t41.py -q` — **19 passed**
+  (one existing warning); `uv run ruff check .` and `git diff --check` passed. No
+  live cohort was run.
 - T39 experiment record: [recall investigation](T39_RECALL_INVESTIGATION.md). It
   documents failed live cohorts and the controlled next experiment; do not treat its
   unverified working-tree changes as an accepted approach.

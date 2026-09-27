@@ -140,6 +140,12 @@ class Settings(BaseSettings):
     findings_max_requests: int = Field(2, ge=1, le=10)
     findings_total_timeout: float = Field(300, gt=0, le=1800)
     findings_request_char_budget: int = Field(60000, ge=1000, le=1000000)
+    # T41 is a layout experiment over visible, independently citable lines.  These
+    # limits deliberately do not decide financial eligibility or use later-stage data.
+    findings_packet_version: str = 'findings-core-packets-v1'
+    findings_packet_max_cores: int = Field(8, ge=1, le=50)
+    findings_packet_context_lines: int = Field(2, ge=0, le=8)
+    findings_packet_uncertainty_reserve: int = Field(12, ge=0, le=100)
     finding_type_max_requests: int = Field(12, ge=0, le=100)
     finding_type_request_char_budget: int = Field(30000, ge=1000, le=60000)
     finding_type_prompt_version: str = 'finding-type-v2-outline-context'
