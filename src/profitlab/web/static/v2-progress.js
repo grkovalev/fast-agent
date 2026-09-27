@@ -6,7 +6,15 @@
   let pending = false;
   const render = async () => {
     const response = await fetch(`/v2/runs/${runId}/state`, {cache: 'no-store'});
-    if (!response.ok) return;
+    if (!response.ok) {
+      // The user may have removed this run in another tab or reset the fresh
+      // workspace. It cannot recover by polling a non-existent run forever.
+      if (response.status === 404) {
+        if (fallback) clearInterval(fallback);
+        events?.close();
+      }
+      return;
+    }
     const state = await response.json();
     document.querySelector('#v2-run-status').textContent = `${state.run.status} · ${state.run.summary}`;
     for (const stage of state.stages) {
@@ -31,7 +39,7 @@
     poll();
     return;
   }
-  const events = new EventSource(`/v2/runs/${runId}/events`);
+  let events = new EventSource(`/v2/runs/${runId}/events`);
   events.addEventListener('pipeline', schedule);
   events.onerror = () => {
     events.close();

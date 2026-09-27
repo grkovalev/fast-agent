@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 
+from profitlab.sec.ticker_picker import TickerSelection
 from profitlab.settings import Settings
 from profitlab.v2.canonical import CanonicalDocument, CanonicalLine
 from profitlab.v2.contracts import CanonicalDocumentRef, SourceRange
@@ -25,7 +26,7 @@ from profitlab.v3.contracts import (
 from profitlab.v3.development_ledger import DevelopmentLedgerService
 from profitlab.v3.repository import V3Repository
 from profitlab.v3.rubric import PostSealRubricService
-from profitlab.v3.service import V3GraphService, _Trace
+from profitlab.v3.service import V3ExplorationIncomplete, V3GraphService, _Trace
 from profitlab.web.app import create_app
 
 
@@ -195,8 +196,10 @@ async def test_v3_rejects_non_round_tripping_model_provenance_and_does_not_fabri
         raise AssertionError('answer model must not run without accepted source support')
 
     settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, v3_window_lines=10)
-    with pytest.raises(ValueError, match='no answer was fabricated'):
+    with pytest.raises(V3ExplorationIncomplete, match='no answer was synthesized') as error:
         await V3GraphService(settings, caller=malformed).answer_document('TEST', 'Question?', _document())
+    assert error.value.frontier_state in {'partial', 'exhausted'}
+    assert V3Repository(tmp_path).inspection(error.value.experiment_id)['manifest'].frontier_state == error.value.frontier_state
 
 
 @pytest.mark.asyncio
@@ -608,6 +611,9 @@ def test_v3_primary_workspace_launches_the_fixed_v2_metric_experiment_without_qu
         page = client.get('/v3/experiments')
         assert page.status_code == 200
         assert 'Run experimental report' in page.text
+        assert 'Start random eligible report' in page.text
+        assert 'Start sequential V3 batch' in page.text
+        assert 'V3 experiment' in page.text
         assert 'name="question"' not in page.text
         assert 'name="ticker"' in page.text
         rejected = client.post('/v3/reports', data={'ticker': 'MSFT'})
@@ -615,3 +621,39 @@ def test_v3_primary_workspace_launches_the_fixed_v2_metric_experiment_without_qu
     assert 'excluded' in rejected.text
     assert V3Repository(tmp_path).campaigns()  # Server owns the fixed, sealed campaign.
     assert V3Repository(tmp_path).campaign_runs() == []
+
+
+def test_v3_random_and_batch_controls_persist_only_v3_local_selection_and_batch_history(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, sec_user_agent='Tester test@example.org',
+                        llm_api_key='test-key', v3_window_lines=10)
+    v2 = V2Repository(tmp_path)
+    before = v2.db_path.read_bytes()
+
+    class UnavailablePicker:
+        def __init__(self, repo):
+            self.repo = repo
+
+        def pick(self, **_kwargs):
+            selection = TickerSelection(None, datetime.now(UTC), 'test directory', 'test', 'hit', 'exhausted',
+                                        'No test ticker is available.')
+            self.repo.record_ticker_selection(selection)
+            return selection
+
+    with TestClient(create_app(settings, v3_ticker_picker_factory=UnavailablePicker)) as client:
+        unavailable = client.post('/v3/ticker-picker')
+        invalid_batch = client.post('/v3/batches', data={'count': '0'})
+        started = client.post('/v3/batches', data={'count': '2'}, follow_redirects=False)
+        assert unavailable.status_code == 503
+        assert invalid_batch.status_code == 400
+        assert started.status_code == 303
+        page = client.get(started.headers['location'])
+    repo = V3Repository(tmp_path)
+    batch = repo.v3_report_batch(started.headers['location'].rsplit('/', 1)[-1])
+    assert batch.requested_count == 2
+    assert batch.status in {'running', 'completed', 'interrupted'}
+    assert repo.processed_tickers() == set()
+    with sqlite3.connect(repo.db_path) as db:
+        assert db.execute('SELECT count(*) FROM v3_ticker_selections').fetchone()[0] >= 1
+        assert db.execute('SELECT count(*) FROM v3_report_batches').fetchone()[0] == 1
+    assert 'V3-only batch' in page.text
+    assert v2.db_path.read_bytes() == before

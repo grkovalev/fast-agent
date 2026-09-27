@@ -33,6 +33,16 @@ from .repository import V3Repository
 ProposalCaller = Callable[[dict], Awaitable[dict]]
 
 
+class V3ExplorationIncomplete(ValueError):
+    """A terminal, persisted graph frontier that must not synthesize an answer."""
+
+    def __init__(self, manifest: ExperimentManifest):
+        super().__init__('V3 frontier ended without a sufficient model-supplied answerability decision; '
+                         'no answer was synthesized.')
+        self.experiment_id = manifest.experiment_id
+        self.frontier_state = manifest.frontier_state
+
+
 class _Trace:
     """SEC transport adapter; V3 persists its own source and action audit."""
     def __init__(self, redactor):
@@ -562,8 +572,17 @@ class V3GraphService:
         # though _answer deliberately refuses to fabricate a claim.
         self.repo.update_manifest(manifest)
         if not answerable:
-            raise ValueError('V3 frontier ended without a sufficient model-supplied answerability decision; no answer was synthesized.')
-        answer = await self._answer(manifest, document, nodes, edges, paths)
+            raise V3ExplorationIncomplete(manifest)
+        try:
+            answer = await self._answer(manifest, document, nodes, edges, paths)
+        except ValueError as error:
+            # A sufficient declaration still cannot produce an answer when all
+            # proposed evidence failed exact source validation. The persisted
+            # exhausted frontier is inspectable; do not turn that limitation
+            # into a campaign-worker failure.
+            if 'no answer was fabricated' in str(error):
+                raise V3ExplorationIncomplete(manifest) from error
+            raise
         manifest = manifest.model_copy(update={'frontier_state': 'answered', 'finished_at': datetime.now(UTC)})
         self.repo.update_manifest(manifest); self.repo.save_answer(answer)
         cited = {f'L{line}': document.lines[line - 1].text for source in answer.source_ranges for line in range(source.start_line, source.end_line + 1)}

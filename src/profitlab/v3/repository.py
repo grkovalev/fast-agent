@@ -19,6 +19,8 @@ from .contracts import (
     ExplorationAction,
     GraphPath,
     RubricReport,
+    V3ReportBatch,
+    V3ReportBatchItem,
 )
 
 
@@ -54,6 +56,12 @@ class V3Repository:
                        'ticker TEXT NOT NULL, payload TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS campaign_reviews (review_id TEXT PRIMARY KEY, campaign_run_id TEXT NOT NULL UNIQUE, '
                        'payload TEXT NOT NULL)')
+            # Selection and batch history stay in this namespace: V3 must never
+            # consult V2's run or batch history when choosing a report.
+            db.execute('CREATE TABLE IF NOT EXISTS v3_ticker_selections (selection_id INTEGER PRIMARY KEY AUTOINCREMENT, payload TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS v3_report_batches (batch_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS v3_report_batch_items (batch_id TEXT NOT NULL, sequence INTEGER NOT NULL, '
+                       'payload TEXT NOT NULL, PRIMARY KEY (batch_id, sequence))')
 
     @contextmanager
     def connect(self):
@@ -228,6 +236,63 @@ class V3Repository:
                 self.update_campaign_run(run.model_copy(update={
                     'status': 'interrupted', 'finished_at': datetime.now(UTC),
                     'error': 'Run interrupted by workspace restart; no sealed result was recorded.',
+                }))
+
+    def processed_tickers(self):
+        """V3-local history used only by the V3 random picker."""
+        return {run.ticker for run in self.campaign_runs()}
+
+    def record_ticker_selection(self, selection):
+        payload = {
+            'ticker': selection.ticker, 'selected_at': selection.selected_at.isoformat(),
+            'directory_provenance': selection.directory_provenance,
+            'directory_version': selection.directory_version, 'cache_status': selection.cache_status,
+            'eligibility': selection.eligibility, 'message': selection.message,
+        }
+        with self.connect() as db:
+            db.execute('INSERT INTO v3_ticker_selections (payload) VALUES (?)', (json.dumps(payload, sort_keys=True),))
+
+    def create_v3_report_batch(self, batch: V3ReportBatch):
+        with self.connect() as db:
+            db.execute('INSERT INTO v3_report_batches VALUES (?, ?)', (batch.batch_id, self._dump(batch)))
+
+    def update_v3_report_batch(self, batch: V3ReportBatch):
+        with self.connect() as db:
+            cursor = db.execute('UPDATE v3_report_batches SET payload=? WHERE batch_id=?',
+                                (self._dump(batch), batch.batch_id))
+        if not cursor.rowcount:
+            raise FileNotFoundError(batch.batch_id)
+
+    def v3_report_batch(self, batch_id: str) -> V3ReportBatch:
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM v3_report_batches WHERE batch_id=?', (batch_id,)).fetchone()
+        if not row:
+            raise FileNotFoundError(batch_id)
+        return V3ReportBatch.model_validate_json(row['payload'])
+
+    def v3_report_batches(self):
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM v3_report_batches').fetchall()
+        return sorted((V3ReportBatch.model_validate_json(row['payload']) for row in rows),
+                      key=lambda batch: batch.created_at, reverse=True)
+
+    def save_v3_report_batch_item(self, item: V3ReportBatchItem):
+        with self.connect() as db:
+            db.execute('INSERT OR REPLACE INTO v3_report_batch_items VALUES (?, ?, ?)',
+                       (item.batch_id, item.sequence, self._dump(item)))
+
+    def v3_report_batch_items(self, batch_id: str):
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM v3_report_batch_items WHERE batch_id=? ORDER BY sequence',
+                              (batch_id,)).fetchall()
+        return [V3ReportBatchItem.model_validate_json(row['payload']) for row in rows]
+
+    def interrupt_active_v3_batches(self):
+        for batch in self.v3_report_batches():
+            if batch.status in {'queued', 'running'}:
+                self.update_v3_report_batch(batch.model_copy(update={
+                    'status': 'interrupted', 'finished_at': datetime.now(UTC),
+                    'summary': 'Batch interrupted by workspace restart; no further reports were selected.',
                 }))
 
     def save_campaign_review(self, review: CampaignReview):

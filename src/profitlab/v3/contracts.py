@@ -290,6 +290,28 @@ class CampaignRun(V3Contract):
     finished_at: datetime | None = None
 
 
+class V3ReportBatch(V3Contract):
+    """A V3-local, strictly sequential selection and execution record."""
+    batch_id: str = Field(pattern=r'^v3-batch-[a-f0-9]{16}$')
+    campaign_id: str = Field(pattern=r'^campaign-[a-f0-9]{16}$')
+    requested_count: int = Field(ge=1, le=12)
+    status: Literal['queued', 'running', 'completed', 'failed', 'interrupted']
+    summary: str = Field(min_length=1, max_length=2000)
+    created_at: datetime
+    finished_at: datetime | None = None
+
+
+class V3ReportBatchItem(V3Contract):
+    batch_id: str = Field(pattern=r'^v3-batch-[a-f0-9]{16}$')
+    sequence: int = Field(ge=1)
+    ticker: str | None = Field(default=None, pattern=r'^[A-Z][A-Z0-9.-]{0,19}$')
+    campaign_run_id: str | None = Field(default=None, pattern=r'^campaign-run-[a-f0-9]{16}$')
+    status: Literal['selecting', 'running', 'sealed', 'failed', 'skipped']
+    reason: str | None = Field(default=None, max_length=2000)
+    created_at: datetime
+    finished_at: datetime | None = None
+
+
 # G6b.2 is a post-seal boundary.  This immutable review is deliberately not a
 # graph input and is kept distinct from both the older file-authored ledger and
 # the held-out G6c rubric.

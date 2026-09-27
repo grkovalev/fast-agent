@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block page_title %}V3 sequential report batch{% endblock %}{% block content %}
+<p><a href="/v3/experiments">← V3 experiment reports</a></p>
+<section><p class="eyebrow">V3-only batch</p><h2>{{ batch.batch_id }}</h2><p><strong>{{ batch.status | title }}</strong> · {{ batch.summary }}</p><p>{{ batch.requested_count }} requested. A batch never runs two graph reports at once.</p></section>
+<section><h2>Case accounting</h2><table><thead><tr><th>#</th><th>Ticker</th><th>Status</th><th>Report</th><th>Reason</th></tr></thead><tbody>{% for item in items %}<tr><td>{{ item.sequence }}</td><td>{{ item.ticker or 'Selecting' }}</td><td>{{ item.status }}</td><td>{% if item.campaign_run_id %}<a href="/v3/campaign-runs/{{ item.campaign_run_id }}">Open run</a>{% endif %}</td><td>{{ item.reason or '—' }}</td></tr>{% else %}<tr><td colspan="5">No selection has been recorded yet.</td></tr>{% endfor %}</tbody></table></section>
+{% endblock %}

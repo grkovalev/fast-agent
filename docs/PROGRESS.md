@@ -208,6 +208,42 @@
   **Next implementation slice:** V2/V3 tab shell and V3-local manual/random/
   sequential-batch report launch.
 
+  **Completed workspace slice — V2/V3 shell and V3-local report launch (2026-09-27):**
+  the shared header now presents V2 and V3 experiment as peer workspaces. The V3
+  landing page keeps its server-owned fixed annual-profit/diluted-EPS/diluted-shares
+  question and sealed configuration, and now offers manual ticker, random eligible
+  ticker, and bounded sequential random-batch launch. Random-selection audit rows,
+  batch records, batch items, and processed-ticker history are persisted only in the
+  V3 experiment repository; the picker never reads V2 run history. A V3 batch awaits
+  each graph run's terminal sealed/failed result before selecting its next ticker,
+  preserves skipped/failure reasons, and is marked interrupted on restart rather than
+  presented as completed. Excluded development tickers and runtime configuration
+  validation remain server-side. No review, ledger, ground-truth, or V2 data is added
+  to graph/provider requests.
+
+  Focused `time uv run pytest tests/task_gates/test_v3_graph.py -q` — **24 passed**
+  in 2.13s test time (2.50s wall), with one existing Starlette/AnyIO deprecation
+  warning. Full `time uv run pytest -q` — **63 passed** in 3.91s test time (4.30s
+  wall), with the same warning; `uv run ruff check .` and `git diff --check` passed.
+  The focused gate now covers the V2/V3 tab shell, manual/random/batch controls,
+  V3-only selection/batch persistence, and V2 database non-mutation. No browser
+  automation or live SEC/provider request was attempted. Manual verification: after
+  one-time `uv run profitlab serve`, open `http://127.0.0.1:8000/v3/experiments`,
+  confirm the fixed question and V3 tab, submit one eligible ticker or choose random,
+  and open the redirected report status. Start a small sequential V3 batch, refresh
+  `/v3/batches/<batch-id>`, and confirm each case is selected/run one at a time with
+  its V3 report link and terminal reason. Next implementation slice: **convert the
+  V3 report status/explorer into the six-stage V3 workspace**.
+
+  **Runtime follow-up (2026-09-27):** a V3 graph frontier that terminates without
+  source-validated answer support is now retained as a sealed campaign result linked
+  to its persisted `partial` or `exhausted` experiment, rather than being reported as
+  a worker failure. The status makes clear that no answer was synthesized. The V2
+  browser progress client now stops polling after a 404, which occurs when a page for
+  a removed/reset historical run remains open. Focused V3 tests: **24 passed**;
+  full suite: **63 passed**; Ruff and `git diff --check` passed. No live retry was
+  performed, so the observed run remains its original terminal evidence.
+
   G6 live development diagnostic (2026-09-27): two authorized live graph runs used
   explicit revision `g6-heldout-cohort-20260927` and the unchanged
   `evidence-graph-v4` configuration for the question “What exact annual net income,

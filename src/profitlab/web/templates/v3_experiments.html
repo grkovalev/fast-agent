@@ -1,11 +1,12 @@
 {% extends "base.html" %}{% block page_title %}V3 metric report experiment{% endblock %}{% block content %}
-<p><a href="/">← Runs</a></p>
+<nav class="primary-nav" aria-label="V3 navigation"><a href="/">V2 reports</a><a aria-current="page" href="/v3/experiments">V3 experiment</a></nav>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 <section><p class="eyebrow">V3 accuracy experiment · same metric question as V2</p><h2>Run a filing report</h2>
 <p>This experiment tests a source-grounded graph against V2’s annual profit, diluted EPS, and diluted-share research target. The question and graph configuration are fixed by the server for comparable runs.</p>
-<form method="post" action="/v3/reports"><label>Ticker <input name="ticker" required pattern="[A-Za-z0-9.-]+" autofocus></label><button type="submit">Run experimental report</button></form>
+<form method="post" action="/v3/reports"><label>Ticker <input name="ticker" required pattern="[A-Za-z0-9.-]+" autofocus></label><button type="submit" formaction="/v3/ticker-picker" formnovalidate>Start random eligible report</button><button type="submit">Run experimental report</button></form>
 <p class="muted">Excluded development tickers: FGN, CRVL, SPRO, WOR, and MSFT. This does not alter V2 data or report results.</p>
 </section>
+<section><p class="eyebrow">V3-only sequential batch</p><h2>Run random experimental reports</h2><p>Each eligible filing is selected, then reaches a terminal graph state before the next selection. V3 selection history and batch records stay outside V2.</p><form method="post" action="/v3/batches"><label>Reports <input name="count" type="number" min="1" max="{{ batch_maximum }}" value="1" required></label><button type="submit">Start sequential V3 batch</button></form>{% for batch in batches %}<p><a href="/v3/batches/{{ batch.batch_id }}">{{ batch.batch_id }}</a> · {{ batch.status }} · {{ batch.summary }}</p>{% else %}<p>No V3 report batches yet.</p>{% endfor %}</section>
 <section><p class="eyebrow">Experimental reports</p><h2>Source-grounded evidence</h2>
 <p>Open a report to inspect its source-cited paths and exploration frontier. V3 remains isolated from V2.</p>
 {% for experiment in experiments %}

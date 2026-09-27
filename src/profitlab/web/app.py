@@ -23,9 +23,15 @@ from profitlab.v2.contracts import SourceRange
 from profitlab.v2.evaluation_service import cross_run_scorecard
 from profitlab.v2.source_replay import SourceReplayService
 from profitlab.v3.campaign_review import CampaignReviewService
-from profitlab.v3.contracts import CampaignReview, CampaignRun, DevelopmentCampaign
+from profitlab.v3.contracts import (
+    CampaignReview,
+    CampaignRun,
+    DevelopmentCampaign,
+    V3ReportBatch,
+    V3ReportBatchItem,
+)
 from profitlab.v3.repository import V3Repository
-from profitlab.v3.service import V3GraphService
+from profitlab.v3.service import V3ExplorationIncomplete, V3GraphService
 
 WEB_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
@@ -36,9 +42,9 @@ V3_V2_METRIC_QUESTION = (
 
 
 def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
-               benchmark_dataset=None, graph_service_factory=None) -> FastAPI:
+               benchmark_dataset=None, graph_service_factory=None, v3_ticker_picker_factory=None) -> FastAPI:
     settings = settings or Settings()
-    pipeline, tasks, batch_tasks, campaign_tasks = V2PipelineService(settings), {}, {}, {}
+    pipeline, tasks, batch_tasks, campaign_tasks, v3_batch_tasks = V2PipelineService(settings), {}, {}, {}, {}
     graph_repo = V3Repository(settings.data_dir)
 
     def new_graph_service():
@@ -48,6 +54,10 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
     def new_picker():
         return (ticker_picker_factory(pipeline.repo) if ticker_picker_factory
                 else RandomEligibleTickerPicker(settings, pipeline.repo))
+
+    def new_v3_picker():
+        return (v3_ticker_picker_factory(graph_repo) if v3_ticker_picker_factory
+                else RandomEligibleTickerPicker(settings, graph_repo))
 
     batch_service = SequentialReportBatchService(settings, pipeline, new_picker)
 
@@ -101,36 +111,102 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
 
         batch_tasks[batch_id] = asyncio.create_task(guarded_batch())
 
+    async def execute_campaign_run(run: CampaignRun):
+        graph_repo.update_campaign_run(run.model_copy(update={'status': 'running', 'started_at': datetime.now(UTC)}))
+        try:
+            result = await new_graph_service().answer_live_campaign(graph_repo.campaign(run.campaign_id), run.ticker)
+        except asyncio.CancelledError:
+            raise
+        except V3ExplorationIncomplete as error:
+            # A partial/exhausted frontier was already persisted by the graph
+            # service. It is a truthful terminal experiment, not a worker fault.
+            current = graph_repo.campaign_run(run.run_id)
+            completed = current.model_copy(update={
+                'status': 'sealed', 'experiment_id': error.experiment_id,
+                'finished_at': datetime.now(UTC),
+                'error': f'Terminal {error.frontier_state} frontier; no answer was synthesized.',
+            })
+            graph_repo.update_campaign_run(completed)
+            return completed
+        except Exception as error:  # Persist only a redacted, actionable lifecycle failure.
+            logger.exception('V3 campaign worker failed for %s', run.run_id)
+            current = graph_repo.campaign_run(run.run_id)
+            graph_repo.update_campaign_run(current.model_copy(update={
+                'status': 'failed', 'finished_at': datetime.now(UTC),
+                'error': settings.redactor().text(str(error)) or error.__class__.__name__,
+            }))
+            return graph_repo.campaign_run(run.run_id)
+        current = graph_repo.campaign_run(run.run_id)
+        completed = current.model_copy(update={
+            'status': 'sealed', 'experiment_id': result.manifest.experiment_id,
+            'finished_at': datetime.now(UTC),
+        })
+        graph_repo.update_campaign_run(completed)
+        return completed
+
     def start_campaign_run(run: CampaignRun):
         if (task := campaign_tasks.get(run.run_id)) and not task.done():
             raise ValueError('V3 campaign run is already active.')
 
         async def guarded_run():
-            graph_repo.update_campaign_run(run.model_copy(update={'status': 'running', 'started_at': datetime.now(UTC)}))
-            try:
-                result = await new_graph_service().answer_live_campaign(graph_repo.campaign(run.campaign_id), run.ticker)
-            except asyncio.CancelledError:
-                raise
-            except Exception as error:  # Persist only a redacted, actionable lifecycle failure.
-                logger.exception('V3 campaign worker failed for %s', run.run_id)
-                current = graph_repo.campaign_run(run.run_id)
-                graph_repo.update_campaign_run(current.model_copy(update={
-                    'status': 'failed', 'finished_at': datetime.now(UTC),
-                    'error': settings.redactor().text(str(error)) or error.__class__.__name__,
-                }))
-                return
-            current = graph_repo.campaign_run(run.run_id)
-            graph_repo.update_campaign_run(current.model_copy(update={
-                'status': 'sealed', 'experiment_id': result.manifest.experiment_id,
-                'finished_at': datetime.now(UTC),
-            }))
+            await execute_campaign_run(run)
 
         campaign_tasks[run.run_id] = asyncio.create_task(guarded_run())
+
+    def start_v3_batch(batch_id: str):
+        if (task := v3_batch_tasks.get(batch_id)) and not task.done():
+            raise ValueError('V3 batch is already active.')
+
+        async def guarded_batch():
+            batch = graph_repo.v3_report_batch(batch_id)
+            graph_repo.update_v3_report_batch(batch.model_copy(update={
+                'status': 'running', 'summary': 'Selecting and running reports one at a time.',
+            }))
+            campaign = graph_repo.campaign(batch.campaign_id)
+            excluded = {'FGN', 'CRVL', 'SPRO', 'WOR', 'MSFT'}
+            for sequence in range(1, batch.requested_count + 1):
+                item = V3ReportBatchItem(batch_id=batch_id, sequence=sequence, status='selecting',
+                                         created_at=datetime.now(UTC))
+                graph_repo.save_v3_report_batch_item(item)
+                selection = await asyncio.to_thread(new_v3_picker().pick, exclude_tickers=excluded)
+                if not selection.ticker:
+                    graph_repo.save_v3_report_batch_item(item.model_copy(update={
+                        'status': 'skipped', 'reason': selection.message, 'finished_at': datetime.now(UTC),
+                    }))
+                    continue
+                try:
+                    ticker = new_graph_service().validate_campaign_launch(campaign, selection.ticker)
+                    run = CampaignRun(run_id='campaign-run-' + uuid4().hex[:16], campaign_id=campaign.campaign_id,
+                                      ticker=ticker, status='queued', created_at=datetime.now(UTC))
+                    graph_repo.create_campaign_run(run)
+                    graph_repo.save_v3_report_batch_item(item.model_copy(update={
+                        'ticker': ticker, 'campaign_run_id': run.run_id, 'status': 'running',
+                    }))
+                    completed = await execute_campaign_run(run)
+                    graph_repo.save_v3_report_batch_item(item.model_copy(update={
+                        'ticker': ticker, 'campaign_run_id': run.run_id,
+                        'status': 'sealed' if completed.status == 'sealed' else 'failed',
+                        'reason': completed.error, 'finished_at': datetime.now(UTC),
+                    }))
+                except ValueError as error:
+                    graph_repo.save_v3_report_batch_item(item.model_copy(update={
+                        'ticker': selection.ticker, 'status': 'skipped',
+                        'reason': settings.redactor().text(str(error)), 'finished_at': datetime.now(UTC),
+                    }))
+            items = graph_repo.v3_report_batch_items(batch_id)
+            sealed = sum(item.status == 'sealed' for item in items)
+            graph_repo.update_v3_report_batch(graph_repo.v3_report_batch(batch_id).model_copy(update={
+                'status': 'completed', 'finished_at': datetime.now(UTC),
+                'summary': f'{sealed} sealed; {len(items) - sealed} failed or skipped. Reports ran sequentially.',
+            }))
+
+        v3_batch_tasks[batch_id] = asyncio.create_task(guarded_batch())
 
     @asynccontextmanager
     async def lifespan(_app):
         pipeline.recover()
         graph_repo.interrupt_active_campaign_runs()
+        graph_repo.interrupt_active_v3_batches()
         for batch in pipeline.repo.report_batches():
             if batch.status in {'queued', 'running', 'cancelling'}:
                 pipeline.repo.update_report_batch(batch.batch_id, status='queued',
@@ -150,7 +226,12 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             if not task.done():
                 task.cancel()
         await asyncio.gather(*campaign_tasks.values(), return_exceptions=True)
+        for task in v3_batch_tasks.values():
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*v3_batch_tasks.values(), return_exceptions=True)
         graph_repo.interrupt_active_campaign_runs()
+        graph_repo.interrupt_active_v3_batches()
 
     app = FastAPI(title='ProfitLab', lifespan=lifespan)
     templates = Jinja2Templates(directory=WEB_DIR / 'templates')
@@ -225,7 +306,17 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             'rubric_reports': graph_repo.rubric_reports(),
             'development_ledger_reports': graph_repo.development_ledger_reports(),
             'fixed_question': V3_V2_METRIC_QUESTION,
+            'batches': graph_repo.v3_report_batches(), 'batch_maximum': settings.random_batch_max_reports,
         })
+
+    def v3_reports_context(**extra):
+        return {
+            'experiments': graph_repo.experiments(), 'campaigns': graph_repo.campaigns(),
+            'campaign_runs': graph_repo.campaign_runs(), 'rubric_reports': graph_repo.rubric_reports(),
+            'development_ledger_reports': graph_repo.development_ledger_reports(),
+            'fixed_question': V3_V2_METRIC_QUESTION, 'batches': graph_repo.v3_report_batches(),
+            'batch_maximum': settings.random_batch_max_reports, **extra,
+        }
 
     @app.post('/v3/reports')
     async def launch_fixed_metric_report(request: Request):
@@ -240,13 +331,57 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             graph_repo.create_campaign_run(run)
             start_campaign_run(run)
         except ValueError as error:
-            return templates.TemplateResponse(request=request, name='v3_experiments.html', status_code=400, context={
-                'experiments': graph_repo.experiments(), 'campaigns': graph_repo.campaigns(),
-                'campaign_runs': graph_repo.campaign_runs(), 'rubric_reports': graph_repo.rubric_reports(),
-                'development_ledger_reports': graph_repo.development_ledger_reports(),
-                'fixed_question': V3_V2_METRIC_QUESTION, 'error': settings.redactor().text(str(error)),
-            })
+            return templates.TemplateResponse(request=request, name='v3_experiments.html', status_code=400,
+                                              context=v3_reports_context(error=settings.redactor().text(str(error))))
         return RedirectResponse(f'/v3/campaign-runs/{run.run_id}', status_code=303)
+
+    @app.post('/v3/ticker-picker')
+    async def pick_v3_ticker(request: Request):
+        selection = await asyncio.to_thread(new_v3_picker().pick,
+                                            exclude_tickers={'FGN', 'CRVL', 'SPRO', 'WOR', 'MSFT'})
+        if not selection.ticker:
+            return templates.TemplateResponse(request=request, name='v3_experiments.html', status_code=503,
+                                              context=v3_reports_context(error=selection.message))
+        try:
+            campaign = fixed_metric_campaign()
+            ticker = new_graph_service().validate_campaign_launch(campaign, selection.ticker)
+            run = CampaignRun(run_id='campaign-run-' + uuid4().hex[:16], campaign_id=campaign.campaign_id,
+                              ticker=ticker, status='queued', created_at=datetime.now(UTC))
+            graph_repo.create_campaign_run(run)
+            start_campaign_run(run)
+        except ValueError as error:
+            return templates.TemplateResponse(request=request, name='v3_experiments.html', status_code=400,
+                                              context=v3_reports_context(error=settings.redactor().text(str(error))))
+        return RedirectResponse(f'/v3/campaign-runs/{run.run_id}', status_code=303)
+
+    @app.post('/v3/batches')
+    async def create_v3_batch(request: Request):
+        from urllib.parse import parse_qs
+        fields = parse_qs((await request.body()).decode())
+        try:
+            count = int(fields.get('count', [''])[0])
+            if not 1 <= count <= settings.random_batch_max_reports:
+                raise ValueError(f'Choose between 1 and {settings.random_batch_max_reports} reports.')
+            campaign = fixed_metric_campaign()
+            batch = V3ReportBatch(batch_id='v3-batch-' + uuid4().hex[:16], campaign_id=campaign.campaign_id,
+                                  requested_count=count, status='queued', summary='Queued for sequential V3 selection.',
+                                  created_at=datetime.now(UTC))
+            graph_repo.create_v3_report_batch(batch)
+            start_v3_batch(batch.batch_id)
+        except (TypeError, ValueError) as error:
+            return templates.TemplateResponse(request=request, name='v3_experiments.html', status_code=400,
+                                              context=v3_reports_context(error=settings.redactor().text(str(error))))
+        return RedirectResponse(f'/v3/batches/{batch.batch_id}', status_code=303)
+
+    @app.get('/v3/batches/{batch_id}')
+    def v3_batch_detail(request: Request, batch_id: str):
+        try:
+            batch = graph_repo.v3_report_batch(batch_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V3 batch not found') from None
+        return templates.TemplateResponse(request=request, name='v3_batch.html', context={
+            'batch': batch, 'items': graph_repo.v3_report_batch_items(batch_id),
+        })
 
     @app.post('/v3/campaigns')
     async def create_campaign(request: Request):
