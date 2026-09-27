@@ -6,8 +6,55 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T41 — Measured target-shaped Findings core batches** — **LIVE COHORT REVIEWED; AUDIT-CORRECTED REPLAY PENDING**.
-- Next task: **T41 — Run a fresh bounded comparison cohort with the corrected line-audit provenance; do not tune during it.**
+- Current task: **T41 — Measured target-shaped Findings core batches** — **COHORT REVIEW COMPLETE; FOLLOW-ON EVALUATOR DECISION REQUIRED**.
+- Next task: define one bounded evaluator-representativeness task from the reviewed
+  cohort; do not tune Findings prompts, vocabulary, or thresholds from this cohort.
+- Separate-branch architecture experiment: the checked-out
+  `source-grounded-document-graph` branch has an explicit G0–G6 plan in
+  [SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md](SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md).
+  It preserves the T41 cohort evidence and isolates a model-built, source-cited,
+  question-conditioned graph from V2. The graph must not use deterministic
+  document-type/layout inference; only provenance validation, budgets, storage, and
+  traversal are deterministic. Begin with G0 only. Graph output cannot alter V2 or
+  receive Company Facts, findings, expectations, comparisons, rubrics, or evaluation
+  output as provider input.
+- T41 15-run cohort review: three completed five-report batches
+  (`batch-83e0ad9b5ed5`, `batch-c6b6c5f091f8`, and `batch-ec73ec4723d6`) produced
+  FGN, RHNO, SPRO, SKYX, ALL-PJ, WOR, KPEA, LRMR, IVDA, GBCS, DBB, CRAC, CRVL,
+  NCPL, and EFSI under `v2-5d00a512aa114aaa`. Every source through evaluation
+  stage completed. The corrected audit recorded 525 packet cores sent (345
+  target-shaped and 180 measured reserve) and 4,142 visible retained lines explicitly
+  outside the reserve; no planned core was excluded by the Findings request-size
+  budget. It recorded 37 first-pass valid findings, 31 invalid citation proposals
+  (30 amount/quote mismatches and one attempt to cite a non-core line), and three
+  repair-produced valid findings. Thus quote/core validation contained malformed
+  model output, but repair recovered only a small portion.
+
+  The independent comparison states were 2 exact matches, 10 scale-aware
+  equivalents, 7 Jev-rejected candidate comparisons, 19 structured-fact misses,
+  5 value matches with period unresolved, 6 additional visible values, and 6
+  unsupported/unresolved findings. These totals do not support a claim that the
+  packet layout improved precision or recall. They do expose evaluator limits:
+  it maps every `annual_profit` finding to consolidated net income while separately
+  treating common-shareholder net income as required, even when the discovered value
+  visibly corresponds to the latter (FGN and ALL-PJ); it treats Company-Facts gaps
+  (CRAC has none and LRMR/DBB have one) as additional visible output; and its scale
+  verdict lacks a declared table-precision/scale contract. Five numeric matches are
+  separated solely because the pipeline did not publish a usable period. The next
+  safe slice is therefore post-seal evaluation coverage/linkage diagnostics using
+  packet provenance and visible source rows, never as Findings input, before changing
+  retrieval or prompting. Review commands: read-only repository inspection plus
+  `uv run pytest -q` — **39 passed** (one existing Starlette/AnyIO warning),
+  `uv run ruff check .`, and `git diff --check` passed.
+
+  The same cohort's persisted provider profile identifies a separate non-behavioral
+  performance opportunity: source-context diagnostics consumed 555 Jev calls, versus
+  117 detailed chunk-score calls, 23 Findings calls, and 35 finding-type calls. Those
+  diagnostics do not currently affect retention or Findings inputs, so a versioned
+  sampled/opt-in diagnostic policy can reduce latency and cost without being presented
+  as a retrieval improvement. Any model/prompt optimization must instead be a frozen-
+  input ablation with quote-valid yield, source-coverage funnel, token/call count, and
+  latency recorded independently.
 - T41 first live cohort review: batch `batch-8f51756183f1` completed five reports
   (KIM, AAP, TFC, PNFP-PB, GNSS) under version `v2-c8ba15f4b5935cfe`.
   Each Findings request contained all planned packets: respectively 51, 34, 40,
@@ -557,7 +604,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T38 | Versioned run timing and evaluation cohorts | DONE | Manual browser inspection pending |
 | T39 | Jev-directed adaptive source context and target eligibility | IN_PROGRESS | Batched IWAL diagnostic replay ran; no semantic improvement established |
 | T40 | Preserve valid Findings through citation repair | DONE | Fresh, explicitly versioned RSCF mixed-response replay passed |
-| T41 | Measured target-shaped Findings core batches | IN_PROGRESS | Cohort reviewed; bounded packet implementation is next |
+| T41 | Measured target-shaped Findings core batches | DONE | 15-run versioned cohort reviewed; no gain claim; evaluator linkage/coverage diagnostic is next |
 
 ## T32 final evidence
 
