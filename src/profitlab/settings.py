@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     # Five covers the first post-threshold reserve without materially widening
     # the normal 12-section candidate set.
     section_score_max_uncertain: int = Field(5, ge=0, le=100)
+    # T39 experiment: preserve a tiny source-vocabulary reserve beside Jev's
+    # bounded section ranking. It is never a semantic eligibility judgement.
+    source_reserve_pattern_version: str = 'target-shaped-source-reserve-v1'
+    source_reserve_max_sections: int = Field(3, ge=0, le=25)
     # Independent Jev batches share one connection pool, while this bound keeps a
     # single run from overwhelming the provider or losing useful checkpoints.
     v2_provider_concurrency: int = Field(3, ge=1, le=12)
@@ -87,6 +91,7 @@ class Settings(BaseSettings):
     # Preserve at most one high-scoring chunk from each bounded-uncertain outline
     # section. It still passes detailed Jev scoring before Findings sees it.
     chunk_score_uncertain_section_reserve: int = Field(5, ge=0, le=25)
+    chunk_score_source_reserve: int = Field(3, ge=0, le=25)
     chunk_score_max_uncertain: int = Field(4, ge=0, le=100)
     chunk_score_retained_text_char_budget: int = Field(48000, ge=1000, le=1000000)
     chunk_score_overlap_dedupe_ratio: float = Field(.65, ge=0, le=1)

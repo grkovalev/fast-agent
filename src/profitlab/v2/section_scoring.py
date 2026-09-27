@@ -156,7 +156,7 @@ class SectionScoringService:
         return pending
 
     @staticmethod
-    def _policy(raw, sections, settings):
+    def _policy(raw, sections, settings, source_reserve_section_ids=frozenset()):
         by_id = {section.section_id: section for section in sections}
         candidates = [item for item in raw if max(item.target_scores.values()) >=
                       settings.section_score_keep_threshold]
@@ -178,6 +178,17 @@ class SectionScoringService:
                       'high score retained after target coverage')
             selected.append(best.model_copy(update={'policy_decision': 'selected', 'policy_reason': reason}))
         chosen_ids = {item.item_id for item in selected}
+        # This bounded reserve is based only on exact visible source vocabulary.
+        # It sits beside Jev ranking so a score/cap miss is observable in replay.
+        for section in sections:
+            if section.section_id not in source_reserve_section_ids or section.section_id in chosen_ids:
+                continue
+            item = next(candidate for candidate in raw if candidate.item_id == section.section_id)
+            selected.append(item.model_copy(update={
+                'policy_decision': 'selected',
+                'policy_reason': 'bounded target-shaped source reserve',
+            }))
+            chosen_ids.add(section.section_id)
         remaining = [item for item in raw if item.item_id not in chosen_ids]
         uncertain = sorted((item for item in remaining if max(item.target_scores.values()) >=
                             settings.section_score_uncertain_threshold),
@@ -206,6 +217,11 @@ class SectionScoringService:
             raise ValueError('Section uncertain threshold must be lower than keep threshold.')
         filing_metadata = {'ticker': self.repo.get_run(run_id).ticker,
                            'filing_id': document.ref.filing_id}
+        from .source_reserve import PATTERN_VERSION, reserve_sections
+        if self.settings.source_reserve_pattern_version != PATTERN_VERSION:
+            raise ValueError('Unknown target-shaped source reserve pattern version.')
+        source_reserve_section_ids = reserve_sections(
+            document, sections, self.settings.source_reserve_max_sections)
         contexts = [self._context(section, document, filing_metadata) for section in sections]
         raw, models, calls, cached = [], set(), 0, 0
         usage = {'input_tokens': 0, 'output_tokens': 0}
@@ -263,11 +279,12 @@ class SectionScoringService:
                        for context in batch)
             # A completed batch is committed before progress is emitted, making a
             # restart reuse its cache/checkpoint rather than repeat a paid request.
-            self.repo.save_scores(run_id, 'section_score', self._policy(raw,
-                                  [item for item in sections if item.section_id in {x.item_id for x in raw}],
-                                  self.settings))
+            partial_sections = [item for item in sections if item.section_id in {x.item_id for x in raw}]
+            reserve_ids = source_reserve_section_ids & {item.section_id for item in partial_sections}
+            self.repo.save_scores(run_id, 'section_score', self._policy(
+                raw, partial_sections, self.settings, reserve_ids))
             if on_progress:
                 on_progress(len(raw), len(sections), calls, cached)
-        scored = self._policy(raw, sections, self.settings)
+        scored = self._policy(raw, sections, self.settings, source_reserve_section_ids)
         self.repo.save_scores(run_id, 'section_score', scored)
         return SectionScoreResult(scored, sorted(models), calls, cached, usage)

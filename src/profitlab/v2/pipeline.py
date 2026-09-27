@@ -59,9 +59,10 @@ class V2PipelineService:
             'evaluation_scale_prompt_version', 'typesafe_model', 'llm_model',
             'llm_output_mode', 'section_score_keep_threshold',
             'section_score_uncertain_threshold', 'section_score_max_selected',
-            'section_score_max_uncertain', 'chunk_score_keep_threshold',
+            'section_score_max_uncertain', 'source_reserve_pattern_version', 'source_reserve_max_sections',
+            'chunk_score_keep_threshold',
             'chunk_score_uncertain_threshold', 'chunk_score_max_retained',
-            'chunk_score_uncertain_section_reserve',
+            'chunk_score_uncertain_section_reserve', 'chunk_score_source_reserve',
             'findings_max_requests', 'evaluation_scale_max_pairs',
         )
         return {name: str(getattr(self.settings, name)) for name in names}
@@ -257,9 +258,13 @@ class V2PipelineService:
                                                event_summary=snapshot.summary)
                     uncertain_section_ids = {item.item_id for item in self.repo.scores(
                         run_id, 'section_score') if item.policy_decision == 'uncertain'}
+                    source_reserve_section_ids = {item.item_id for item in self.repo.scores(
+                        run_id, 'section_score') if item.policy_reason == 'bounded target-shaped source reserve'}
                     result = await ChunkScoringService(self.settings, self.repo).score(
                         run_id, document, sections, chunks,
-                        uncertain_section_ids=uncertain_section_ids, on_progress=score_progress)
+                        uncertain_section_ids=uncertain_section_ids,
+                        source_reserve_section_ids=source_reserve_section_ids,
+                        on_progress=score_progress)
                 except Exception as error:  # noqa: BLE001 - preserve bounded provider failure state
                     failed = running.model_copy(update={
                         'status': 'failed', 'finished_at': datetime.now(UTC),

@@ -18,6 +18,7 @@ from profitlab.v2.source_replay import (
     SourceReplayService,
     load_source_replay_dataset,
 )
+from profitlab.v2.source_reserve import reserve_sections
 from profitlab.v2.storage import V2Repository
 
 
@@ -127,6 +128,67 @@ def test_high_scoring_uncertain_section_gets_a_bounded_chunk_recall_reserve(tmp_
     assert {item.item_id for item in scores if item.policy_decision == 'selected'} == {'regular', 'reserve'}
     assert next(item for item in scores if item.item_id == 'reserve').policy_reason == (
         'bounded uncertain-section recall reserve')
+
+
+def test_target_shaped_source_reserve_is_bounded_visible_only_and_versioned(tmp_path):
+    from profitlab.v2.contracts import OutlineSection
+
+    _, document, _ = _setup(tmp_path)
+    document = CanonicalDocument(ref=document.ref.model_copy(update={'line_count': 6}), lines=document.lines + [
+        CanonicalLine(line_number=6, text='Weighted-average diluted shares 100',
+                      element_type='table_row', html_anchor='line-6', dom_reference='/tr[6]'),
+    ])
+    income = OutlineSection(section_id='income', generated_topic='statement', primary_range=SourceRange(
+        document_id='document', source_hash='a' * 64, start_line=1, end_line=4))
+    shares = OutlineSection(section_id='shares', generated_topic='note', primary_range=SourceRange(
+        document_id='document', source_hash='a' * 64, start_line=5, end_line=6))
+    assert reserve_sections(document, [income, shares], 1) == {'income'}
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, SEC_USER_AGENT='ProfitLab test@example.org',
+                        section_score_max_selected=1, source_reserve_max_sections=1, _env_file=None)
+    scored = SectionScoringService._policy([
+        ScoredItem(item_id='income', target_scores={'annual_profit': .99}, model='jev', call_id='1',
+                   policy_decision='skipped', policy_reason='pending'),
+        ScoredItem(item_id='shares', target_scores={'diluted_shares': .01}, model='jev', call_id='2',
+                   policy_decision='skipped', policy_reason='pending'),
+    ], [income, shares], settings, {'shares'})
+    assert {item.item_id for item in scored if item.policy_decision == 'selected'} == {'income', 'shares'}
+    assert next(item for item in scored if item.item_id == 'shares').policy_reason == (
+        'bounded target-shaped source reserve')
+    run = V2PipelineService(settings).create('RESERVE')
+    assert run.version_components['source_reserve_max_sections'] == '1'
+
+
+def test_target_shaped_source_reserve_gets_one_scored_chunk_beyond_flat_cap(tmp_path):
+    _, document, _ = _setup(tmp_path)
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, SEC_USER_AGENT='ProfitLab test@example.org',
+                        chunk_score_max_retained=1, chunk_score_source_reserve=1, _env_file=None)
+    regular = TextChunk(chunk_id='regular', section_id='regular', core_range=SourceRange(
+        document_id='document', source_hash='a' * 64, start_line=1, end_line=2), request_size_estimate=1)
+    reserve = TextChunk(chunk_id='reserve', section_id='source-reserve', core_range=SourceRange(
+        document_id='document', source_hash='a' * 64, start_line=3, end_line=4), request_size_estimate=1)
+    scores = ChunkScoringService(settings, V2Repository(tmp_path))._policy([
+        ScoredItem(item_id='regular', target_scores={'annual_profit': .99}, model='jev', call_id='1',
+                   policy_decision='skipped', policy_reason='pending'),
+        ScoredItem(item_id='reserve', target_scores={'diluted_eps': .97}, model='jev', call_id='2',
+                   policy_decision='skipped', policy_reason='pending'),
+    ], [regular, reserve], document, source_reserve_section_ids={'source-reserve'})
+    assert {item.item_id for item in scores if item.policy_decision == 'selected'} == {'regular', 'reserve'}
+    assert next(item for item in scores if item.item_id == 'reserve').policy_reason == (
+        'bounded target-shaped source reserve')
+
+
+def test_target_shaped_source_chunk_keeps_reserve_provenance_when_normally_selected(tmp_path):
+    _, document, _ = _setup(tmp_path)
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, SEC_USER_AGENT='ProfitLab test@example.org',
+                        chunk_score_max_retained=1, _env_file=None)
+    reserve = TextChunk(chunk_id='reserve', section_id='source-reserve', core_range=SourceRange(
+        document_id='document', source_hash='a' * 64, start_line=3, end_line=4), request_size_estimate=1)
+    score = ChunkScoringService(settings, V2Repository(tmp_path))._policy([
+        ScoredItem(item_id='reserve', target_scores={'diluted_eps': .97}, model='jev', call_id='1',
+                   policy_decision='skipped', policy_reason='pending'),
+    ], [reserve], document, source_reserve_section_ids={'source-reserve'})[0]
+    assert score.policy_decision == 'selected'
+    assert score.policy_reason.startswith('bounded target-shaped source reserve; ')
 
 
 @pytest.mark.asyncio
@@ -257,6 +319,13 @@ def test_source_row_replay_traces_persisted_loss_points_without_provider_inputs(
         'request': {'retained_chunks': [{'core_evidence_lines': [{'line_number': 3}]}]},
         'proposal_audit': [{'source_line': 3, 'quote_validated': True, 'validation_error': None,
                             'repair_attempted': False}],
+        'selection_audit': [{'line_number': 3, 'request_state': 'sent_to_findings',
+                             'proposal_count': 1, 'quote_validated_count': 1,
+                             'classification': [{'source_line': 3, 'state': 'completed',
+                                                 'reason': 'one supported type', 'scores': {
+                                                     'annual_profit': .9, 'diluted_eps': .1,
+                                                     'diluted_shares': .1},
+                                                 'finding_type': 'annual_profit'}]}],
     })
     dataset = SourceReplayDataset(dataset_version='test-v1', cases=[SourceReplayCase(
         case_id='case', ticker='CONTEXT', accession='accession', source_hash='a' * 64,
@@ -270,6 +339,13 @@ def test_source_row_replay_traces_persisted_loss_points_without_provider_inputs(
         'flat_retained': True, 'sent_to_findings': True, 'proposed': True,
         'quote_validated': True, 'classification': ['annual_profit'],
         'published': True, 'independent_match': True,
+        'selection_state': {'line_number': 3, 'request_state': 'sent_to_findings',
+                            'proposal_count': 1, 'quote_validated_count': 1,
+                            'classification': [{'source_line': 3, 'state': 'completed',
+                                                'reason': 'one supported type', 'scores': {
+                                                    'annual_profit': .9, 'diluted_eps': .1,
+                                                    'diluted_shares': .1},
+                                                'finding_type': 'annual_profit'}]},
     }]
 
 

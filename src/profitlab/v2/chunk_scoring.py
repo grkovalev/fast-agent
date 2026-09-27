@@ -77,7 +77,8 @@ class ChunkScoringService:
             values.update(range(source_range.start_line, source_range.end_line + 1))
         return values
 
-    def _policy(self, raw, chunks, document, uncertain_section_ids=frozenset()):
+    def _policy(self, raw, chunks, document, uncertain_section_ids=frozenset(),
+                source_reserve_section_ids=frozenset()):
         by_id = {item.chunk_id: item for item in chunks}
         texts = {item.chunk_id: document.slice(item.core_range) for item in chunks}
         years = {item.chunk_id: set(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', text))
@@ -115,8 +116,11 @@ class ChunkScoringService:
                 diversity.append('covers ' + ', '.join(new_targets))
             if len(selected) == 0 or chunk.section_id not in {by_id[i.item_id].section_id for i in selected}:
                 diversity.append('section diversity')
+            reason = '; '.join(diversity) or 'high detailed relevance'
+            if chunk.section_id in source_reserve_section_ids:
+                reason = 'bounded target-shaped source reserve; ' + reason
             selected.append(best.model_copy(update={'policy_decision': 'selected',
-                'policy_reason': '; '.join(diversity) or 'high detailed relevance'}))
+                'policy_reason': reason}))
         selected_ids = {item.item_id for item in selected}
         reserve_candidates = [item for item in raw if item.item_id not in selected_ids
                               and by_id[item.item_id].section_id in uncertain_section_ids
@@ -136,6 +140,24 @@ class ChunkScoringService:
             selected_ids.add(item.item_id)
             reserved_sections.add(section_id)
             if len(reserved_sections) >= self.settings.chunk_score_uncertain_section_reserve:
+                break
+        source_reserve_candidates = [item for item in raw if item.item_id not in selected_ids
+                                     and by_id[item.item_id].section_id in source_reserve_section_ids
+                                     and max(item.target_scores.values()) >= self.settings.chunk_score_keep_threshold]
+        reserved_source_sections = set()
+        for item in sorted(source_reserve_candidates, key=lambda candidate: (
+                -max(candidate.target_scores.values()),
+                by_id[candidate.item_id].core_range.start_line, candidate.item_id)):
+            section_id = by_id[item.item_id].section_id
+            if section_id in reserved_source_sections:
+                continue
+            selected.append(item.model_copy(update={
+                'policy_decision': 'selected',
+                'policy_reason': 'bounded target-shaped source reserve',
+            }))
+            selected_ids.add(item.item_id)
+            reserved_source_sections.add(section_id)
+            if len(reserved_source_sections) >= self.settings.chunk_score_source_reserve:
                 break
         chosen = {item.item_id: item for item in selected}
         selected_lines = [self._lines(by_id[item.item_id]) for item in selected]
@@ -157,7 +179,8 @@ class ChunkScoringService:
         return [chosen[item.chunk_id] for item in chunks]
 
     async def score(self, run_id, document: CanonicalDocument, sections: list[OutlineSection],
-                    chunks: list[TextChunk], *, uncertain_section_ids=frozenset(), on_progress=None):
+                    chunks: list[TextChunk], *, uncertain_section_ids=frozenset(),
+                    source_reserve_section_ids=frozenset(), on_progress=None):
         if self.settings.chunk_score_uncertain_threshold >= self.settings.chunk_score_keep_threshold:
             raise ValueError('Chunk uncertain threshold must be lower than keep threshold.')
         section_lookup = {item.section_id: item for item in sections}
@@ -171,7 +194,8 @@ class ChunkScoringService:
             raise ValueError('Chunk-score request budget would be exceeded before any provider call.')
         configuration = hashlib.sha256(json.dumps({key: getattr(self.settings, key) for key in (
             'chunk_score_request_char_budget', 'chunk_score_keep_threshold', 'chunk_score_uncertain_threshold',
-            'chunk_score_max_retained', 'chunk_score_retained_text_char_budget', 'chunk_score_overlap_dedupe_ratio')}, sort_keys=True).encode()).hexdigest()
+            'chunk_score_max_retained', 'chunk_score_uncertain_section_reserve', 'chunk_score_source_reserve',
+            'chunk_score_retained_text_char_budget', 'chunk_score_overlap_dedupe_ratio')}, sort_keys=True).encode()).hexdigest()
         model = self.settings.typesafe_model
         client, raw, usage, calls, cached = self._client(run_id), [], {'input_tokens': 0, 'output_tokens': 0}, 0, 0
         started = monotonic()
@@ -198,11 +222,11 @@ class ChunkScoringService:
                                   call_id=f'chunk-batch-{batch_number}', policy_decision='skipped',
                                   policy_reason='policy pending') for item_id, vector in response_scores.items())
             provisional = self._policy(raw, [item for item in chunks if item.chunk_id in {score.item_id for score in raw}],
-                                       document, uncertain_section_ids)
+                                       document, uncertain_section_ids, source_reserve_section_ids)
             self.repo.save_scores(run_id, 'chunk_score', provisional)
             if on_progress:
                 on_progress(len(raw), len(chunks), calls, cached, usage)
-        scored = self._policy(raw, chunks, document, uncertain_section_ids)
+        scored = self._policy(raw, chunks, document, uncertain_section_ids, source_reserve_section_ids)
         self.repo.save_scores(run_id, 'chunk_score', scored)
         retained = sum(len(document.slice(next(item.core_range for item in chunks if item.chunk_id == score.item_id)))
                        for score in scored if score.policy_decision == 'selected')

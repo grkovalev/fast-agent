@@ -73,6 +73,9 @@ class SourceReplayService:
                            for chunk in request.get('retained_chunks', [])
                            for line in chunk.get('core_evidence_lines', [])}
         audit = action.get('proposal_audit') if action else None
+        selection_audit = action.get('selection_audit') if action else None
+        selection_by_line = ({item['line_number']: item for item in selection_audit}
+                             if selection_audit is not None else {})
         findings = self.repo.findings(run_id)
         comparisons = self.repo.comparisons(run_id)
         matching_finding_ids = {finding_id for comparison in comparisons
@@ -100,8 +103,10 @@ class SourceReplayService:
                 'classification': [item.finding_type for item in row_findings],
                 'published': any(item.finding_type == expected.target for item in row_findings),
                 'independent_match': any(item.finding_id in matching_finding_ids for item in row_findings),
+                'selection_state': selection_by_line.get(expected.line_number),
             })
         return {'dataset_version': self.dataset.dataset_version, 'case_id': case.case_id,
                 'trace_version': 't39-source-row-trace-v1',
-                'proposal_audit_available': audit is not None, 'rows': rows,
+                'proposal_audit_available': audit is not None,
+                'selection_audit_available': selection_audit is not None, 'rows': rows,
                 'non_leak_rule': 'Reviewed expected rows are post-run diagnostics and are never provider inputs.'}

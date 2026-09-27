@@ -186,6 +186,45 @@
   Jev score instability/saturation makes another threshold or reserve-size tweak
   unsafe. The next bounded slice is deterministic target-shaped source reserve
   routing, measured against the fixed replay rows before changing evaluation.
+- T39 target-shaped source-reserve routing slice: added a versioned, bounded
+  visible-source vocabulary reserve (at most three sections and one detailed
+  Jev-qualified chunk per reserved section). It does not read replay expectations,
+  XBRL, facts, findings, or evaluation outputs, and it still requires detailed Jev
+  scoring and exact quote validation. A normal live NBHC acquisition under
+  `t39-target-shaped-reserve-v1` fetched the same accession but a different canonical
+  source hash, so the fixed replay contract correctly refused to bind it. Two fresh
+  controlled replays then used only the already persisted hash-pinned NBHC source:
+  `v2-9a1fe9973166` / `t39-target-shaped-reserve-v2-controlled` first flat-retained
+  the reviewed EPS section but let its normal detailed-selection reason lose reserve
+  provenance, so Findings request-budget fallback dropped all three rows. The measured
+  correction preserves source-reserve provenance even when the chunk is selected by
+  the ordinary detailed policy. In `v2-79e5397852d8` /
+  `t39-target-shaped-reserve-v3-provenance`, section 2678–2694 was selected as the
+  bounded target-shaped source reserve (scores 0.91 annual profit, 0.97 diluted EPS,
+  0.97 diluted shares); all three fixed rows (2684, 2689, 2691) were flat-retained and
+  sent to Findings. None was proposed, quote-validated, classified, or published.
+  Thus routing is no longer the first observed loss point for this NBHC source, but
+  this one replay does not establish a retrieval or accuracy improvement; Findings
+  proposal selection is now the first observable loss point. Local acceptance:
+  `uv run pytest tests/task_gates/test_t39.py -q` — **14 passed** (one existing
+  Starlette/AnyIO warning); `uv run ruff check .` and `git diff --check` passed.
+  Next bounded experiment: replay one other source-hash-pinned fixed-set case with
+  this unchanged reserve and inspect whether it preserves source-row routing without
+  creating a new proposal-selection failure before altering prompts or Findings input.
+- T39 Findings-selection audit slice: persisted bounded per-retained-core-line audit
+  entries beside the existing structural proposal audit: whether a line was sent or
+  dropped by Findings request budgeting, proposal and quote-validation counts, and
+  finite Jev type-classification scores/reason when a quote-valid proposal exists.
+  It is diagnostic-only, never provider input, and renders on the fixed source-row
+  trace. Fresh controlled NBHC replay `v2-15f081775e3b` under
+  `t39-findings-line-audit-v1` reused the hash-pinned source. All three reviewed rows
+  (2684, 2689, 2691) were sent to Findings with zero proposals; the model instead
+  proposed lines 723, 727, and 735 (plus one repaired line 630). This confirms that
+  proposal selection—not source routing, request-budget dropping, or quote validation
+  of the reviewed rows—is the active loss point for this source. The run again had
+  zero exact matches of four independent expected facts. Next bounded experiment:
+  inspect the same audit on one other source-hash-pinned replay before changing
+  Findings proposal behavior or type classification.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
