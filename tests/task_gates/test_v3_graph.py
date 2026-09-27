@@ -657,3 +657,40 @@ def test_v3_random_and_batch_controls_persist_only_v3_local_selection_and_batch_
         assert db.execute('SELECT count(*) FROM v3_report_batches').fetchone()[0] == 1
     assert 'V3-only batch' in page.text
     assert v2.db_path.read_bytes() == before
+
+
+@pytest.mark.asyncio
+async def test_v3_report_workspace_keeps_six_stages_and_graph_provenance_distinct(tmp_path):
+    async def caller(payload):
+        if payload['kind'] == 'explore':
+            return {'answerability': 'sufficient', 'nodes': [{'label': 'visible revenue', 'status': 'accepted',
+                'evidence': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}], 'edges': []}
+        path = payload['paths'][0]
+        return {'answer': 'Revenue was 100.', 'path_ids': [path['path_id']],
+                'citations': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}
+
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, v3_window_lines=10)
+    service = V3GraphService(settings, caller=caller)
+    result = await service.answer_document('TEST', 'Question?', _document())
+    campaign = DevelopmentCampaign(campaign_id='campaign-' + 'a' * 16, question='Question?',
+        configuration=service.campaign_configuration(), created_at=datetime.now(UTC))
+    run = CampaignRun(run_id='campaign-run-' + 'a' * 16, campaign_id=campaign.campaign_id, ticker='TEST',
+        status='sealed', experiment_id=result.manifest.experiment_id, created_at=datetime.now(UTC))
+    repo = V3Repository(tmp_path)
+    repo.save_campaign(campaign)
+    repo.create_campaign_run(run)
+
+    with TestClient(create_app(settings)) as client:
+        source = client.get(f'/v3/campaign-runs/{run.run_id}?stage=source')
+        explore = client.get(f'/v3/campaign-runs/{run.run_id}?stage=explore')
+        paths = client.get(f'/v3/campaign-runs/{run.run_id}?stage=evidence_paths')
+        findings = client.get(f'/v3/campaign-runs/{run.run_id}?stage=findings')
+        future = client.get(f'/v3/campaign-runs/{run.run_id}?stage=evaluate')
+    assert source.status_code == explore.status_code == paths.status_code == findings.status_code == future.status_code == 200
+    assert 'V3 report stages' in source.text
+    assert 'Open immutable canonical source' in source.text
+    assert 'Frontier:' in explore.text
+    assert 'Model labels are not source text.' in paths.text
+    assert 'Revenue was 100.' in findings.text
+    assert 'not implemented' in future.text
+    assert 'Per-report comparison waits for V3-local ground truth' in future.text

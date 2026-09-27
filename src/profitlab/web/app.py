@@ -39,6 +39,10 @@ V3_V2_METRIC_QUESTION = (
     'What exact annual net income or profit, diluted earnings per share, and diluted '
     'weighted-average shares does this filing visibly report?'
 )
+V3_WORKSPACE_STAGES = (
+    ('source', 'Source'), ('explore', 'Explore'), ('evidence_paths', 'Evidence paths'),
+    ('findings', 'Findings'), ('ground_truth', 'Ground truth'), ('evaluate', 'Evaluate'),
+)
 
 
 def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
@@ -279,6 +283,34 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         })
         return inspection
 
+    def v3_workspace_stages(run: CampaignRun, inspection):
+        """Present persisted graph lifecycle truth without inventing later V3 work."""
+        pending = 'waiting' if run.status in {'queued', 'running'} else 'unavailable'
+        terminal = run.status == 'sealed'
+        manifest = inspection['manifest'] if inspection else None
+        answer = inspection['answers'][0] if inspection and inspection['answers'] else None
+        return [
+            {'stage': 'source', 'label': 'Source', 'status': 'available' if inspection else pending,
+             'summary': ('Immutable canonical visible filing source is ready.' if inspection else
+                         'Filing acquisition has not produced a persisted canonical source yet.')},
+            {'stage': 'explore', 'label': 'Explore',
+             'status': (manifest.frontier_state if manifest else pending).replace('_', ' '),
+             'summary': ('Bounded graph actions are terminal and inspectable.' if terminal else
+                         'Bounded source-window exploration is not terminal yet.')},
+            {'stage': 'evidence_paths', 'label': 'Evidence paths',
+             'status': 'available' if terminal else pending,
+             'summary': ('Accepted, uncertain, and rejected graph provenance is available.' if terminal else
+                         'Paths become available only after persisted exploration output exists.')},
+            {'stage': 'findings', 'label': 'Findings',
+             'status': answer.status if answer else ('unresolved' if terminal else pending),
+             'summary': ('Only source-cited graph answer claims are shown.' if answer else
+                         'No source-cited graph answer claim was persisted; no finding is fabricated.')},
+            {'stage': 'ground_truth', 'label': 'Ground truth', 'status': 'not implemented',
+             'summary': 'V3-local Company Facts retrieval is a later post-seal slice; it is not available to graph requests.'},
+            {'stage': 'evaluate', 'label': 'Evaluate', 'status': 'not implemented',
+             'summary': 'Per-report comparison waits for V3-local ground truth and never changes graph findings.'},
+        ]
+
     def fixed_metric_campaign():
         """Server-owned campaign for the sole V2-comparison experiment question."""
         service = new_graph_service()
@@ -438,7 +470,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         return RedirectResponse(f'/v3/campaign-runs/{run.run_id}', status_code=303)
 
     @app.get('/v3/campaign-runs/{run_id}')
-    def campaign_run(request: Request, run_id: str):
+    def campaign_run(request: Request, run_id: str, stage: str | None = None):
         try:
             run = graph_repo.campaign_run(run_id)
             campaign = graph_repo.campaign(run.campaign_id)
@@ -449,9 +481,17 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             review_report = graph_repo.development_ledger_report(CampaignReviewService.cohort_id(review))
         except FileNotFoundError:
             review, review_report = None, None
+        try:
+            inspection = graph_context(run.experiment_id) if run.experiment_id else None
+        except FileNotFoundError:
+            inspection = None
+        stages = v3_workspace_stages(run, inspection)
+        selected_stage = stage if stage in {item['stage'] for item in stages} else 'source'
+        selected = next(item for item in stages if item['stage'] == selected_stage)
         return templates.TemplateResponse(request=request, name='v3_campaign_run.html', context={
             'run': run, 'campaign': campaign, 'review': review, 'review_report': review_report,
-            'show_review_form': False,
+            'show_review_form': False, 'stages': stages, 'selected': selected,
+            'inspection': inspection,
         })
 
     @app.get('/v3/campaign-runs/{run_id}/review')
@@ -461,9 +501,14 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             campaign = graph_repo.campaign(run.campaign_id)
         except FileNotFoundError:
             raise HTTPException(404, 'V3 campaign run not found') from None
+        try:
+            inspection = graph_context(run.experiment_id) if run.experiment_id else None
+        except FileNotFoundError:
+            inspection = None
+        stages = v3_workspace_stages(run, inspection)
         return templates.TemplateResponse(request=request, name='v3_campaign_run.html', context={
             'run': run, 'campaign': campaign, 'review': None, 'review_report': None,
-            'show_review_form': True,
+            'show_review_form': True, 'stages': stages, 'selected': stages[0], 'inspection': inspection,
         })
 
     @app.post('/v3/campaign-runs/{run_id}/review')
@@ -493,9 +538,14 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                 raise HTTPException(404, 'V3 campaign run not found') from None
             run = graph_repo.campaign_run(run_id)
             campaign = graph_repo.campaign(run.campaign_id)
+            try:
+                inspection = graph_context(run.experiment_id) if run.experiment_id else None
+            except FileNotFoundError:
+                inspection = None
+            stages = v3_workspace_stages(run, inspection)
             return templates.TemplateResponse(request=request, name='v3_campaign_run.html', status_code=400, context={
                 'run': run, 'campaign': campaign, 'review': None, 'review_report': None,
-                'show_review_form': True,
+                'show_review_form': True, 'stages': stages, 'selected': stages[0], 'inspection': inspection,
                 'error': settings.redactor().text(str(error)),
             })
         return RedirectResponse(f'/v3/development-ledgers/{report.cohort.cohort_id}', status_code=303)

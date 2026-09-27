@@ -244,6 +244,31 @@
   full suite: **63 passed**; Ruff and `git diff --check` passed. No live retry was
   performed, so the observed run remains its original terminal evidence.
 
+  **Completed workspace slice — six-stage V3 report workspace (2026-09-27):** a
+  campaign report now renders a refresh-safe six-stage rail: Source, Explore,
+  Evidence paths, Findings, Ground truth, and Evaluate. Each selection derives its
+  status only from persisted V3 campaign/graph records. Source opens immutable
+  canonical lines; Explore opens bounded actions/frontier budgets; Evidence paths
+  opens the existing accepted/uncertain/rejected provenance explorer; Findings shows
+  only exact source-cited graph claims. Ground truth and Evaluate are explicitly
+  marked not implemented—no Company Facts, evaluation result, or inferred value is
+  fabricated or added to a graph/provider request. Existing terminal-only review
+  routes retain their validation and immutable-review behavior.
+
+  Focused `time uv run pytest tests/task_gates/test_v3_graph.py -q` — **25 passed**
+  in 2.21s test time (2.56s wall), with one existing Starlette/AnyIO deprecation
+  warning. Full `time uv run pytest -q` — **64 passed** in 3.95s test time (4.32s
+  wall), with the same warning; `uv run ruff check .` and `git diff --check` passed.
+  The focused gate adds a sealed report navigation path covering every stage, exact
+  source/provenance links, claim display, and unavailable future stages. No obsolete
+  tests were removed. No live SEC/provider or browser-automation check was attempted.
+  Manual verification: after one-time `uv run profitlab serve`, open a V3 report at
+  `/v3/campaign-runs/<run-id>`, select each rail item, refresh, and verify the
+  selected item/status persists in the URL. Follow a Source link and an Evidence
+  paths link; confirm only canonical text backs a claim and Ground truth/Evaluate
+  state that they are not yet implemented. Next implementation slice: **V3-local
+  fixed-metric findings, post-seal Company Facts, and per-report evaluation**.
+
   G6 live development diagnostic (2026-09-27): two authorized live graph runs used
   explicit revision `g6-heldout-cohort-20260927` and the unchanged
   `evidence-graph-v4` configuration for the question “What exact annual net income,
