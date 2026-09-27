@@ -6,9 +6,14 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T41 — Measured target-shaped Findings core batches** — **COHORT REVIEW COMPLETE; FOLLOW-ON EVALUATOR DECISION REQUIRED**.
-- Next task: define one bounded evaluator-representativeness task from the reviewed
-  cohort; do not tune Findings prompts, vocabulary, or thresholds from this cohort.
+- Current task (this branch): **G0 — Frozen graph-experiment harness and evidence
+  handoff**. Implement only G0 from
+  [SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md](SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md).
+- Next task (this branch): G1 only after G0's isolated repository, manifest,
+  non-leak inventory, local contracts, and saved-document inspection are recorded.
+- Deferred V2 follow-up: define one bounded evaluator-representativeness task from
+  the T41 cohort; do not tune Findings prompts, vocabulary, or thresholds from that
+  cohort on this graph branch.
 - Separate-branch architecture experiment: the checked-out
   `source-grounded-document-graph` branch has an explicit G0–G6 plan in
   [SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md](SOURCE_GROUNDED_DOCUMENT_GRAPH_EXPERIMENT.md).
