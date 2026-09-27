@@ -249,3 +249,42 @@ class DevelopmentLedgerReport(V3Contract):
     cohort: DevelopmentCohort
     cases: list[DevelopmentCaseRubric]
     summary: dict[str, int | float | None]
+
+
+# G6b.1 deliberately does not extend the post-seal ledger above.  A campaign is
+# the pre-run boundary: it seals every input that can affect a graph request or
+# traversal before the first development filing is acquired.
+class CampaignConfiguration(V3Contract):
+    application_revision: str = Field(min_length=1, max_length=200)
+    model: str = Field(min_length=1, max_length=200)
+    exploration_prompt_version: str = Field(min_length=1, max_length=200)
+    answer_prompt_version: str = Field(min_length=1, max_length=200)
+    request_schema_version: str = Field(min_length=1, max_length=200)
+    relation_vocabulary: tuple[Relation, ...] = Field(min_length=1)
+    source_window_lines: int = Field(ge=10, le=1000)
+    source_window_overlap_lines: int = Field(ge=0, le=300)
+    max_actions: int = Field(ge=1, le=100)
+    max_total_source_characters: int = Field(ge=1000, le=1000000)
+    max_wall_seconds: float = Field(gt=0, le=1800)
+    continuation_policy_version: str = Field(min_length=1, max_length=200)
+    stopping_policy_version: str = Field(min_length=1, max_length=200)
+
+
+class DevelopmentCampaign(V3Contract):
+    campaign_id: str = Field(pattern=r'^campaign-[a-f0-9]{16}$')
+    campaign_version: Literal['g6b-campaign-v1'] = 'g6b-campaign-v1'
+    question: str = Field(min_length=1, max_length=4000)
+    configuration: CampaignConfiguration
+    created_at: datetime
+
+
+class CampaignRun(V3Contract):
+    run_id: str = Field(pattern=r'^campaign-run-[a-f0-9]{16}$')
+    campaign_id: str = Field(pattern=r'^campaign-[a-f0-9]{16}$')
+    ticker: str = Field(pattern=r'^[A-Z][A-Z0-9.-]{0,19}$')
+    status: Literal['queued', 'running', 'sealed', 'failed', 'interrupted']
+    experiment_id: str | None = Field(default=None, pattern=r'^v3-[a-f0-9]{16}$')
+    error: str | None = Field(default=None, max_length=2000)
+    created_at: datetime
+    started_at: datetime | None = None
+    finished_at: datetime | None = None

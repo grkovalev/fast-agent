@@ -2,12 +2,15 @@
 import json
 import sqlite3
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 
 from profitlab.v2.canonical import CanonicalDocument
 
 from .contracts import (
     AnswerCandidate,
+    CampaignRun,
+    DevelopmentCampaign,
     DevelopmentLedgerReport,
     EvidenceEdge,
     EvidenceNode,
@@ -43,6 +46,11 @@ class V3Repository:
             # contract can be mistaken for the other in inspection or scoring.
             db.execute('CREATE TABLE IF NOT EXISTS development_cohorts (cohort_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS development_ledger_reports (cohort_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
+            # G6b.1 pre-run campaign state is intentionally separate from both
+            # post-seal G6b ledgers and held-out G6c reports.
+            db.execute('CREATE TABLE IF NOT EXISTS development_campaigns (campaign_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS campaign_runs (run_id TEXT PRIMARY KEY, campaign_id TEXT NOT NULL, '
+                       'ticker TEXT NOT NULL, payload TEXT NOT NULL)')
 
     @contextmanager
     def connect(self):
@@ -158,6 +166,66 @@ class V3Repository:
             rows = db.execute('SELECT payload FROM development_ledger_reports').fetchall()
         return sorted((DevelopmentLedgerReport.model_validate_json(row['payload']) for row in rows),
                       key=lambda report: report.cohort.created_at, reverse=True)
+
+    def save_campaign(self, campaign: DevelopmentCampaign):
+        with self.connect() as db:
+            db.execute('INSERT INTO development_campaigns VALUES (?, ?)',
+                       (campaign.campaign_id, self._dump(campaign)))
+
+    def campaigns(self):
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM development_campaigns').fetchall()
+        return sorted((DevelopmentCampaign.model_validate_json(row['payload']) for row in rows),
+                      key=lambda campaign: campaign.created_at, reverse=True)
+
+    def campaign(self, campaign_id: str) -> DevelopmentCampaign:
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM development_campaigns WHERE campaign_id=?', (campaign_id,)).fetchone()
+        if not row:
+            raise FileNotFoundError(campaign_id)
+        return DevelopmentCampaign.model_validate_json(row['payload'])
+
+    def create_campaign_run(self, run: CampaignRun):
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM campaign_runs WHERE campaign_id=? AND ticker=?',
+                              (run.campaign_id, run.ticker)).fetchall()
+            if any(CampaignRun.model_validate_json(row['payload']).status in {'queued', 'running'} for row in rows):
+                raise ValueError('A campaign run is already active for this ticker.')
+            db.execute('INSERT INTO campaign_runs VALUES (?, ?, ?, ?)',
+                       (run.run_id, run.campaign_id, run.ticker, self._dump(run)))
+
+    def update_campaign_run(self, run: CampaignRun):
+        with self.connect() as db:
+            cursor = db.execute('UPDATE campaign_runs SET payload=? WHERE run_id=?',
+                                (self._dump(run), run.run_id))
+        if not cursor.rowcount:
+            raise FileNotFoundError(run.run_id)
+
+    def campaign_run(self, run_id: str) -> CampaignRun:
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM campaign_runs WHERE run_id=?', (run_id,)).fetchone()
+        if not row:
+            raise FileNotFoundError(run_id)
+        return CampaignRun.model_validate_json(row['payload'])
+
+    def campaign_runs(self, campaign_id: str | None = None):
+        query, parameters = 'SELECT payload FROM campaign_runs', ()
+        if campaign_id:
+            query += ' WHERE campaign_id=?'
+            parameters = (campaign_id,)
+        with self.connect() as db:
+            rows = db.execute(query, parameters).fetchall()
+        return sorted((CampaignRun.model_validate_json(row['payload']) for row in rows),
+                      key=lambda run: run.created_at, reverse=True)
+
+    def interrupt_active_campaign_runs(self):
+        """A process restart must never make unfinished work look sealed."""
+        for run in self.campaign_runs():
+            if run.status in {'queued', 'running'}:
+                self.update_campaign_run(run.model_copy(update={
+                    'status': 'interrupted', 'finished_at': datetime.now(UTC),
+                    'error': 'Run interrupted by workspace restart; no sealed result was recorded.',
+                }))
 
     def experiments(self):
         """Return immutable experiment identities, newest first, for the explorer."""

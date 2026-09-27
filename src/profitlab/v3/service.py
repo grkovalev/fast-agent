@@ -19,6 +19,8 @@ from profitlab.v2.contracts import SourceRange
 from .contracts import (
     AnswerCandidate,
     AnswerClaim,
+    CampaignConfiguration,
+    DevelopmentCampaign,
     EvidenceEdge,
     EvidenceNode,
     ExperimentManifest,
@@ -53,12 +55,45 @@ class V3GraphService:
     """Generic graph mechanics only: models supply semantics, source validates them."""
     _NON_LEAK = ('V2 findings', 'Company Facts', 'reviewed expectations', 'comparisons',
                  'rubrics', 'evaluation output', 'XBRL payloads')
+    _RELATIONS = ('supports', 'qualifies', 'contradicts', 'same_claim', 'narrows', 'related_to')
+    _REQUEST_SCHEMA_VERSION = 'v3-graph-request-v2'
+    _CONTINUATION_POLICY_VERSION = 'insufficiency-directed-v1'
+    _STOPPING_POLICY_VERSION = 'sufficient-frontier-v1'
+    _G6B_EXCLUDED_TICKERS = frozenset({'FGN', 'CRVL', 'SPRO', 'WOR', 'MSFT'})
 
     def __init__(self, settings, repository: V3Repository | None = None, *, caller: ProposalCaller | None = None):
         self.settings = settings
         self.repo = repository or V3Repository(settings.data_dir)
         self.caller = caller
         self.model = settings.v3_model or settings.llm_model
+
+    def campaign_configuration(self) -> CampaignConfiguration:
+        """The complete, server-owned G6b.1 graph identity."""
+        return CampaignConfiguration(
+            application_revision=self.settings.application_revision, model=self.model,
+            exploration_prompt_version=self.settings.v3_prompt_version,
+            answer_prompt_version=self.settings.v3_prompt_version,
+            request_schema_version=self._REQUEST_SCHEMA_VERSION,
+            relation_vocabulary=self._RELATIONS,
+            source_window_lines=self.settings.v3_window_lines,
+            source_window_overlap_lines=self.settings.v3_window_overlap_lines,
+            max_actions=self.settings.v3_max_actions,
+            max_total_source_characters=self.settings.v3_max_total_source_characters,
+            max_wall_seconds=self.settings.v3_max_wall_seconds,
+            continuation_policy_version=self._CONTINUATION_POLICY_VERSION,
+            stopping_policy_version=self._STOPPING_POLICY_VERSION,
+        )
+
+    def validate_campaign_launch(self, campaign: DevelopmentCampaign, ticker: str) -> str:
+        """Fail before source/provider work if a sealed campaign cannot run here."""
+        normalized = normalize_ticker(ticker)
+        if normalized in self._G6B_EXCLUDED_TICKERS:
+            raise ValueError(f'{normalized} is excluded from G6b development campaigns.')
+        if not self.settings.sec_contact_ready() or not self.settings.llm_api_key.get_secret_value():
+            raise ValueError('V3 campaign launch requires ready SEC contact and LLM provider configuration.')
+        if campaign.configuration != self.campaign_configuration():
+            raise ValueError('The sealed campaign configuration does not match this V3 runtime.')
+        return normalized
 
     def _acquire_live(self, ticker: str):
         if not self.settings.sec_contact_ready():
@@ -537,3 +572,8 @@ class V3GraphService:
     async def answer_live(self, ticker: str, question: str):
         ticker, document, raw, visible, filing = await asyncio.to_thread(self._acquire_live, ticker)
         return await self.answer_document(ticker, question, document, raw_html=raw, visible_html=visible, filing=filing)
+
+    async def answer_live_campaign(self, campaign: DevelopmentCampaign, ticker: str):
+        """Launch using only the campaign's sealed question and configuration."""
+        normalized = self.validate_campaign_launch(campaign, ticker)
+        return await self.answer_live(normalized, campaign.question)

@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block page_title %}V3 campaign run status{% endblock %}{% block content %}
+<p><a href="/v3/campaigns/{{ campaign.campaign_id }}">← Sealed campaign</a></p>
+<section><p class="eyebrow">V3-only lifecycle audit</p><h2>{{ run.ticker }} · {{ run.status }}</h2><p>Campaign {{ campaign.campaign_id }} · question: {{ campaign.question }}</p>
+{% if run.status in ['queued', 'running'] %}<p>This run is active. Refresh this page for persisted status; it is not yet sealed or evaluated.</p>{% elif run.status == 'sealed' %}<p>Terminal graph run sealed. <a href="/v3/experiments/{{ run.experiment_id }}">Inspect canonical source, actions, paths, and frontier</a>.</p>{% else %}<p>Run did not seal. {{ run.error }}</p>{% endif %}
+<dl><dt>Created</dt><dd>{{ run.created_at }}</dd><dt>Started</dt><dd>{{ run.started_at or 'not started' }}</dd><dt>Finished</dt><dd>{{ run.finished_at or 'not finished' }}</dd></dl></section>
+{% endblock %}

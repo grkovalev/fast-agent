@@ -138,16 +138,32 @@
   contracts cover no additional provider calls, no ledger data in answer payloads,
   canonical-range rejection, and persisted/UI inspection.
 
-  **Next authorized implementation task — G6b.1 sealed campaign and V3 run
-  workspace:** plan the V3-only campaign configuration seal and UI launch described
-  in [V3_G6B_WORKSPACE_AND_SCORECARD_PLAN.md](V3_G6B_WORKSPACE_AND_SCORECARD_PLAN.md).
-  It must freeze the full request/traversal configuration and question before the
-  first development run, permit only ticker plus campaign selection in the UI, and
-  retain V3-only lifecycle/status inspection. G6b.2 terminal review/ledger authoring
-  and G6b.3 scorecard navigation are planned follow-ons; G6c remains deferred. Do
-  not begin live cohort execution until the campaign boundary exists. Do not alter
-  graph prompts, model, relation vocabulary, budgets, traversal, V2, or G6c as part
-  of this task.
+  G6b.1 sealed campaign and V3 run workspace: implemented as the separate
+  `g6b-campaign-v1` campaign/run namespace. A campaign seals its question and the
+  server-derived complete V3 request/traversal identity (application revision,
+  model, exploration/answer prompt and request-schema versions, relation vocabulary,
+  window bounds, budgets, and continuation/stopping versions) before filing
+  acquisition. The V3-only `/v3/campaigns/...` workspace accepts only a selected
+  campaign and ticker for launch; it rejects excluded FGN/CRVL/SPRO/WOR/MSFT,
+  non-ready SEC/LLM configuration, mismatched runtime configuration, and a duplicate
+  active campaign/ticker before SEC or provider work. Persisted lifecycle audit rows
+  transition through queued/running/sealed/failed/interrupted and link sealed runs
+  directly to the existing source/action/path explorer. Failures are redacted, and
+  restart/shutdown marks active work interrupted rather than completed. Campaign,
+  review, ledger, and G6c data remain absent from every graph/answer request; V2 was
+  neither constructed nor accessed. Focused contracts cover server-owned sealing and
+  rejection before work; focused V3 tests pass (`21 passed`), full suite (`60 passed`),
+  Ruff, and `git diff --check` pass. No live provider/SEC or browser run was attempted.
+
+  **Next authorized implementation task — G6b.2 terminal-only review and ledger
+  authoring:** implement the terminal-review workflow in
+  [V3_G6B_WORKSPACE_AND_SCORECARD_PLAN.md](V3_G6B_WORKSPACE_AND_SCORECARD_PLAN.md).
+  It may attach immutable reviewer/SEC ranges only after a campaign run has a terminal
+  manifest, must use exact source-hash/range validation and the existing deterministic
+  G6b scorer without provider calls, and must remain distinct from G6c. G6b.3
+  scorecard navigation remains a later task. Do not run a development cohort until
+  terminal review is available; do not alter graph prompts, model, relation vocabulary,
+  budgets, traversal, V2, or G6c.
 
   G6 live development diagnostic (2026-09-27): two authorized live graph runs used
   explicit revision `g6-heldout-cohort-20260927` and the unchanged

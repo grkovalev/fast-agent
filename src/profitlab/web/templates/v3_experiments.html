@@ -1,5 +1,11 @@
 {% extends "base.html" %}{% block page_title %}Graph experiments{% endblock %}{% block content %}
 <p><a href="/">← Runs</a></p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<section><p class="eyebrow">G6b.1 development-only launch</p><h2>Sealed campaigns</h2>
+<p>Create a campaign once to seal its question and complete V3 configuration before any filing is acquired. Campaign launch accepts only its selected campaign and ticker; it never uses V2 data or G6c records.</p>
+<form method="post" action="/v3/campaigns"><label>Question <input name="question" required maxlength="4000"></label><button type="submit">Create sealed campaign</button></form>
+{% for campaign in campaigns %}<p><a href="/v3/campaigns/{{ campaign.campaign_id }}">{{ campaign.campaign_id }}</a> · {{ campaign.question }} · {{ campaign.configuration.model }}</p>{% else %}<p>No sealed campaign yet.</p>{% endfor %}
+</section>
 <section><p class="eyebrow">V3 experiment-only workspace</p><h2>Source-grounded graph explorer</h2>
 <p>These isolated experiments never read or write the V2 workspace. Open an experiment to inspect its question, source-cited paths, and exploration frontier.</p>
 {% for experiment in experiments %}
@@ -8,5 +14,6 @@
 <p class="muted">{{ experiment.frontier_state | replace('_', ' ') }} · {{ experiment.document.line_count }} canonical lines · {{ experiment.created_at }}</p></article>
 {% else %}<p>No V3 graph experiments have been saved. Run <code>profitlab v3 answer TICKER QUESTION</code> to create one.</p>{% endfor %}
 </section>
+{% if campaign_runs %}<section><p class="eyebrow">G6b campaign lifecycle</p><h2>Campaign runs</h2>{% for run in campaign_runs %}<p><a href="/v3/campaign-runs/{{ run.run_id }}">{{ run.ticker }} · {{ run.status }}</a> · {{ run.campaign_id }}</p>{% endfor %}</section>{% endif %}
 {% if development_ledger_reports %}<section><p class="eyebrow">G6b post-run development</p><h2>Development ledgers</h2>{% for report in development_ledger_reports %}<p><a href="/v3/development-ledgers/{{ report.cohort.cohort_id }}">{{ report.cohort.cohort_id }}</a> · {{ report.cases | length }} case(s)</p>{% endfor %}</section>{% endif %}
 {% if rubric_reports %}<section><p class="eyebrow">G6c held-out comparison</p><h2>Comparison reports</h2>{% for report in rubric_reports %}<p><a href="/v3/comparisons/{{ report.cohort.cohort_id }}">{{ report.cohort.cohort_id }}</a></p>{% endfor %}</section>{% endif %}{% endblock %}

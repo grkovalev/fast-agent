@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from time import monotonic
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse, StreamingResponse
@@ -17,17 +18,23 @@ from profitlab.v2 import STAGE_NAMES, SequentialReportBatchService, V2PipelineSe
 from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
 from profitlab.v2.evaluation_service import cross_run_scorecard
 from profitlab.v2.source_replay import SourceReplayService
+from profitlab.v3.contracts import CampaignRun, DevelopmentCampaign
 from profitlab.v3.repository import V3Repository
+from profitlab.v3.service import V3GraphService
 
 WEB_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
 
 
 def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
-               benchmark_dataset=None) -> FastAPI:
+               benchmark_dataset=None, graph_service_factory=None) -> FastAPI:
     settings = settings or Settings()
-    pipeline, tasks, batch_tasks = V2PipelineService(settings), {}, {}
+    pipeline, tasks, batch_tasks, campaign_tasks = V2PipelineService(settings), {}, {}, {}
     graph_repo = V3Repository(settings.data_dir)
+
+    def new_graph_service():
+        return (graph_service_factory(settings, graph_repo) if graph_service_factory
+                else V3GraphService(settings, graph_repo))
 
     def new_picker():
         return (ticker_picker_factory(pipeline.repo) if ticker_picker_factory
@@ -85,9 +92,36 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
 
         batch_tasks[batch_id] = asyncio.create_task(guarded_batch())
 
+    def start_campaign_run(run: CampaignRun):
+        if (task := campaign_tasks.get(run.run_id)) and not task.done():
+            raise ValueError('V3 campaign run is already active.')
+
+        async def guarded_run():
+            graph_repo.update_campaign_run(run.model_copy(update={'status': 'running', 'started_at': datetime.now(UTC)}))
+            try:
+                result = await new_graph_service().answer_live_campaign(graph_repo.campaign(run.campaign_id), run.ticker)
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:  # Persist only a redacted, actionable lifecycle failure.
+                logger.exception('V3 campaign worker failed for %s', run.run_id)
+                current = graph_repo.campaign_run(run.run_id)
+                graph_repo.update_campaign_run(current.model_copy(update={
+                    'status': 'failed', 'finished_at': datetime.now(UTC),
+                    'error': settings.redactor().text(str(error)) or error.__class__.__name__,
+                }))
+                return
+            current = graph_repo.campaign_run(run.run_id)
+            graph_repo.update_campaign_run(current.model_copy(update={
+                'status': 'sealed', 'experiment_id': result.manifest.experiment_id,
+                'finished_at': datetime.now(UTC),
+            }))
+
+        campaign_tasks[run.run_id] = asyncio.create_task(guarded_run())
+
     @asynccontextmanager
     async def lifespan(_app):
         pipeline.recover()
+        graph_repo.interrupt_active_campaign_runs()
         for batch in pipeline.repo.report_batches():
             if batch.status in {'queued', 'running', 'cancelling'}:
                 pipeline.repo.update_report_batch(batch.batch_id, status='queued',
@@ -103,6 +137,11 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             if not task.done():
                 task.cancel()
         await asyncio.gather(*batch_tasks.values(), return_exceptions=True)
+        for task in campaign_tasks.values():
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*campaign_tasks.values(), return_exceptions=True)
+        graph_repo.interrupt_active_campaign_runs()
 
     app = FastAPI(title='ProfitLab', lifespan=lifespan)
     templates = Jinja2Templates(directory=WEB_DIR / 'templates')
@@ -154,8 +193,75 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
     def graph_experiments(request: Request):
         return templates.TemplateResponse(request=request, name='v3_experiments.html', context={
             'experiments': graph_repo.experiments(),
+            'campaigns': graph_repo.campaigns(),
+            'campaign_runs': graph_repo.campaign_runs(),
             'rubric_reports': graph_repo.rubric_reports(),
             'development_ledger_reports': graph_repo.development_ledger_reports(),
+        })
+
+    @app.post('/v3/campaigns')
+    async def create_campaign(request: Request):
+        from urllib.parse import parse_qs
+
+        fields = parse_qs((await request.body()).decode())
+        question = fields.get('question', [''])[0].strip()
+        try:
+            if not question:
+                raise ValueError('A campaign question is required.')
+            service = new_graph_service()
+            campaign = DevelopmentCampaign(campaign_id='campaign-' + uuid4().hex[:16], question=question,
+                                            configuration=service.campaign_configuration(), created_at=datetime.now(UTC))
+            graph_repo.save_campaign(campaign)
+        except ValueError as error:
+            return templates.TemplateResponse(request=request, name='v3_experiments.html', status_code=400, context={
+                'experiments': graph_repo.experiments(), 'campaigns': graph_repo.campaigns(),
+                'campaign_runs': graph_repo.campaign_runs(), 'rubric_reports': graph_repo.rubric_reports(),
+                'development_ledger_reports': graph_repo.development_ledger_reports(),
+                'error': settings.redactor().text(str(error)),
+            })
+        return RedirectResponse(f'/v3/campaigns/{campaign.campaign_id}', status_code=303)
+
+    @app.get('/v3/campaigns/{campaign_id}')
+    def campaign_workspace(request: Request, campaign_id: str):
+        try:
+            campaign = graph_repo.campaign(campaign_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V3 campaign not found') from None
+        return templates.TemplateResponse(request=request, name='v3_campaign.html', context={
+            'campaign': campaign, 'runs': graph_repo.campaign_runs(campaign_id), 'readiness': settings.readiness(),
+        })
+
+    @app.post('/v3/campaigns/{campaign_id}/runs')
+    async def launch_campaign_run(request: Request, campaign_id: str):
+        from urllib.parse import parse_qs
+
+        fields = parse_qs((await request.body()).decode())
+        try:
+            campaign = graph_repo.campaign(campaign_id)
+            ticker = new_graph_service().validate_campaign_launch(campaign, fields.get('ticker', [''])[0])
+            run = CampaignRun(run_id='campaign-run-' + uuid4().hex[:16], campaign_id=campaign_id, ticker=ticker,
+                              status='queued', created_at=datetime.now(UTC))
+            graph_repo.create_campaign_run(run)
+            start_campaign_run(run)
+        except (FileNotFoundError, ValueError) as error:
+            if isinstance(error, FileNotFoundError):
+                raise HTTPException(404, 'V3 campaign not found') from None
+            campaign = graph_repo.campaign(campaign_id)
+            return templates.TemplateResponse(request=request, name='v3_campaign.html', status_code=400, context={
+                'campaign': campaign, 'runs': graph_repo.campaign_runs(campaign_id), 'readiness': settings.readiness(),
+                'error': settings.redactor().text(str(error)),
+            })
+        return RedirectResponse(f'/v3/campaign-runs/{run.run_id}', status_code=303)
+
+    @app.get('/v3/campaign-runs/{run_id}')
+    def campaign_run(request: Request, run_id: str):
+        try:
+            run = graph_repo.campaign_run(run_id)
+            campaign = graph_repo.campaign(run.campaign_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V3 campaign run not found') from None
+        return templates.TemplateResponse(request=request, name='v3_campaign_run.html', context={
+            'run': run, 'campaign': campaign,
         })
 
     @app.get('/v3/comparisons/{cohort_id}')

@@ -11,6 +11,7 @@ from profitlab.v2.canonical import CanonicalDocument, CanonicalLine
 from profitlab.v2.contracts import CanonicalDocumentRef, SourceRange
 from profitlab.v2.storage import V2Repository
 from profitlab.v3.contracts import (
+    DevelopmentCampaign,
     DevelopmentCase,
     DevelopmentCohort,
     DevelopmentConfiguration,
@@ -19,6 +20,7 @@ from profitlab.v3.contracts import (
     RubricCohort,
 )
 from profitlab.v3.development_ledger import DevelopmentLedgerService
+from profitlab.v3.repository import V3Repository
 from profitlab.v3.rubric import PostSealRubricService
 from profitlab.v3.service import V3GraphService, _Trace
 from profitlab.web.app import create_app
@@ -500,3 +502,29 @@ async def test_g6b_development_ledger_is_post_run_exact_and_inspectable_without_
         'cases': [cohort.cases[0].model_copy(update={'ground_truth_ranges': [ground_truth.model_copy(update={'end_line': 3})]})]})
     with pytest.raises(ValueError, match='exact canonical range'):
         DevelopmentLedgerService.score(invalid, service.repo)
+
+
+def test_g6b_campaign_seals_server_configuration_and_workspace_rejects_excluded_before_work(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, sec_user_agent='Tester test@example.org',
+                        llm_api_key='test-key', v3_window_lines=10)
+    service = V3GraphService(settings)
+    campaign = DevelopmentCampaign(campaign_id='campaign-' + 'a' * 16, question='Question?',
+                                   configuration=service.campaign_configuration(), created_at=datetime.now(UTC))
+    assert service.validate_campaign_launch(campaign, 'new') == 'NEW'
+    with pytest.raises(ValueError, match='excluded'):
+        service.validate_campaign_launch(campaign, 'MSFT')
+    with pytest.raises(ValueError, match='does not match'):
+        service.validate_campaign_launch(campaign.model_copy(update={
+            'configuration': campaign.configuration.model_copy(update={'max_actions': 11})}), 'NEW')
+
+    with TestClient(create_app(settings)) as client:
+        created = client.post('/v3/campaigns', data={'question': 'What does this filing say?'}, follow_redirects=False)
+        assert created.status_code == 303
+        workspace = client.get(created.headers['location'])
+        assert workspace.status_code == 200
+        assert 'Immutable V3 configuration' in workspace.text
+        assert 'What does this filing say?' in workspace.text
+        rejected = client.post(created.headers['location'] + '/runs', data={'ticker': 'MSFT'})
+    assert rejected.status_code == 400
+    assert 'excluded' in rejected.text
+    assert V3Repository(tmp_path).campaign_runs() == []

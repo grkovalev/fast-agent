@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block page_title %}V3 sealed development campaign{% endblock %}{% block content %}
+<p><a href="/v3/experiments">← Graph experiments</a></p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<section><p class="eyebrow">G6b development-only · configuration sealed before first run</p><h2>{{ campaign.campaign_id }}</h2>
+<p><strong>Question:</strong> {{ campaign.question }}</p>
+<p class="muted">{{ campaign.campaign_version }} · created {{ campaign.created_at }}</p>
+<h3>Immutable V3 configuration</h3><dl>{% for key, value in campaign.configuration.model_dump().items() %}<dt>{{ key | replace('_', ' ') }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
+<p>SEC contact: {{ 'ready' if readiness['SEC contact configured'] else 'not ready' }} · LLM provider: {{ 'ready' if readiness['LLM configuration present'] else 'not ready' }}</p>
+<form method="post" action="/v3/campaigns/{{ campaign.campaign_id }}/runs"><label>Eligible development ticker <input name="ticker" required pattern="[A-Za-z0-9.-]+"></label><button type="submit">Launch V3 graph run</button></form>
+<p class="muted">FGN, CRVL, SPRO, WOR, and MSFT are excluded. Review and score data are unavailable to this launch.</p></section>
+<section><h2>Lifecycle audit</h2>{% for run in runs %}<article class="graph-item"><h3><a href="/v3/campaign-runs/{{ run.run_id }}">{{ run.ticker }} · {{ run.status }}</a></h3><p>{{ run.created_at }}{% if run.error %} · {{ run.error }}{% endif %}</p></article>{% else %}<p>No campaign runs yet.</p>{% endfor %}</section>
+{% endblock %}
