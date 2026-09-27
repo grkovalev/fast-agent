@@ -155,6 +155,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         return templates.TemplateResponse(request=request, name='v3_experiments.html', context={
             'experiments': graph_repo.experiments(),
             'rubric_reports': graph_repo.rubric_reports(),
+            'development_ledger_reports': graph_repo.development_ledger_reports(),
         })
 
     @app.get('/v3/comparisons/{cohort_id}')
@@ -164,6 +165,14 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         except FileNotFoundError:
             raise HTTPException(404, 'V3 comparison cohort not found') from None
         return templates.TemplateResponse(request=request, name='v3_comparison.html', context={'report': report})
+
+    @app.get('/v3/development-ledgers/{cohort_id}')
+    def graph_development_ledger(request: Request, cohort_id: str):
+        try:
+            report = graph_repo.development_ledger_report(cohort_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V3 development ledger not found') from None
+        return templates.TemplateResponse(request=request, name='v3_development_ledger.html', context={'report': report})
 
     @app.get('/v3/experiments/{experiment_id}')
     def graph_experiment(request: Request, experiment_id: str, path_id: str | None = None):

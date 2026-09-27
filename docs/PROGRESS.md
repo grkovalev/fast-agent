@@ -128,6 +128,16 @@
   SPRO, WOR, or MSFT as G6b cases, and do not alter graph prompts, model, relation
   vocabulary, budgets, traversal, or V2.
 
+  G6b development cohort ledger: implemented as the isolated
+  `g6b-development-v1` contract and `profitlab v3 score-development COHORT.json`.
+  It validates post-run SEC/reviewer canonical ranges against the sealed V3 document,
+  enforces one fixed saved configuration, rejects FGN/CRVL/SPRO/WOR/MSFT, and
+  deterministically reports coverage, exact answer citations, support/limitation,
+  trajectory, calls/tokens, and latency. Its tables and `/v3/development-ledgers/…`
+  inspection page are separate from G6c's held-out three-method rubric. Focused
+  contracts cover no additional provider calls, no ledger data in answer payloads,
+  canonical-range rejection, and persisted/UI inspection.
+
   G6 live development diagnostic (2026-09-27): two authorized live graph runs used
   explicit revision `g6-heldout-cohort-20260927` and the unchanged
   `evidence-graph-v4` configuration for the question “What exact annual net income,

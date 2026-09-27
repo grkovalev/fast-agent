@@ -10,7 +10,15 @@ from profitlab.settings import Settings
 from profitlab.v2.canonical import CanonicalDocument, CanonicalLine
 from profitlab.v2.contracts import CanonicalDocumentRef, SourceRange
 from profitlab.v2.storage import V2Repository
-from profitlab.v3.contracts import FrozenArtifact, PostSealCase, RubricCohort
+from profitlab.v3.contracts import (
+    DevelopmentCase,
+    DevelopmentCohort,
+    DevelopmentConfiguration,
+    FrozenArtifact,
+    PostSealCase,
+    RubricCohort,
+)
+from profitlab.v3.development_ledger import DevelopmentLedgerService
 from profitlab.v3.rubric import PostSealRubricService
 from profitlab.v3.service import V3GraphService, _Trace
 from profitlab.web.app import create_app
@@ -449,3 +457,46 @@ async def test_v3_post_seal_rubric_rejects_non_heldout_and_out_of_path_graph_cit
     report = PostSealRubricService.score(RubricCohort(held_out=True, **base), service.repo)
     assert report.artifacts[0].citation_valid is False
     assert report.artifacts[0].path_fidelity == 'invalid'
+
+
+@pytest.mark.asyncio
+async def test_g6b_development_ledger_is_post_run_exact_and_inspectable_without_provider_calls(tmp_path):
+    calls = []
+
+    async def caller(payload):
+        calls.append(payload)
+        if payload['kind'] == 'explore':
+            return {'answerability': 'sufficient', 'nodes': [{'label': 'revenue', 'status': 'accepted',
+                     'evidence': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}], 'edges': []}
+        path = payload['paths'][0]
+        return {'answer': 'Revenue was 100.', 'path_ids': [path['path_id']],
+                'citations': [{'start_line': 1, 'exact_text': 'Revenue was 100.'}]}
+
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None, v3_window_lines=10)
+    service = V3GraphService(settings, caller=caller)
+    result = await service.answer_document('TEST', 'Question?', _document())
+    ground_truth = SourceRange(document_id='v3-document', source_hash='b' * 64, start_line=1, end_line=1)
+    cohort = DevelopmentCohort(
+        cohort_id='development-cohort-' + 'a' * 16, configuration_id='fixed-v5', created_at=datetime.now(UTC),
+        configuration=DevelopmentConfiguration(application_revision=result.manifest.application_revision,
+            model=result.manifest.model, prompt_version=result.manifest.prompt_version,
+            budgets=result.manifest.budgets),
+        cases=[DevelopmentCase(case_id='development-1', experiment_id=result.manifest.experiment_id,
+            question='Question?', ground_truth_ranges=[ground_truth], answer_support='supported',
+            ambiguity_handling='handled')])
+    before = len(calls)
+    report = DevelopmentLedgerService.score(cohort, service.repo)
+    assert len(calls) == before
+    assert all('ground_truth_ranges' not in json.dumps(payload) for payload in calls)
+    assert report.cases[0].ground_truth_coverage == 1
+    assert report.cases[0].exact_citations_valid is True
+    service.repo.save_development_ledger_report(report)
+    assert service.repo.development_ledger_report(cohort.cohort_id).summary['cases'] == 1
+    with TestClient(create_app(settings)) as client:
+        page = client.get('/v3/development-ledgers/' + cohort.cohort_id)
+    assert page.status_code == 200
+    assert 'not graph or provider inputs' in page.text
+    invalid = cohort.model_copy(update={'cohort_id': 'development-cohort-' + 'b' * 16,
+        'cases': [cohort.cases[0].model_copy(update={'ground_truth_ranges': [ground_truth.model_copy(update={'end_line': 3})]})]})
+    with pytest.raises(ValueError, match='exact canonical range'):
+        DevelopmentLedgerService.score(invalid, service.repo)

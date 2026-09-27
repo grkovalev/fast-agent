@@ -50,3 +50,19 @@ def v3_score(cohort_file: Path):
     report = PostSealRubricService.score(cohort, repository)
     repository.save_rubric_report(report)
     typer.echo(json.dumps(report.model_dump(mode='json'), indent=2))
+
+
+@v3_app.command('score-development')
+def v3_score_development(cohort_file: Path):
+    """Score a sealed G6b development ledger JSON file without provider calls."""
+    import json
+
+    from profitlab.v3.contracts import DevelopmentCohort
+    from profitlab.v3.development_ledger import DevelopmentLedgerService
+    from profitlab.v3.repository import V3Repository
+
+    cohort = DevelopmentCohort.model_validate_json(cohort_file.read_text())
+    repository = V3Repository(Settings().data_dir)
+    report = DevelopmentLedgerService.score(cohort, repository)
+    repository.save_development_ledger_report(report)
+    typer.echo(json.dumps(report.model_dump(mode='json'), indent=2))

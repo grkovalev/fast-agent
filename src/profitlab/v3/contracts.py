@@ -196,3 +196,56 @@ class RubricReport(V3Contract):
     cohort: RubricCohort
     artifacts: list[ArtifactRubric]
     method_summary: dict[ReviewMethod, dict[str, int | float | None]]
+
+
+# G6b is intentionally a different, development-only post-run ledger.  It has
+# no frozen alternate methods and is never accepted by graph construction.
+class DevelopmentConfiguration(V3Contract):
+    """The complete fixed graph identity selected before this cohort runs."""
+    application_revision: str = Field(min_length=1, max_length=200)
+    model: str = Field(min_length=1, max_length=200)
+    prompt_version: str = Field(min_length=1, max_length=200)
+    budgets: dict[str, int | float] = Field(min_length=1)
+
+
+class DevelopmentCase(V3Contract):
+    """Reviewer/SEC annotations attached only to an already-sealed V3 run."""
+    case_id: str = Field(pattern=r'^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$')
+    experiment_id: str = Field(pattern=r'^v3-[a-f0-9]{16}$')
+    question: str = Field(min_length=1, max_length=4000)
+    ground_truth_ranges: list[SourceRange] = Field(min_length=1)
+    answer_support: AnswerSupport
+    ambiguity_handling: AmbiguityHandling
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class DevelopmentCohort(V3Contract):
+    cohort_id: str = Field(pattern=r'^development-cohort-[a-f0-9]{16}$')
+    ledger_version: Literal['g6b-development-v1'] = 'g6b-development-v1'
+    held_out: Literal[False] = False
+    configuration_id: str = Field(min_length=1, max_length=200)
+    configuration: DevelopmentConfiguration
+    cases: list[DevelopmentCase] = Field(min_length=1)
+    created_at: datetime
+
+
+class DevelopmentCaseRubric(V3Contract):
+    case_id: str
+    experiment_id: str
+    ground_truth_coverage: float = Field(ge=0, le=1)
+    exact_citations_valid: bool
+    answer_support: AnswerSupport
+    ambiguity_handling: AmbiguityHandling
+    action_count: int = Field(ge=0)
+    continuation_count: int = Field(ge=0)
+    terminal_frontier_state: str
+    provider_calls: int = Field(ge=0)
+    provider_input_tokens: int | None = Field(default=None, ge=0)
+    provider_output_tokens: int | None = Field(default=None, ge=0)
+    latency_seconds: float | None = Field(default=None, ge=0)
+
+
+class DevelopmentLedgerReport(V3Contract):
+    cohort: DevelopmentCohort
+    cases: list[DevelopmentCaseRubric]
+    summary: dict[str, int | float | None]

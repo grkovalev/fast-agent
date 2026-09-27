@@ -8,6 +8,7 @@ from profitlab.v2.canonical import CanonicalDocument
 
 from .contracts import (
     AnswerCandidate,
+    DevelopmentLedgerReport,
     EvidenceEdge,
     EvidenceNode,
     ExperimentManifest,
@@ -38,6 +39,10 @@ class V3Repository:
             # It is intentionally not readable by graph construction services.
             db.execute('CREATE TABLE IF NOT EXISTS rubric_cohorts (cohort_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS rubric_reports (cohort_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
+            # G6b is separate from the held-out G6c rubric tables so neither
+            # contract can be mistaken for the other in inspection or scoring.
+            db.execute('CREATE TABLE IF NOT EXISTS development_cohorts (cohort_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS development_ledger_reports (cohort_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
 
     @contextmanager
     def connect(self):
@@ -132,6 +137,26 @@ class V3Repository:
         with self.connect() as db:
             rows = db.execute('SELECT payload FROM rubric_reports').fetchall()
         return sorted((RubricReport.model_validate_json(row['payload']) for row in rows),
+                      key=lambda report: report.cohort.created_at, reverse=True)
+
+    def save_development_ledger_report(self, report: DevelopmentLedgerReport):
+        with self.connect() as db:
+            db.execute('INSERT INTO development_cohorts VALUES (?, ?)',
+                       (report.cohort.cohort_id, self._dump(report.cohort)))
+            db.execute('INSERT INTO development_ledger_reports VALUES (?, ?)',
+                       (report.cohort.cohort_id, self._dump(report)))
+
+    def development_ledger_report(self, cohort_id: str) -> DevelopmentLedgerReport:
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM development_ledger_reports WHERE cohort_id=?', (cohort_id,)).fetchone()
+        if not row:
+            raise FileNotFoundError(cohort_id)
+        return DevelopmentLedgerReport.model_validate_json(row['payload'])
+
+    def development_ledger_reports(self):
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM development_ledger_reports').fetchall()
+        return sorted((DevelopmentLedgerReport.model_validate_json(row['payload']) for row in rows),
                       key=lambda report: report.cohort.created_at, reverse=True)
 
     def experiments(self):

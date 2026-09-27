@@ -7,4 +7,6 @@
 <p>{{ experiment.ticker }} · {{ experiment.question }}</p>
 <p class="muted">{{ experiment.frontier_state | replace('_', ' ') }} · {{ experiment.document.line_count }} canonical lines · {{ experiment.created_at }}</p></article>
 {% else %}<p>No V3 graph experiments have been saved. Run <code>profitlab v3 answer TICKER QUESTION</code> to create one.</p>{% endfor %}
-</section>{% endblock %}
+</section>
+{% if development_ledger_reports %}<section><p class="eyebrow">G6b post-run development</p><h2>Development ledgers</h2>{% for report in development_ledger_reports %}<p><a href="/v3/development-ledgers/{{ report.cohort.cohort_id }}">{{ report.cohort.cohort_id }}</a> · {{ report.cases | length }} case(s)</p>{% endfor %}</section>{% endif %}
+{% if rubric_reports %}<section><p class="eyebrow">G6c held-out comparison</p><h2>Comparison reports</h2>{% for report in rubric_reports %}<p><a href="/v3/comparisons/{{ report.cohort.cohort_id }}">{{ report.cohort.cohort_id }}</a></p>{% endfor %}</section>{% endif %}{% endblock %}

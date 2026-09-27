@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block page_title %}G6b development ledger{% endblock %}{% block content %}
+<p><a href="/v3/experiments">← Graph experiments</a></p>
+<section><p class="eyebrow">G6b post-run development ledger</p><h2>{{ report.cohort.cohort_id }}</h2>
+<p>{{ report.cohort.ledger_version }} · configuration {{ report.cohort.configuration_id }} · {{ report.cases | length }} development case(s)</p>
+<p class="notice">SEC/reviewer ranges were attached after sealed graph runs. They are not graph or provider inputs, and this is not the held-out G6c comparison.</p></section>
+<section><p class="eyebrow">Cohort summary</p><h2>Coverage, trajectory, and cost</h2><dl>{% for key, value in report.summary.items() %}<dt>{{ key | replace('_', ' ') }}</dt><dd>{{ value if value is not none else 'unavailable' }}</dd>{% endfor %}</dl></section>
+<section><p class="eyebrow">Case ledger</p><h2>Inspectable sealed runs</h2>
+{% for item in report.cases %}<article class="graph-item"><h3><a href="/v3/experiments/{{ item.experiment_id }}">{{ item.case_id }}</a></h3>
+<p>Ground-truth coverage {{ '%.0f' | format(item.ground_truth_coverage * 100) }}% · exact citations {{ 'valid' if item.exact_citations_valid else 'invalid' }} · terminal {{ item.terminal_frontier_state | replace('_', ' ') }}</p>
+<p class="muted">Support: {{ item.answer_support }} · ambiguity: {{ item.ambiguity_handling }} · {{ item.action_count }} action(s), {{ item.continuation_count }} continuation(s) · {{ item.provider_calls }} provider call(s) · {{ item.latency_seconds if item.latency_seconds is not none else 'unknown' }}s</p></article>{% endfor %}
+</section>{% endblock %}
