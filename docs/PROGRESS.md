@@ -147,6 +147,25 @@
   `partial` and made no answer call. This is a development diagnostic, not a held-out
   result. Do not begin the frozen five-case G6 cohort yet; CRVL, SPRO, and WOR remain
   excluded when a cohort is separately authorized.
+- G6 held-out graph arm (2026-09-27): one newly selected FGN case ran under the
+  fixed revision `g6-heldout-cohort-20260927-v5`, unchanged
+  `evidence-graph-v5` configuration, and the frozen annual net-income/EPS/shares
+  question. Experiment `v3-18dc33e36fd6ecff` reacquired the exact sealed V2 source
+  hash `448c2d998090…`. Its first L1–120 frontier declared `insufficient` and
+  requested the accepted-evidence-linked L121–240 continuation; the second frontier
+  declared `sufficient`, then the answer cited visible net earnings (loss) at
+  canonical lines 133–134. This is one graph arm only, not a completed held-out
+  comparison or a performance claim: the independently reviewer-entered required
+  ranges plus frozen `v2_packet` and `bounded_window` artifacts are still required
+  before creating the immutable three-method cohort. Focused
+  `time uv run pytest tests/task_gates/test_v3_graph.py -q` — **19 passed** in
+  1.57s (1.95s wall, one existing Starlette/AnyIO deprecation warning); `uv run
+  ruff check .` and `git diff --check` passed. No source tests were changed.
+  Manual verification: after one-time `uv run profitlab serve`, open
+  `http://127.0.0.1:8000/v3/experiments/v3-18dc33e36fd6ecff`, inspect the L1–120
+  insufficient frontier and its L121–240 continuation, then follow the answer
+  citation to lines 133–134. Confirm the FGN result remains isolated from V2 and
+  is not presented as a scored comparison.
 - Deferred V2 follow-up: define one bounded evaluator-representativeness task from
   the T41 cohort; do not tune Findings prompts, vocabulary, or thresholds from that
   cohort on this graph branch.
