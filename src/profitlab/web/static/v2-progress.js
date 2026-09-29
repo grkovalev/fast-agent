@@ -44,12 +44,11 @@
     const response = await fetch(`/v2/runs/${runId}/state`, {cache: 'no-store'});
     if (!response.ok) return;
     const state = await response.json();
-    document.querySelector('#v2-run-status').textContent = `${state.run.status} · ${state.run.summary}`;
+    const runStatus = document.querySelector('#v2-run-status');
+    if (runStatus) runStatus.textContent = `${state.run.status} · ${state.run.summary}`;
     const completed = state.stages.filter((stage) => stage.status === 'completed').length;
-    const active = state.stages.find((stage) => stage.status === 'running');
-    const current = active || state.stages.find((stage) => stage.stage === state.run.selected_stage);
-    const overall = document.querySelector('#pipeline-overall-progress');
-    if (overall) overall.innerHTML = `<strong>${completed} of 8 stages complete</strong> · Current: <span data-current-stage>${current ? document.querySelector(`[data-stage-card="${current.stage}"] strong`)?.textContent || current.stage : 'Waiting to start'}</span> · Run: <span data-map-run-status>${state.run.status}</span>`;
+    const totalProgress = document.querySelector('[data-total-progress]');
+    if (totalProgress) totalProgress.textContent = `${completed} of 8 complete`;
     for (const stage of state.stages) {
       const item = document.querySelector(`[data-stage="${stage.stage}"]`);
       const card = document.querySelector(`[data-stage-card="${stage.stage}"]`);

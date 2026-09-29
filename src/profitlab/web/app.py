@@ -231,6 +231,19 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         if stage is not None and stage not in STAGE_NAMES:
             raise ValueError('Unknown V2 stage')
         state = pipeline.repo.state(run_id)
+        try:
+            filing = pipeline.repo.filing(run_id)
+        except FileNotFoundError:
+            filing = {}
+        report_date = filing.get('report_date', '')
+        company_facts = pipeline.repo.company_fact_dataset(run_id)
+        report_identity = {
+            'company_name': (filing.get('company_name')
+                             or (company_facts or {}).get('payload', {}).get('entityName')
+                             or 'Not available'),
+            'report_year': report_date[:4] or 'Not available',
+            'created_on': state['run'].created_at.strftime('%Y-%m-%d'),
+        }
         stage_cards = [item.model_dump() | {
             'icon': stage_presentation[item.stage][0],
             'label': stage_presentation[item.stage][1],
@@ -242,7 +255,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             active = next((item for item in stage_cards if item['status'] == 'running'), None)
             current = active or next((item for item in stage_cards
                                       if item['stage'] == state['run'].selected_stage), None)
-            return {**state, 'overview': True, 'stage_cards': stage_cards,
+            return {**state, 'report_identity': report_identity, 'overview': True, 'stage_cards': stage_cards,
                     'map_progress': {
                         'completed': sum(item['status'] == 'completed' for item in stage_cards),
                         'current_label': current['label'] if current else 'Waiting to start',
@@ -263,7 +276,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             if candidates:
                 value, label = max(candidates, key=lambda item: (item[0], item[1]))
                 finding_score_lookup[score.item_id] = {'label': label, 'score': value}
-        result = {**state, 'overview': False, 'stage_cards': stage_cards, 'selected': selected, 'page': page, 'canonical_refs': pipeline.repo.canonical_refs(run_id),
+        result = {**state, 'report_identity': report_identity, 'map_progress': {'completed': sum(item['status'] == 'completed' for item in stage_cards)}, 'overview': False, 'stage_cards': stage_cards, 'selected': selected, 'page': page, 'canonical_refs': pipeline.repo.canonical_refs(run_id),
                   'outline_sections': outline, 'section_lookup': {x.section_id: x for x in outline},
                   'section_scores': pipeline.repo.scores(run_id, 'section_score', page=page) if stage == 'section_score' else [],
                   'section_actions': [], 'chunks': chunks,

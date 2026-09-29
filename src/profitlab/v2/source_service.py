@@ -42,6 +42,7 @@ class V2SourceService:
                           'report_date': selected.report_date.isoformat(),
                           'accession': selected.accession,
                           'cik': result.company.cik,
+                          'company_name': result.company.name,
                           'source_url': selected.primary_document_url,
                           'provenance': 'SEC primary filing HTML'}
         except SECError as error:
