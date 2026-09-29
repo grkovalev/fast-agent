@@ -22,12 +22,20 @@ def test_pipeline_default_is_map_only_and_each_stage_enters_its_existing_page(tm
         direct = client.get('/v2/runs/map-run/pipeline/findings')
 
     assert overview.status_code == 200
-    assert 'Architecture overview' in overview.text
-    assert 'Visible filing' in overview.text
-    assert 'SEC data' in overview.text
-    assert 'Findings + Facts' in overview.text
-    assert 'Stage 1 of 8' not in overview.text
+    assert 'Pipeline overview' in overview.text
+    assert 'Process summary placeholder' in overview.text
+    assert 'Plain-language description placeholder.' in overview.text
+    assert 'Prompt control placeholder' in overview.text
+    assert 'Inspect sanitized provider trace' not in overview.text
     assert 'Canonical documents' not in overview.text
+    ordered_labels = ('Source', 'Outline', 'Sections', 'Chunks', 'Evidence',
+                      'Findings', 'Evaluate', 'Facts')
+    positions = [overview.text.index(f'<strong>{label}</strong>') for label in ordered_labels]
+    assert positions == sorted(positions)
+    assert 'Evaluate is the only merge point' in overview.text
+    assert 'Independent input to Evaluate' in overview.text
+    assert 'pipeline-connector--facts-up' in overview.text
+    assert 'Stage 1 of 8' not in overview.text
     for stage in ('source', 'outline', 'section_score', 'chunk', 'chunk_score', 'findings', 'facts', 'evaluate'):
         assert f'?stage={stage}' in overview.text
 
@@ -48,7 +56,7 @@ def test_pipeline_default_is_map_only_and_each_stage_enters_its_existing_page(tm
             assert 'stage-entry-header' in page.text
 
 
-def test_pipeline_map_has_textual_statuses_and_responsive_directional_paths(tmp_path):
+def test_pipeline_map_has_textual_statuses_and_accessible_vertical_paths(tmp_path):
     settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
     repo = V2Repository(tmp_path)
     now = datetime.now(UTC)
@@ -60,10 +68,13 @@ def test_pipeline_map_has_textual_statuses_and_responsive_directional_paths(tmp_
     assert 'aria-label="Source — Queued"' in overview.text
     assert 'class="stage-status status-queued"' in overview.text
     assert '>○</span><span>Queued</span>' in overview.text
-    assert 'Findings + Facts meet only here' in overview.text
+    assert 'Evaluate is the only merge point' in overview.text
+    assert 'aria-label="Facts flows upward into Evaluate"' in overview.text
+    assert 'class="pipeline-card-list pipeline-card-list--vertical"' in overview.text
     stylesheet = (Path(__file__).parents[2] / 'src/profitlab/web/static/pipeline-map.css').read_text()
     assert '.pipeline-card:focus-visible' in stylesheet
-    assert '.pipeline-connector--facts' in stylesheet
+    assert '.pipeline-connector--facts-up' in stylesheet
+    assert '.pipeline-card-list--vertical' in stylesheet
     assert '@media (max-width: 600px)' in stylesheet
 
 

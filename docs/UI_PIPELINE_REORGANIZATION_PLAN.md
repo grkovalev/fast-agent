@@ -2,20 +2,50 @@
 
 ## Goal
 
-Make the default Pipeline page an icon-led architecture map, rather than a
-linear stage rail combined with the selected stage's detailed inspector. The
-map communicates two independent evidence lanes that meet at evaluation:
+Make the default Pipeline page a spacious, icon-led process map, rather than a
+linear stage rail combined with the selected stage's detailed inspector.
+
+## Current visual contract — T39 and later
+
+This section supersedes the earlier two-horizontal-lane diagram and is the
+single layout contract for subsequent card work. The overview is a vertical,
+top-to-bottom reading path:
 
 ```text
-Visible filing:  Source -> Outline -> Sections -> Chunks -> Evidence -> Findings
-SEC data:        Facts -----------------------------------------------------+
-                                                                         Evaluate
+Source
+  ↓
+Outline
+  ↓
+Sections
+  ↓
+Chunks
+  ↓
+Evidence
+  ↓
+Findings
+  ↓
+Evaluate ← only merge point
+  ↑
+Facts
 ```
 
-`Facts` is visually a separate SEC-data lane. This is an architectural view;
-it does not change the present execution gate, in which facts begins after
-findings are sealed. Evaluate remains the only stage that consumes both
-outputs.
+`Facts` is physically below `Evaluate`; its connector points upward into
+`Evaluate`. This communicates an independent comparison input without implying
+that Facts begins concurrently with Findings: the current execution gate still
+seals findings before Facts begins. No other card is a merge point.
+
+Every overview card reserves the same stable anatomy: stage icon/name, visual
+process-summary region, short plain-language-description region, prompt-control
+region, and persisted text status/progress/duration. T39 deliberately fills the
+three content regions with obvious placeholders only. It does not surface
+service internals, prompts, provider traces, or new run data. T40–T47 replace
+one card's placeholders at a time.
+
+At narrow widths this remains the same single directional order. Cards span the
+available width, connectors occupy their own space between cards, and every
+whole-card stage link remains keyboard reachable with visible focus. The
+upward Facts-to-Evaluate connector remains explicit; no connector may overlap a
+card or obscure its link.
 
 ## Session 1 — architecture map and navigation
 

@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **Pipeline UI reorganization, Session 4 — stage-entry polish and regression coverage** (**DONE**).
-- Next work: **No queued implementation task.**
+- Current task: **T39 — Pipeline-card layout scaffold** (**DONE**).
+- Next work: **T40 — Source card: SEC filing to canonical visible lines.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -283,6 +283,35 @@ denominator.
   the map still shows the separate Facts lane joining Findings only at Evaluate.
 - Next: **No queued implementation task.**
 
+## T39 local acceptance and handoff
+
+- Replaced the compact, multi-column Pipeline overview with a spacious vertical
+  route: Source → Outline → Sections → Chunks → Evidence → Findings → Evaluate,
+  then Facts below with an explicit upward connector into Evaluate. The overview
+  names Evaluate as the only merge point and says Facts begins after findings are
+  sealed; pipeline execution order was not changed.
+- Every card now reserves a process-summary, plain-language-description, and
+  prompt-control region using deliberately explicit placeholders. Existing
+  persisted text statuses, bounded progress, durations, live updates, whole-card
+  stage links, focus styling, and selected-stage pages remain in place. No service
+  details, provider traces, or inferred runtime content was added to the overview.
+- Updated `UI_PIPELINE_REORGANIZATION_PLAN.md` with the superseding vertical visual
+  contract, Facts-to-Evaluate input, card anatomy, and narrow-screen behavior.
+  Expanded the focused route/CSS gate to prove order, placeholders-only scope,
+  links, connector relationship, textual status, and keyboard-focus hooks. No
+  obsolete tests were removed.
+- `time uv run pytest tests/task_gates/test_pipeline_ui_session1.py -q` — **4
+  passed** in 1.11s (1.47s wall), with the existing Starlette/AnyIO deprecation
+  warning. `uv run ruff check .` and `git diff --check` passed.
+- No SEC, Jev, or LLM calls were needed. Browser automation was not run per task
+  policy. Manual verification: run `uv run profitlab serve`, open a completed and a
+  running run at `/v2/runs/<run-id>/pipeline`, and confirm the large cards descend
+  from Source to Evaluate; confirm Facts is beneath Evaluate and its arrow points up.
+  Tab through every card and resize below 600px: links should remain reachable and
+  arrows/card content should not overlap. Open a card to confirm its selected-stage
+  page and **Back to pipeline** link remain intact.
+- Next: **T40 — Source card: SEC filing to canonical visible lines.**
+
 ## Task tracker
 
 Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live verification separate. Initially no check has run.
@@ -327,6 +356,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T37 | Sequential random-report batch runner | DONE | Manual browser and live SEC/provider batch verification pending |
 | T38 | Versioned run timing and evaluation cohorts | DONE | Manual browser inspection pending |
 | UI-1 | Pipeline architecture map and stage navigation | DONE | Manual browser inspection pending |
+| T39 | Pipeline-card vertical layout scaffold | DONE | Manual browser inspection pending |
 
 ## T32 final evidence
 
