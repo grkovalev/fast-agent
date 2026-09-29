@@ -6,9 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **Pipeline UI reorganization, Session 1 — architecture map and navigation**.
-- Next work: implement the default Pipeline overview map and preserve detailed
-  per-stage inspection pages.
+- Current task: **Pipeline UI reorganization, Session 1 — architecture map and navigation** (**DONE**).
+- Next work: **Pipeline UI reorganization, Session 2 — visual system and responsive behavior**.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -166,6 +165,39 @@ denominator.
   wall), both with the existing Starlette/AnyIO deprecation warning. Ruff and diff
   checks passed; live/browser verification remains pending.
 
+## Pipeline UI reorganization — Session 1 handoff
+
+- The default `/v2/runs/<run-id>/pipeline` page is now a bounded architecture map:
+  the visible-filing lane is Source → Outline → Sections → Chunks → Evidence →
+  Findings; the independent SEC-data lane contains Facts; both visibly converge at
+  Evaluate. Each of the eight cards has an icon, compact purpose, persisted status,
+  and a keyboard-accessible `?stage=<name>` link.
+- The map deliberately renders no stage-specific tables, findings, source payloads,
+  or provider diagnostics. Existing selected-stage URLs remain available through both
+  `?stage=<name>` and `/pipeline/<stage>`; each detailed page now has a **Back to
+  pipeline** link. No pipeline execution or data/provider contract changed.
+- Inspected the shared workspace route and the T33–T38 task gates first. Added
+  `tests/task_gates/test_pipeline_ui_session1.py`, which proves the map-only default,
+  all eight stage entry links, and preservation of query/direct detailed stage pages.
+  No obsolete tests were removed.
+- `time uv run pytest tests/task_gates/test_pipeline_ui_session1.py -q` — **1 passed**
+  in 0.87s (1.24s wall). Shared workspace coverage required `time uv run pytest -q`
+  — **20 passed** in 1.20s (1.57s wall), with the existing Starlette/AnyIO
+  deprecation warning. `uv run ruff check .` and `git diff --check` passed.
+- No SEC, Jev, or LLM call was needed. Browser automation was not run per task policy.
+  Manual verification: run `uv run profitlab serve`, open any run's **Pipeline** URL
+  (for example `/v2/runs/<run-id>/pipeline`), confirm only the two lanes and Evaluate
+  merge appear, then open **Findings** and **Facts** cards. Confirm their detailed
+  pages retain their current inspectable output and **Back to pipeline** returns to
+  the map.
+- Follow-up: removing the old stage rail initially left its two-column workspace grid
+  active, putting a selected stage detail in the former narrow rail column. The
+  workspace now explicitly uses the full available width. The overview uses a
+  non-scrolling three-column filing grid; Facts and Evaluate retain 240–300px columns.
+  The focused route test still passed in 0.75s; Ruff and diff checks passed. Visual
+  browser inspection remains pending under the task policy.
+- Next: **Pipeline UI reorganization, Session 2 — visual system and responsive behavior**.
+
 ## Task tracker
 
 Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live verification separate. Initially no check has run.
@@ -209,6 +241,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T36 | Overall cross-run evaluation scorecard | DONE | Manual browser inspection pending |
 | T37 | Sequential random-report batch runner | DONE | Manual browser and live SEC/provider batch verification pending |
 | T38 | Versioned run timing and evaluation cohorts | DONE | Manual browser inspection pending |
+| UI-1 | Pipeline architecture map and stage navigation | DONE | Manual browser inspection pending |
 
 ## T32 final evidence
 

@@ -207,10 +207,28 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             raise HTTPException(400, str(error)) from None
         return RedirectResponse(f'/v2/batches/{batch_id}', status_code=303)
 
+    stage_presentation = {
+        'source': ('⌁', 'Source', 'Visible filing'),
+        'outline': ('☷', 'Outline', 'Map topics'),
+        'section_score': ('⌕', 'Sections', 'Find sections'),
+        'chunk': ('▤', 'Chunks', 'Bound text'),
+        'chunk_score': ('◆', 'Evidence', 'Keep evidence'),
+        'findings': ('❝', 'Findings', 'Quote claims'),
+        'facts': ('▦', 'Facts', 'SEC data'),
+        'evaluate': ('⇄', 'Evaluate', 'Compare'),
+    }
+
     def context(run_id, stage, page):
-        if stage not in STAGE_NAMES:
+        if stage is not None and stage not in STAGE_NAMES:
             raise ValueError('Unknown V2 stage')
         state = pipeline.repo.state(run_id)
+        stage_cards = [item.model_dump() | {
+            'icon': stage_presentation[item.stage][0],
+            'label': stage_presentation[item.stage][1],
+            'purpose': stage_presentation[item.stage][2],
+        } for item in state['stages']]
+        if stage is None:
+            return {**state, 'overview': True, 'stage_cards': stage_cards}
         selected = next(item for item in state['stages'] if item.stage == stage)
         page = max(1, page)
         data_stages = {'outline', 'section_score', 'chunk', 'chunk_score', 'findings', 'facts', 'evaluate'}
@@ -227,7 +245,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             if candidates:
                 value, label = max(candidates, key=lambda item: (item[0], item[1]))
                 finding_score_lookup[score.item_id] = {'label': label, 'score': value}
-        result = {**state, 'selected': selected, 'page': page, 'canonical_refs': pipeline.repo.canonical_refs(run_id),
+        result = {**state, 'overview': False, 'stage_cards': stage_cards, 'selected': selected, 'page': page, 'canonical_refs': pipeline.repo.canonical_refs(run_id),
                   'outline_sections': outline, 'section_lookup': {x.section_id: x for x in outline},
                   'section_scores': pipeline.repo.scores(run_id, 'section_score', page=page) if stage == 'section_score' else [],
                   'section_actions': [], 'chunks': chunks,
@@ -295,13 +313,13 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
     @app.get('/v2/runs/{run_id}')
     @app.get('/v2/runs/{run_id}/pipeline')
     @app.get('/v2/runs/{run_id}/pipeline/{stage}')
-    def workspace(request: Request, run_id: str, stage: str = 'source', page: int = 1):
+    def workspace(request: Request, run_id: str, stage: str | None = None, page: int = 1):
         started = monotonic()
         try:
             body = templates.TemplateResponse(request=request, name='v2_workspace.html', context=context(run_id, stage, page))
         except (FileNotFoundError, ValueError):
             raise HTTPException(404, 'V2 run not found') from None
-        pipeline.repo.record_route_measurement(run_id, route=f'pipeline:{stage}', latency_ms=(monotonic() - started) * 1000, payload_bytes=len(body.body))
+        pipeline.repo.record_route_measurement(run_id, route=f"pipeline:{stage or 'overview'}", latency_ms=(monotonic() - started) * 1000, payload_bytes=len(body.body))
         return body
 
     @app.get('/v2/runs/{run_id}/pipeline/{stage}/trace')

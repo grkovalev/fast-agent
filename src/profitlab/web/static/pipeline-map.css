@@ -1,0 +1,16 @@
+.pipeline-workspace { display: block; }
+.pipeline-map { margin: 1.4rem 0; }
+.pipeline-lanes { display: grid; gap: 1.2rem; }
+.pipeline-lane { margin: 0; padding: 0; border: 0; background: transparent; }
+.pipeline-lane h3, .pipeline-merge p { margin: .15rem 0 .55rem; font-size: .85rem; color: #596a74; text-transform: uppercase; letter-spacing: .08em; }
+.pipeline-card-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; margin: 0; padding: .2rem 0 .6rem; list-style: none; }
+.pipeline-card-list li { position: relative; }
+.pipeline-card-list li:not(:last-child)::after { position: absolute; z-index: 1; top: 50%; right: -.55rem; content: '→'; color: #596a74; transform: translate(50%, -50%); }
+.pipeline-card { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr); gap: .45rem; min-height: 4.4rem; padding: .65rem; border: 1px solid #bdd3da; border-radius: 7px; background: #fff; color: #172a36; text-decoration: none; }
+.pipeline-card small { display: block; color: #596a74; font-size: .74rem; }
+.stage-icon { color: #126478; font-size: 1.15rem; }
+.facts-lane { display: grid; grid-template-columns: 1fr minmax(240px, 300px); gap: .7rem; align-items: start; }
+.facts-lane h3 { margin-top: .7rem; }
+.pipeline-merge { display: grid; grid-template-columns: 1fr minmax(240px, 300px); gap: .7rem; align-items: start; }
+.pipeline-merge p { margin-top: .7rem; }
+@media (max-width: 600px) { .pipeline-card-list { grid-template-columns: 1fr; } .pipeline-card-list li::after { display: none; } .facts-lane, .pipeline-merge { grid-template-columns: 1fr; width: auto; margin-left: 0; } }
