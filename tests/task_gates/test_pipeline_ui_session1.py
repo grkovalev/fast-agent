@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from profitlab.settings import Settings
-from profitlab.v2.contracts import V2Run
+from profitlab.v2.contracts import StageSnapshot, V2Run
 from profitlab.v2.storage import V2Repository
 from profitlab.web.app import create_app
 
@@ -54,3 +54,36 @@ def test_pipeline_map_has_textual_statuses_and_responsive_directional_paths(tmp_
     assert '.pipeline-card:focus-visible' in stylesheet
     assert '.pipeline-connector--facts' in stylesheet
     assert '@media (max-width: 600px)' in stylesheet
+
+
+def test_pipeline_map_exposes_persisted_progress_and_live_update_contract(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
+    repo = V2Repository(tmp_path)
+    now = datetime.now(UTC)
+    repo.create_run(V2Run(run_id='live-map-run', ticker='LIVE', status='running',
+                          created_at=now, updated_at=now, selected_stage='section_score'))
+    with TestClient(create_app(settings)) as client:
+        # Startup recovery deliberately interrupts stale work, so model the live
+        # event after the app is accepting requests.
+        repo.update_stage(StageSnapshot(run_id='live-map-run', stage='source', position=1,
+                                        status='completed', active_seconds=1.2),
+                          event_kind='stage_finished', event_summary='done')
+        repo.update_stage(StageSnapshot(run_id='live-map-run', stage='section_score', position=3,
+                                        status='running', completed_work=31, total_work=43,
+                                        started_at=now, active_seconds=.5),
+                          event_kind='stage_started', event_summary='scoring')
+        overview = client.get('/v2/runs/live-map-run/pipeline')
+        state = client.get('/v2/runs/live-map-run/state')
+
+    assert '1 of 8 stages complete' in overview.text
+    assert 'Current: <span data-current-stage>Sections</span>' in overview.text
+    assert '31 / 43' in overview.text
+    assert 'data-stage-card="section_score"' in overview.text
+    assert 'aria-current="step"' in overview.text
+    assert '1.2s' in overview.text
+    assert state.json()['stages'][2]['total_work'] == 43
+    script = (Path(__file__).parents[2] / 'src/profitlab/web/static/v2-progress.js').read_text()
+    assert 'new EventSource' in script
+    assert 'setInterval' in script
+    assert 'data-stage-progress' in script
+    assert 'stopLiveUpdates' in script

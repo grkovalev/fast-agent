@@ -1,5 +1,6 @@
 .pipeline-workspace { display: block; }
 .pipeline-map { margin: 1.4rem 0; }
+.pipeline-overall-progress { margin: .2rem 0 .75rem; font-variant-numeric: tabular-nums; }
 .pipeline-lanes { display: grid; gap: 1.25rem; }
 .pipeline-lane, .pipeline-merge { margin: 0; padding: 0; border: 0; background: transparent; }
 .pipeline-lane h3, .pipeline-merge p { margin: .15rem 0 .55rem; font-size: .85rem; color: #596a74; text-transform: uppercase; letter-spacing: .08em; }
@@ -12,6 +13,7 @@
 .pipeline-card small { display: block; color: #596a74; font-size: .74rem; }
 .stage-icon { color: #126478; font-size: 1.15rem; }
 .stage-status { display: flex !important; gap: .3rem; align-items: center; margin-top: .25rem; font-weight: 700; }
+.stage-progress:empty, .stage-duration:empty { display: none; }.stage-progress, .stage-duration { font-variant-numeric: tabular-nums; }.pipeline-card.is-active { border-width: 2px; border-color: #126478; box-shadow: inset 0 0 0 1px #126478; }.pipeline-card.is-active::after { content: 'Current stage'; position: absolute; clip: rect(0 0 0 0); clip-path: inset(50%); height: 1px; overflow: hidden; white-space: nowrap; width: 1px; }
 .status-completed { color: #145236 !important; }.status-running { color: #075267 !important; }.status-queued { color: #465761 !important; }.status-partial { color: #604b00 !important; }.status-failed, .status-cancelled, .status-interrupted { color: #852d15 !important; }
 .facts-lane { display: grid; grid-template-columns: minmax(112px, 1fr) auto minmax(112px, 1fr); gap: .7rem; align-items: center; }
 .facts-lane h3 { grid-column: 1 / -1; margin: 0; }.facts-lane .pipeline-card { grid-column: 1; }.pipeline-connector { grid-column: 2; color: #365a66; font-size: 1.4rem; font-weight: 700; }.pipeline-connector--facts { grid-row: 2; }

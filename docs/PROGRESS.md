@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **Pipeline UI reorganization, Session 2 — visual system and responsive behavior** (**DONE**).
-- Next work: **Pipeline UI reorganization, Session 3 — live pipeline progress**.
+- Current task: **Pipeline UI reorganization, Session 3 — live pipeline progress** (**DONE**).
+- Next work: **Pipeline UI reorganization, Session 4 — stage-entry polish and regression coverage**.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -221,6 +221,38 @@ denominator.
   vertical reading path followed by Facts and Evaluate, with visible arrows and
   keyboard focus. The current status should show both a symbol and its text label.
 - Next: **Pipeline UI reorganization, Session 3 — live pipeline progress**.
+
+## Pipeline UI reorganization — Session 3 handoff
+
+- The default pipeline map now shows a compact persisted progress summary: completed
+  stages out of eight, the active (or last selected) stage, and run status. A running
+  card is explicitly marked as the current pipeline step without relying on colour.
+- The existing SSE event feed still triggers state refreshes and its polling fallback
+  still takes over after an SSE failure. Refreshes now update the overall summary,
+  every card status, active-card marker, bounded work count, and duration. Terminal
+  cards keep their persisted active duration; an active card displays a live elapsed
+  clock derived from its persisted start time and active duration. Timers and polling
+  stop when the run becomes terminal.
+- Inspected and timed `tests/task_gates/test_pipeline_ui_session1.py` before changes:
+  **2 passed** in 0.99s (1.50s wall), with the existing Starlette/AnyIO deprecation
+  warning. Consolidated Session 3 coverage into that existing map-route gate rather
+  than adding a redundant test file. The added contract publishes a running stage
+  after startup recovery, then verifies the persisted summary, active marker, bounded
+  `31 / 43` progress, terminal duration, state route, and live-update controls. No
+  obsolete tests were removed.
+- `time uv run pytest tests/task_gates/test_pipeline_ui_session1.py -q` — **3 passed**
+  in 0.97s (1.39s wall), with the existing warning. `uv run ruff check .` and
+  `git diff --check` passed. No SEC, Jev, or LLM call was made; browser automation was
+  not run per task policy.
+- Manual verification: run `uv run profitlab serve`, start or resume a report, then
+  open `/v2/runs/<run-id>/pipeline`. Confirm the header advances from `0 of 8`, the
+  active card has an explicit current-step border/status, and a bounded scorer shows
+  `completed / total` while its elapsed clock advances. Let the run reach a terminal
+  state (or cancel it), refresh, and confirm terminal card durations remain while the
+  clock no longer moves. Temporarily interrupt SSE connectivity to confirm the same
+  values continue updating through fallback polling.
+- Next: **Pipeline UI reorganization, Session 4 — stage-entry polish and regression
+  coverage**.
 
 ## Task tracker
 
