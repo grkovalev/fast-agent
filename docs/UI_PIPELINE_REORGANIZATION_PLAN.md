@@ -47,6 +47,27 @@ whole-card stage link remains keyboard reachable with visible focus. The
 upward Facts-to-Evaluate connector remains explicit; no connector may overlap a
 card or obscure its link.
 
+## Card replacement sequence
+
+T39 established the shared card frame. T40 completed the Source card with its
+persisted SEC request → visible-HTML conversion → canonical-line storage diagram.
+Each following task replaces placeholders on exactly one card, retains the shared
+desktop card size and responsive behavior, and does not change pipeline execution.
+
+| Task | Card | Bounded overview content |
+| --- | --- | --- |
+| T41 | Outline | Canonical-line windows → generated navigation topics → validated source ranges. |
+| T42 | Sections | Validated outline descriptors → Jev relevance scoring → deterministic selected/uncertain sections. |
+| T43 | Chunks | Selected sections → bounded source-range chunks with context overlap → inspectable chunk set. |
+| T44 | Evidence | Selected chunks → Jev detail scoring → diverse retained evidence. |
+| T45 | Findings | Retained evidence → quote validation → published quote-backed findings. |
+| T46 | Facts | Sealed findings → independent SEC Company Facts request → normalized annual facts. |
+| T47 | Evaluate | Sealed findings plus independent facts → exact comparison → coverage and match states. |
+
+The T41 card must distinguish generated navigation metadata from exact canonical
+source text and ranges. It must not show raw prompts, provider traces, or unbounded
+outline records on the overview; those remain in the existing stage detail.
+
 ## Session 1 — architecture map and navigation
 
 **Scope:** `v2_workspace.html`, its route/view model as needed, and focused

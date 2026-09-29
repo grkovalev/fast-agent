@@ -49,14 +49,21 @@
 .pipeline-card-list--vertical li:nth-child(4)::after { top: auto; right: 50%; bottom: -1.22rem; content: '↓'; transform: translateX(50%); }
 .pipeline-card-list--facts { margin-top: .25rem; }
 .pipeline-card-list--facts li::after { display: none; }
+.pipeline-map--vertical .pipeline-card { box-sizing: border-box; block-size: 12rem; }
 .pipeline-card { grid-template-columns: 1.7rem minmax(0, 1fr); min-height: 11.75rem; padding: 1rem 1.1rem; }
 .pipeline-card-content { display: grid; gap: .42rem; }
 .pipeline-card-process, .pipeline-card-description, .pipeline-card-prompt { display: block; }
 .pipeline-card-process { color: #284c59; font-weight: 650; }
 .pipeline-card-description { color: #596a74; }
 .pipeline-card-prompt { width: fit-content; padding: .18rem .42rem; border: 1px dashed #9cadb4; border-radius: .25rem; color: #465761; font-size: .78rem; }
+.source-card-flow { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.2fr) auto minmax(0, 1fr); gap: .45rem; align-items: stretch; padding: .1rem 0; }
+.source-flow-step { display: grid; align-content: start; gap: .18rem; min-width: 0; padding: .45rem .5rem; border-left: 3px solid #75a8b6; background: linear-gradient(135deg, #f7fbfc, #eef5f6); color: #284c59; }
+.source-flow-step small { color: #596a74; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.source-flow-step b { color: #183b42; font-size: .8rem; line-height: 1.25; overflow-wrap: anywhere; }
+.source-flow-step em { color: #596a74; font-size: .72rem; font-style: normal; line-height: 1.3; overflow-wrap: anywhere; }
+.source-card-flow > i { color: #126478; font-size: 1.1rem; font-style: normal; }
 .pipeline-card .stage-status { margin-top: .2rem; }
 .pipeline-merge-note { margin: 1.35rem 0 .65rem; color: #365a66; font-weight: 650; }
 .pipeline-facts-input { display: grid; justify-items: center; gap: .1rem; margin: .25rem 0 .55rem; color: #365a66; font-size: .85rem; font-weight: 650; }
 .pipeline-connector--facts-up { display: block; font-size: 1.45rem; line-height: 1; }
-@media (max-width: 600px) { .pipeline-map--vertical { margin-inline: 0; }.pipeline-card { min-height: 12.25rem; }.pipeline-card-list--vertical { gap: 1.5rem; } }
+@media (max-width: 600px) { .pipeline-map--vertical { margin-inline: 0; }.pipeline-map--vertical .pipeline-card { block-size: auto; }.pipeline-card { min-height: 12.25rem; }.pipeline-card-list--vertical { gap: 1.5rem; }.source-card-flow { grid-template-columns: 1fr; gap: .35rem; }.source-card-flow > i { justify-self: center; transform: rotate(90deg); } }

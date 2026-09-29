@@ -244,12 +244,35 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             'report_year': report_date[:4] or 'Not available',
             'created_on': state['run'].created_at.strftime('%Y-%m-%d'),
         }
+        canonical_refs = pipeline.repo.canonical_refs(run_id)
+        source_ref = canonical_refs[0] if canonical_refs else None
+        if filing and source_ref:
+            source_content = {
+                'request': 'SEC primary filing',
+                'received': (f"Primary filing HTML · {filing.get('form', 'filing')} · "
+                             f"report date {filing.get('report_date', 'not available')}"),
+                'stored': f'{source_ref.line_count:,} canonical visible lines',
+            }
+        elif filing:
+            source_content = {
+                'request': 'SEC primary filing',
+                'received': (f"Primary filing HTML · {filing.get('form', 'filing')} · "
+                             'preparing visible lines'),
+                'stored': 'Canonical visible lines pending',
+            }
+        else:
+            source_content = {
+                'request': 'SEC primary filing',
+                'received': 'Awaiting SEC response',
+                'stored': 'Canonical visible lines pending',
+            }
         stage_cards = [item.model_dump() | {
             'icon': stage_presentation[item.stage][0],
             'label': stage_presentation[item.stage][1],
             'purpose': stage_presentation[item.stage][2],
             'status_symbol': stage_status_presentation[item.status][0],
             'status_label': stage_status_presentation[item.status][1],
+            **(source_content if item.stage == 'source' else {}),
         } for item in state['stages']]
         if stage is None:
             active = next((item for item in stage_cards if item['status'] == 'running'), None)
@@ -276,7 +299,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             if candidates:
                 value, label = max(candidates, key=lambda item: (item[0], item[1]))
                 finding_score_lookup[score.item_id] = {'label': label, 'score': value}
-        result = {**state, 'report_identity': report_identity, 'map_progress': {'completed': sum(item['status'] == 'completed' for item in stage_cards)}, 'overview': False, 'stage_cards': stage_cards, 'selected': selected, 'page': page, 'canonical_refs': pipeline.repo.canonical_refs(run_id),
+        result = {**state, 'report_identity': report_identity, 'map_progress': {'completed': sum(item['status'] == 'completed' for item in stage_cards)}, 'overview': False, 'stage_cards': stage_cards, 'selected': selected, 'page': page, 'canonical_refs': canonical_refs,
                   'outline_sections': outline, 'section_lookup': {x.section_id: x for x in outline},
                   'section_scores': pipeline.repo.scores(run_id, 'section_score', page=page) if stage == 'section_score' else [],
                   'section_actions': [], 'chunks': chunks,

@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T39 — Pipeline-card layout scaffold** (**DONE**).
-- Next work: **T40 — Source card: SEC filing to canonical visible lines.**
+- Current task: **T40 — Source card: SEC filing to canonical visible lines.** (**DONE**).
+- Next work: **T41 — Outline card: canonical lines to navigable topics.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -312,6 +312,40 @@ denominator.
   page and **Back to pipeline** link remain intact.
 - Next: **T40 — Source card: SEC filing to canonical visible lines.**
 
+## T40 local acceptance and handoff
+
+- Replaced only the Pipeline overview's Source-card placeholders with a compact,
+  three-step transformation: **Request** SEC primary filing (and show the returned
+  primary HTML/form/report date) → **Convert** to visible HTML only (remove hidden
+  and Inline-XBRL-only content plus taxonomy, context, unit, scale, and format
+  metadata) → **Store** the canonical visible-line count and its sanitized-HTML
+  anchors. Before acquisition it honestly shows an awaiting response and pending
+  stored lines.
+- The diagram replaces the unnecessary model-prompt treatment. The Source card
+  remains one keyboard-accessible link to the existing Source stage detail. The
+  remaining seven cards retain their T39 placeholders; no source, provider, or
+  execution behavior changed.
+- Every desktop overview card now uses the same fixed 12rem visual frame, so the
+  Source transformation does not make the vertical graph uneven. Its three compact
+  transformation panels use the same restrained visual language; below 600px cards
+  return to content-driven height and the panels stack in reading order.
+- Inspected the existing map-route gate first and added one focused persisted-filing
+  scenario. It saves a canonical document and filing record, then verifies the exact
+  Source-card identity/line result and that its scaffold placeholders are gone. No
+  obsolete tests were removed.
+- `time uv run pytest tests/task_gates/test_pipeline_ui_session1.py -q` — **5
+  passed** in 1.17s (1.55s wall), with the existing Starlette/AnyIO deprecation
+  warning. `uv run ruff check .` and `git diff --check` passed.
+- No SEC, Jev, or LLM call was needed. Browser automation was not run per task
+  policy. Manual verification: run `uv run profitlab serve`, open a run with a
+  completed Source stage at `/v2/runs/<run-id>/pipeline`, and confirm the Source
+  card's Request → Convert → Store diagram names its SEC form/report date, explains
+  the visible-HTML-only cleanup, and shows the visible-line total. Open the card,
+  inspect the canonical documents/source view, then use **Back to pipeline**. Open
+  a new queued run and confirm the diagram says it is awaiting an SEC response rather
+  than inventing a result.
+- Next: **T41 — Outline card: canonical lines to navigable topics.**
+
 ## Task tracker
 
 Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live verification separate. Initially no check has run.
@@ -357,6 +391,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T38 | Versioned run timing and evaluation cohorts | DONE | Manual browser inspection pending |
 | UI-1 | Pipeline architecture map and stage navigation | DONE | Manual browser inspection pending |
 | T39 | Pipeline-card vertical layout scaffold | DONE | Manual browser inspection pending |
+| T40 | Source card: SEC filing to canonical visible lines | DONE | Manual browser inspection pending |
 
 ## T32 final evidence
 
