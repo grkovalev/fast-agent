@@ -720,3 +720,214 @@ total/stage timing; terminal and partial states retain honest durations; all agg
 evaluation denominators contain exactly one selected run version; cross-version runs
 are visibly accounted for but never silently pooled; timing/version data require no
 provider calls to inspect.
+
+## T39 — Pipeline-card layout scaffold
+
+**Goal:** replace the current compact, multi-column architecture map with a spacious
+vertical pipeline layout before adding real per-stage card content. This is a layout
+task only: use deliberately obvious placeholder card copy, not inferred runtime
+details.
+
+**Dependency:** T38. Complete this before any T40–T47 card task.
+
+**Implement:**
+
+1. On the default `/v2/runs/{run_id}/pipeline` overview, arrange the discovery path
+   as one readable top-to-bottom line: `Source → Outline → Sections → Chunks →
+   Evidence → Findings → Evaluate`. Place `Facts` below `Evaluate` with a directional
+   connector flowing upward into `Evaluate`. The picture must make clear that Evaluate
+   is the only merge point, while not implying that Facts runs concurrently with
+   Findings.
+2. Increase card size enough to reserve a stable anatomy for a visual process summary,
+   a short plain-language description, and a prompt tooltip/control. Use fixed
+   placeholders for those regions in this task; do not expose service internals,
+   provider traces, or new data on the overview yet.
+3. Preserve existing links, live status/progress/duration updates, keyboard focus,
+   non-colour status text, and selected-stage pages. Keep the layout responsive: at
+   narrow widths it remains a single directional reading order with no overlapping
+   connector or inaccessible card.
+4. Write the visual contract into `docs/UI_PIPELINE_REORGANIZATION_PLAN.md`, including
+   the vertical ordering, the Facts-to-Evaluate upward input, card anatomy, and mobile
+   behavior. Replace or clearly supersede the earlier two-horizontal-lane diagram so
+   later tasks have one source of truth.
+5. Add focused overview/template/CSS tests for ordering, the facts-to-evaluate
+   relationship, placeholder-only scope, links, and keyboard/accessibility hooks.
+
+**Not in scope:** real descriptions, prompt strings, provider request inspection,
+changing execution order, or changing any stage service.
+
+**Manual verification handoff:** open a completed and a running Pipeline overview.
+Confirm the large placeholder cards form the specified vertical route; follow Facts
+up into Evaluate visually; tab through every card; then check the narrow layout.
+
+**Acceptance gate:** the overview communicates the intended flow using placeholder
+content only, all eight cards remain reachable and live-updating, and no product
+behavior or provider payload changes.
+
+## Shared contract for T40–T47 — truthful card content and prompt provenance
+
+Each following task owns exactly one stage card. The card must explain what that
+stage actually does in the current code, not an aspirational workflow. It must contain
+a compact visual input → operation → output summary, a short description, and a
+keyboard- and touch-accessible “Prompt used” tooltip/control.
+
+For a provider-backed stage, the tooltip text must be derived from the same prompt
+builder/value passed in the request path (for example, an exposed read-only prompt
+view-model derived from `OutlineService._prompt`, `FindingsService._prompt`, or the
+`NoulQuestion.instructions` values used to build `JevRequest`). A copied prose
+description, prompt version label, trace record, or independently maintained UI string
+does not satisfy this contract. Preserve redaction and never put filing text, secrets,
+or a full request payload into the tooltip. If the prompt is parameterized, show the
+actual instruction template with its dynamic inputs represented safely and identify
+the current prompt version/model where the request code does.
+
+For a stage with no LLM/Jev prompt, its control must explicitly say “No model prompt:
+[actual operation]” and identify the relevant code-owned operation/configuration;
+it must not invent a prompt. Tooltips must remain usable by keyboard, screen readers,
+and touch, and must not interfere with the card’s stage link.
+
+Every task must add a regression test that proves the rendered tooltip comes from the
+request-construction source (or proves the no-prompt path), plus a route/UI test of the
+card’s visible process summary. Do not start another card task in the same session.
+
+## T40 — Source card: SEC filing to canonical visible lines
+
+**Goal:** make the Source card truthfully show the SEC acquisition and visible-HTML
+canonicalization performed by `V2SourceService.acquire`.
+
+**Dependency:** T39.
+
+**Implement:** depict `ticker → SEC primary filing HTML → sanitized, line-addressable
+canonical document`; describe filing discovery, hidden Inline XBRL removal, visible
+HTML preservation, source hash, and numbered lines in concise user-facing language.
+The prompt control must state that no model prompt is used and point to the actual SEC
+acquisition/canonicalization operation and its configured request identity. Surface
+only persisted, safe run facts such as form, report date, line count, and source hash
+status when available; never display raw HTML or credentials in the card.
+
+**Acceptance gate:** the card does not claim LLM/Jev involvement, accurately reflects
+`V2SourceService`, and its visual outputs match the persisted source-stage artifacts.
+
+## T41 — Outline card: canonical lines to validated navigation ranges
+
+**Goal:** make the Outline card show the windowed LLM navigation pass implemented by
+`OutlineService`.
+
+**Dependency:** T40.
+
+**Implement:** depict `numbered canonical-line windows → configured LLM → validated,
+reconciled outline sections`; state that generated topics are navigation metadata while
+titles/quotes/ranges are validated against source. Derive its tooltip from the exact
+`OutlineService._prompt` value supplied to the chat-completions call, with safe dynamic
+input placeholders and the configured outline model/prompt version. Represent actual
+window count, validated ranges, rejected proposals, cached batches, and model outcome
+only when persisted.
+
+**Acceptance gate:** changing the outline request prompt changes the tooltip through
+the shared source, and the card never presents generated navigation as source text.
+
+## T42 — Sections card: visible outline descriptors to Jev relevance scores
+
+**Goal:** make the Sections card show the visible-only Jev scoring and deterministic
+selection policy in `SectionScoringService`.
+
+**Dependency:** T41.
+
+**Implement:** depict `validated outline descriptors → Jev target questions → score
+vectors → selected/uncertain/skipped sections`; describe the allowed visible context
+and the separation between Jev scores and local selection policy. Build the tooltip
+from the exact `TARGETS` instruction values inserted into `_request` as
+`NoulQuestion.instructions`, not a duplicated target list. Show actual target coverage,
+batch/cached-call counts, and selection totals where available.
+
+**Acceptance gate:** every displayed Jev question is sourced from the request builder,
+and the card clearly states that Company Facts/evaluation values are excluded.
+
+## T43 — Chunks card: selected sections to bounded source ranges
+
+**Goal:** make the Chunks card show the deterministic range chunking performed by
+`SourceRangeChunker`.
+
+**Dependency:** T42.
+
+**Implement:** depict `selected outline sections → boundary-aware split → core ranges
+plus overlap context`; explain that core ranges own coverage and overlap is context,
+not independent evidence. Its prompt control must explicitly identify the no-model
+path and derive the relevant boundary/size configuration from the chunker used by the
+pipeline. Show actual selected-section, chunk, core-line, and bounded-size values when
+available.
+
+**Acceptance gate:** no model prompt is implied; the card’s content agrees with the
+stored `TextChunk` ranges and never treats overlap as separately discovered evidence.
+
+## T44 — Evidence card: chunks to ranked retained evidence
+
+**Goal:** make the Evidence card show detailed Jev chunk scoring and the local
+diversity/budget policy in `ChunkScoringService`.
+
+**Dependency:** T43.
+
+**Implement:** depict `bounded visible chunks → Jev target questions → score vectors
+→ diverse retained/uncertain/skipped evidence`; explain the overlap-deduplication,
+target/section/year diversity, and retained-text budget without portraying them as Jev
+decisions. Derive the tooltip from the actual `TARGETS` instruction values placed in
+the chunk-scoring `JevRequest`. Show real input chunks, live/cached batches, token use,
+retained characters, and policy counts only when they exist.
+
+**Acceptance gate:** the tooltip and provider questions share their source, and the
+visual separates model scoring from deterministic evidence retention.
+
+## T45 — Findings card: retained evidence to quote-validated numeric findings
+
+**Goal:** make the Findings card show constrained LLM extraction and quote validation
+in `FindingsService`.
+
+**Dependency:** T44.
+
+**Implement:** depict `retained visible chunks + navigation context → configured LLM
+→ proposed findings → exact-quote/Decimal validation → published findings`; state that
+invalid proposals are rejected or receive one bounded repair attempt and unresolved
+metadata is not guessed. Derive the tooltip from the exact `FindingsService._prompt`
+value used in `_live`, including safe representation of the repair variant. Show actual
+retained chunks, requests, rejected items, fallback status, and published finding count
+when persisted.
+
+**Acceptance gate:** the card cannot imply that uncited model prose is published, and
+the rendered tooltip changes with the real findings prompt builder.
+
+## T46 — Facts card: sealed findings to independent SEC Company Facts
+
+**Goal:** make the Facts card show the post-discovery SEC retrieval and conservative
+normalization in `CompanyFactsService`.
+
+**Dependency:** T45.
+
+**Implement:** depict `sealed findings + filing CIK → SEC Company Facts JSON →
+configured annual facts and retained alternatives`; describe the strict ordering gate,
+selected accession/form/annual-period filtering, concept mapping, and independent
+oracle role. Its prompt control must state that no model prompt is used and derive the
+visible mapping/configuration from `FACT_TARGETS` and the actual loader path. Show safe
+persisted provenance, supported-fact count, and alternatives count when available.
+
+**Acceptance gate:** the card makes clear that Facts is an independent bottom input to
+Evaluate and never says structured facts were available to earlier Jev/LLM stages.
+
+## T47 — Evaluate card: independent facts and findings to comparison outcomes
+
+**Goal:** make the Evaluate card show both deterministic comparison and the bounded,
+conditional Jev scale-aware verdict in `EvaluationService`.
+
+**Dependency:** T46.
+
+**Implement:** depict the two inputs explicitly: `quote-backed findings` from above
+and `SEC Company Facts` from below, converging into `exact Decimal comparison →
+conditional Jev scale/unit check → inspectable outcomes`. Describe that evaluation is
+non-mutating and that a miss remains a miss. The prompt control must provide two
+truthful branches: no model prompt for deterministic comparison, and, when the
+scale-aware provider path is applicable, instructions derived from the exact
+evaluation `JevRequest`/`NoulQuestion` construction. Show actual comparison states,
+provider/cached-call data, and evaluation contract/version only when persisted.
+
+**Acceptance gate:** the card accurately represents the sole merge point, does not
+claim Jev runs for every comparison, and its conditional prompt text is coupled to the
+same request-building source used by evaluation.
