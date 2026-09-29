@@ -217,6 +217,15 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         'facts': ('▦', 'Facts', 'SEC data'),
         'evaluate': ('⇄', 'Evaluate', 'Compare'),
     }
+    stage_status_presentation = {
+        'completed': ('✓', 'Complete'),
+        'running': ('●', 'Running'),
+        'queued': ('○', 'Queued'),
+        'partial': ('◐', 'Partial'),
+        'failed': ('!', 'Failed'),
+        'cancelled': ('×', 'Cancelled'),
+        'interrupted': ('!', 'Interrupted'),
+    }
 
     def context(run_id, stage, page):
         if stage is not None and stage not in STAGE_NAMES:
@@ -226,6 +235,8 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             'icon': stage_presentation[item.stage][0],
             'label': stage_presentation[item.stage][1],
             'purpose': stage_presentation[item.stage][2],
+            'status_symbol': stage_status_presentation[item.status][0],
+            'status_label': stage_status_presentation[item.status][1],
         } for item in state['stages']]
         if stage is None:
             return {**state, 'overview': True, 'stage_cards': stage_cards}

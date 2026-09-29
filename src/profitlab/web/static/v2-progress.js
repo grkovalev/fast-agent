@@ -2,6 +2,11 @@
   const root = document.querySelector('[data-v2-run]');
   if (!root) return;
   const runId = root.dataset.v2Run;
+  const statusPresentation = {
+    completed: ['✓', 'Complete'], running: ['●', 'Running'], queued: ['○', 'Queued'],
+    partial: ['◐', 'Partial'], failed: ['!', 'Failed'], cancelled: ['×', 'Cancelled'],
+    interrupted: ['!', 'Interrupted'],
+  };
   let fallback;
   let pending = false;
   const render = async () => {
@@ -11,7 +16,13 @@
     document.querySelector('#v2-run-status').textContent = `${state.run.status} · ${state.run.summary}`;
     for (const stage of state.stages) {
       const item = document.querySelector(`[data-stage="${stage.stage}"]`);
-      if (item) item.textContent = stage.status;
+      if (item) {
+        const [symbol, label] = statusPresentation[stage.status] || ['!', stage.status];
+        item.className = `stage-status status-${stage.status}`;
+        item.dataset.stageStatus = stage.status;
+        item.innerHTML = `<span aria-hidden="true">${symbol}</span><span>${label}</span>`;
+        item.closest('.pipeline-card')?.setAttribute('aria-label', `${item.closest('.pipeline-card').querySelector('strong').textContent} — ${label}`);
+      }
     }
     if (!['queued', 'running'].includes(state.run.status) && fallback) clearInterval(fallback);
   };

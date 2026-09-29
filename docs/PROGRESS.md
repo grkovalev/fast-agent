@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **Pipeline UI reorganization, Session 1 — architecture map and navigation** (**DONE**).
-- Next work: **Pipeline UI reorganization, Session 2 — visual system and responsive behavior**.
+- Current task: **Pipeline UI reorganization, Session 2 — visual system and responsive behavior** (**DONE**).
+- Next work: **Pipeline UI reorganization, Session 3 — live pipeline progress**.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -192,11 +192,35 @@ denominator.
   the map.
 - Follow-up: removing the old stage rail initially left its two-column workspace grid
   active, putting a selected stage detail in the former narrow rail column. The
-  workspace now explicitly uses the full available width. The overview uses a
-  non-scrolling three-column filing grid; Facts and Evaluate retain 240–300px columns.
-  The focused route test still passed in 0.75s; Ruff and diff checks passed. Visual
-  browser inspection remains pending under the task policy.
+  workspace now explicitly uses the full available width. Visual browser inspection
+  remains pending under the task policy.
 - Next: **Pipeline UI reorganization, Session 2 — visual system and responsive behavior**.
+
+## Pipeline UI reorganization — Session 2 handoff
+
+- The map now uses a consistent stage-icon set and compact status symbols with plain
+  text labels for Complete, Running, Queued, Partial, Failed, Cancelled, and
+  Interrupted. Status remains readable without colour and the existing progress
+  refresh updates both the symbol and label.
+- The visible-filing lane uses directional arrows between all six stages. Facts has
+  its own arrow toward the merge, while a separate downward path marks that Findings
+  and Facts meet only at Evaluate. At 760px the filing lane wraps with a down-arrow;
+  at 600px it becomes a single reading-order sequence, then Facts, then Evaluate.
+  Cards retain visible keyboard focus indicators and descriptive accessible names.
+- Consolidated the visual contract into the existing map-route test rather than
+  creating a redundant browser-style test. It now verifies the queued text/symbol,
+  accessible card name, convergence copy, directional connector styling, focus rule,
+  and narrow-screen breakpoint. No obsolete tests were removed.
+- `time uv run pytest tests/task_gates/test_pipeline_ui_session1.py -q` — **2 passed**
+  in 0.81s (1.17s wall), with the existing Starlette/AnyIO deprecation warning.
+  `uv run ruff check .` and `git diff --check` passed. No SEC, Jev, or LLM call was
+  needed. Browser automation was not run per task policy.
+- Manual verification: run `uv run profitlab serve`, open any run's **Pipeline** URL,
+  and confirm the horizontal Source-to-Findings flow, the independent Facts arrow,
+  and the downward merge at Evaluate. Resize below 600px: cards should become one
+  vertical reading path followed by Facts and Evaluate, with visible arrows and
+  keyboard focus. The current status should show both a symbol and its text label.
+- Next: **Pipeline UI reorganization, Session 3 — live pipeline progress**.
 
 ## Task tracker
 

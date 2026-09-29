@@ -1,5 +1,6 @@
 """Session 1 architecture-map navigation contracts."""
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -34,3 +35,22 @@ def test_pipeline_default_is_map_only_and_each_stage_enters_its_existing_page(tm
         assert page.status_code == 200
         assert 'Stage 6 of 8' in page.text
         assert 'Back to pipeline' in page.text
+
+
+def test_pipeline_map_has_textual_statuses_and_responsive_directional_paths(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
+    repo = V2Repository(tmp_path)
+    now = datetime.now(UTC)
+    repo.create_run(V2Run(run_id='status-map-run', ticker='MAP', created_at=now, updated_at=now))
+
+    with TestClient(create_app(settings)) as client:
+        overview = client.get('/v2/runs/status-map-run/pipeline')
+
+    assert 'aria-label="Source — Queued"' in overview.text
+    assert 'class="stage-status status-queued"' in overview.text
+    assert '>○</span><span>Queued</span>' in overview.text
+    assert 'Findings + Facts meet only here' in overview.text
+    stylesheet = (Path(__file__).parents[2] / 'src/profitlab/web/static/pipeline-map.css').read_text()
+    assert '.pipeline-card:focus-visible' in stylesheet
+    assert '.pipeline-connector--facts' in stylesheet
+    assert '@media (max-width: 600px)' in stylesheet
