@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **Pipeline UI reorganization, Session 3 — live pipeline progress** (**DONE**).
-- Next work: **Pipeline UI reorganization, Session 4 — stage-entry polish and regression coverage**.
+- Current task: **Pipeline UI reorganization, Session 4 — stage-entry polish and regression coverage** (**DONE**).
+- Next work: **No queued implementation task.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -253,6 +253,35 @@ denominator.
   values continue updating through fallback polling.
 - Next: **Pipeline UI reorganization, Session 4 — stage-entry polish and regression
   coverage**.
+
+## Pipeline UI reorganization — Session 4 handoff
+
+- Every selected-stage page now begins with one compact, consistent entry header:
+  **Back to pipeline**, the same stage icon used on the architecture map, the stage
+  position/name, and a text-plus-symbol persisted status. Bounded work progress
+  appears there when known, including a partial Facts stage. The header uses the
+  shared map presentation metadata, so it cannot drift from the map's label/icon or
+  status vocabulary.
+- Existing detailed source links, sanitized traces, quote-backed findings, Company
+  Facts provenance, and evaluation cards were left intact. No pipeline execution,
+  provider/data contract, or Facts/Findings dependency behavior changed.
+- Inspected and timed `tests/task_gates/test_pipeline_ui_session1.py` before the
+  change: **3 passed** in 0.90s (1.28s wall), with the existing Starlette/AnyIO
+  deprecation warning. Extended that focused map-route gate rather than adding a
+  redundant UI test: it now verifies all eight selected-stage entries plus icon,
+  status, bounded-work, partial, and failed-state headers. No obsolete tests were
+  removed.
+- `time uv run pytest tests/task_gates/test_pipeline_ui_session1.py -q` — **4
+  passed** in 1.12s (1.50s wall), with the same warning. Shared-route coverage:
+  `time uv run pytest -q` — **23 passed** in 1.53s (1.88s wall), with the same
+  warning. `uv run ruff check .` and `git diff --check` passed.
+- No SEC, Jev, or LLM call was needed. Browser automation was not run per task
+  policy. Manual verification: run `uv run profitlab serve`; open a completed,
+  running, and failed or partial run at `/v2/runs/<run-id>/pipeline?stage=facts`
+  (and another stage such as `findings`). Confirm the header shows the correct icon,
+  textual status, and any bounded item count; click **Back to pipeline** and confirm
+  the map still shows the separate Facts lane joining Findings only at Evaluate.
+- Next: **No queued implementation task.**
 
 ## Task tracker
 

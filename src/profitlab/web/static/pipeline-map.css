@@ -1,4 +1,11 @@
 .pipeline-workspace { display: block; }
+.stage-entry-header { margin: 0 0 1.1rem; padding: 0 0 .9rem; border-bottom: 1px solid #d8e1e4; }
+.stage-back-link { display: inline-block; margin-bottom: .85rem; font-weight: 600; }
+.stage-entry-title { display: flex; gap: .65rem; align-items: flex-start; }
+.stage-entry-title .stage-icon { margin-top: .1rem; font-size: 1.45rem; }
+.stage-entry-title .eyebrow, .stage-entry-title h2, .stage-entry-status { margin: 0; }
+.stage-entry-status { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; margin-top: .25rem; font-weight: 700; }
+.stage-entry-work { font-weight: 400; }
 .pipeline-map { margin: 1.4rem 0; }
 .pipeline-overall-progress { margin: .2rem 0 .75rem; font-variant-numeric: tabular-nums; }
 .pipeline-lanes { display: grid; gap: 1.25rem; }

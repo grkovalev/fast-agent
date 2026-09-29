@@ -247,7 +247,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                         'completed': sum(item['status'] == 'completed' for item in stage_cards),
                         'current_label': current['label'] if current else 'Waiting to start',
                     }}
-        selected = next(item for item in state['stages'] if item.stage == stage)
+        selected = next(item for item in stage_cards if item['stage'] == stage)
         page = max(1, page)
         data_stages = {'outline', 'section_score', 'chunk', 'chunk_score', 'findings', 'facts', 'evaluate'}
         outline = pipeline.repo.outline_sections(run_id, page=page) if stage in data_stages else []

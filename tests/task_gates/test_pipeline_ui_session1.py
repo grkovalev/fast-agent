@@ -35,6 +35,17 @@ def test_pipeline_default_is_map_only_and_each_stage_enters_its_existing_page(tm
         assert page.status_code == 200
         assert 'Stage 6 of 8' in page.text
         assert 'Back to pipeline' in page.text
+        assert 'stage-entry-header' in page.text
+        assert '❝' in page.text
+        assert '>○</span><span>Queued</span>' in page.text
+
+    with TestClient(create_app(settings)) as client:
+        for position, stage in enumerate(
+                ('source', 'outline', 'section_score', 'chunk', 'chunk_score', 'findings', 'facts', 'evaluate'), 1):
+            page = client.get(f'/v2/runs/map-run/pipeline?stage={stage}')
+            assert page.status_code == 200
+            assert f'Stage {position} of 8' in page.text
+            assert 'stage-entry-header' in page.text
 
 
 def test_pipeline_map_has_textual_statuses_and_responsive_directional_paths(tmp_path):
@@ -87,3 +98,26 @@ def test_pipeline_map_exposes_persisted_progress_and_live_update_contract(tmp_pa
     assert 'setInterval' in script
     assert 'data-stage-progress' in script
     assert 'stopLiveUpdates' in script
+
+
+def test_selected_stage_header_uses_persisted_partial_or_failed_status(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
+    repo = V2Repository(tmp_path)
+    now = datetime.now(UTC)
+    repo.create_run(V2Run(run_id='stage-state-run', ticker='STATE', created_at=now, updated_at=now))
+    repo.update_stage(StageSnapshot(run_id='stage-state-run', stage='facts', position=7,
+                                    status='partial', completed_work=2, total_work=3),
+                      event_kind='stage_finished', event_summary='partial facts')
+    repo.update_stage(StageSnapshot(run_id='stage-state-run', stage='evaluate', position=8,
+                                    status='failed', error='comparison unavailable'),
+                      event_kind='stage_finished', event_summary='failed evaluation')
+
+    with TestClient(create_app(settings)) as client:
+        facts = client.get('/v2/runs/stage-state-run/pipeline?stage=facts')
+        evaluate = client.get('/v2/runs/stage-state-run/pipeline?stage=evaluate')
+
+    assert '▦' in facts.text
+    assert '>◐</span><span>Partial</span>' in facts.text
+    assert '· 2 / 3' in facts.text
+    assert '⇄' in evaluate.text
+    assert '>!</span><span>Failed</span>' in evaluate.text
