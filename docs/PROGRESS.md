@@ -6,11 +6,9 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T38 — Versioned run timing and evaluation cohorts** — **DONE**.
-- Next task: **T39 — Jev-directed adaptive source context.**
-- T39 experiment record: [recall investigation](T39_RECALL_INVESTIGATION.md). It
-  documents failed live cohorts and the controlled next experiment; do not treat its
-  unverified working-tree changes as an accepted approach.
+- Current task: **Pipeline UI reorganization, Session 1 — architecture map and navigation**.
+- Next work: implement the default Pipeline overview map and preserve detailed
+  per-stage inspection pages.
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -36,7 +34,7 @@ being called discovery misses.  The immediately applied safe correction makes
 Company Facts concepts ordered fallbacks per metric, preventing `NetIncomeLoss`
 and `ProfitLoss` from becoming duplicate expected facts for a new run.  The
 remaining versioned review unit, UI denominator, and cross-run aggregation are
-T36; visible scale/attribution extraction belongs to T39.
+T36; visible scale/attribution extraction remains outside the current UI work.
 The Evaluation UI now labels its historical counts as a diagnostic comparator,
 names the SEC Company Facts / annual / exact-Decimal / literal-unit contract,
 and does not present the old metric-period count as the new strict-exact
@@ -154,7 +152,7 @@ denominator.
   timing and version. Open `/v2/benchmark`, choose the shared cohort, and confirm only
   its runs contribute to the matrix; select the other cohort and confirm it remains
   separate.
-- Next: **T39 — Context-aware Jev scoring and compact findings evidence.**
+- Next: **Pipeline UI reorganization, Session 1 — architecture map and navigation.**
 
 ### T36 scorecard clarification
 
@@ -211,7 +209,6 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | T36 | Overall cross-run evaluation scorecard | DONE | Manual browser inspection pending |
 | T37 | Sequential random-report batch runner | DONE | Manual browser and live SEC/provider batch verification pending |
 | T38 | Versioned run timing and evaluation cohorts | DONE | Manual browser inspection pending |
-| T39 | Jev-directed adaptive source context and target eligibility | TODO | Not run |
 
 ## T32 final evidence
 

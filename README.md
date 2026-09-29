@@ -39,6 +39,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-See [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), and the
-[V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md). The next task is
-T39: Jev-directed adaptive source context and target eligibility.
+See [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), the
+[V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md), and the
+[pipeline UI reorganization plan](docs/UI_PIPELINE_REORGANIZATION_PLAN.md). The next
+work is Session 1 of the UI plan.

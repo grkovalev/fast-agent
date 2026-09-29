@@ -126,9 +126,6 @@ uses the reviewed TRC accession values to lock that rule and locks the DV
 thousands-of-shares case as non-exact until explicit normalization exists.
 
 T36 will introduce the persisted, versioned eligible/incomparable review unit
-and a scorecard that excludes ineligible values from its denominator.  T39 will
-extend the finding contract and extraction context with structured visible
-header, scale, and attribution evidence, then implement mechanical
-normalization where the evidence supports it.  The current UI's historical
-cards remain diagnostic records; they are not retrospectively relabelled or
-aggregated under this new contract.
+and a scorecard that excludes ineligible values from its denominator. The current
+UI's historical cards remain diagnostic records; they are not retrospectively
+relabelled or aggregated under this new contract.
