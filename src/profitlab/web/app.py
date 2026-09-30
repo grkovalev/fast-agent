@@ -16,6 +16,7 @@ from profitlab.settings import Settings
 from profitlab.v2 import STAGE_NAMES, SequentialReportBatchService, V2PipelineService
 from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
 from profitlab.v2.evaluation_service import cross_run_scorecard
+from profitlab.v2.outline_service import OutlineService
 
 WEB_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
@@ -266,6 +267,24 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                 'received': 'Awaiting SEC response',
                 'stored': 'Canonical visible lines pending',
             }
+        outline_stage = next(item for item in state['stages'] if item.stage == 'outline')
+        outline_summary = pipeline.repo.outline_summary(run_id)
+        outline_content = {
+            'prompt': OutlineService.prompt_view(),
+            'system_prompt': OutlineService.system_prompt,
+            'tools': 'None — direct chat-completions request',
+            'response_format': 'json_object',
+            'model': settings.outline_model,
+            'prompt_version': settings.outline_prompt_version,
+            'window_lines': settings.outline_window_lines,
+            'overlap_lines': settings.outline_overlap_lines,
+            'window_step_lines': max(1, settings.outline_window_lines - settings.outline_overlap_lines),
+            'prior_context_limit': 8,
+            'accounting': outline_summary.model_dump() if outline_summary else None,
+            # The stage summary remains useful for an in-flight or failed pass, but
+            # detailed accounting is only rendered after its durable save.
+            'outcome': outline_stage.summary if outline_summary is None else None,
+        }
         stage_cards = [item.model_dump() | {
             'icon': stage_presentation[item.stage][0],
             'label': stage_presentation[item.stage][1],
@@ -273,6 +292,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             'status_symbol': stage_status_presentation[item.status][0],
             'status_label': stage_status_presentation[item.status][1],
             **(source_content if item.stage == 'source' else {}),
+            **(outline_content if item.stage == 'outline' else {}),
         } for item in state['stages']]
         if stage is None:
             active = next((item for item in stage_cards if item['status'] == 'running'), None)
