@@ -46,7 +46,10 @@
     const svg = loop.querySelector('svg');
     const stations = [...loop.querySelectorAll('[data-outline-station]')];
     const connectors = [...loop.querySelectorAll('[data-outline-connector]')];
-    const runtimeText = (selector) => runtime?.querySelector(selector)?.textContent.trim() || 'Not available';
+    const runtimeText = (selector, fallback = 'Not available') => runtime?.querySelector(selector)?.textContent.trim() || fallback;
+    const prettyJson = (value) => {
+      try { return JSON.stringify(JSON.parse(value), null, 2); } catch { return value; }
+    };
     const showPrompt = () => {
       const add = (tag, text, className) => {
         const node = document.createElement(tag);
@@ -56,15 +59,13 @@
       };
       card.replaceChildren();
       add('p', 'LLM request', 'eyebrow');
-      add('h3', 'Prompt, system instruction, and tools');
+      add('h3', 'Prompt, system instruction, and returned object');
       add('h4', 'System prompt');
       add('p', runtimeText('[data-outline-system-prompt]'));
       add('h4', 'User prompt');
       add('pre', runtimeText('[data-outline-user-prompt]'));
-      add('h4', 'Tools');
-      add('p', runtimeText('[data-outline-tools]'));
-      add('h4', 'Response format');
-      add('p', runtimeText('[data-outline-response-format]'));
+      add('h4', 'Returns');
+      add('pre', prettyJson(runtimeText('[data-outline-response-contract]', '{"sections":[{"generated_topic":"Revenue","exact_source_title":"Revenue","start_line":912,"end_line":948,"exact_representative_quote":"…","section_type":"child","parent_topic_hint":"Results","continues_previous":false}]}')));
       card.hidden = false;
     };
 
@@ -98,11 +99,10 @@
     proposeStation.querySelector('.outline-loop-output').setAttribute('display', 'none');
     const expandPropose = () => {
       if (proposeStation.querySelector('[data-propose-detail]')) return;
-      const makeText = (text, x, y, className, tooltip) => {
+      const makeText = (text, x, y, className) => {
         const node = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         node.setAttribute('data-propose-detail', ''); node.setAttribute('x', x); node.setAttribute('y', y);
         node.setAttribute('class', className); node.textContent = text;
-        if (tooltip) node.addEventListener('click', (event) => { event.stopPropagation(); showPrompt(); });
         proposeStation.append(node);
       };
       proposeStation.querySelector('rect').setAttribute('height', '280');
@@ -114,7 +114,6 @@
       makeText('Sends each bounded line window and', 224, 388, 'outline-loop-detail-value');
       makeText('continuation context to the configured LLM', 224, 403, 'outline-loop-detail-value');
       makeText('with a navigation-only request.', 224, 418, 'outline-loop-detail-value');
-      makeText('Prompt ⓘ', 224, 442, 'outline-loop-detail-prompt', 'Return JSON only with navigation proposals. For each section: use an exact title or quote, a source-bounded line range, type, parent hint, and continuation flag. Never replace source text.');
       makeText('Outputs', 224, 464, 'outline-loop-detail-label');
       makeText('{title: “Revenue”, start: 912, end: 948}', 224, 482, 'outline-loop-detail-value');
       ['validate', 'reconcile'].forEach((key) => loop.querySelector(`[data-outline-station="${key}"]`).setAttribute('transform', 'translate(0 168)'));
@@ -142,6 +141,7 @@
 
     const select = (key) => {
       const item = details[key];
+      if (key === 'propose') showPrompt();
       const connector = loop.querySelector(`[data-outline-connector="${item.flow}"]`);
       connector.classList.remove('is-flowing');
       void connector.getBoundingClientRect();

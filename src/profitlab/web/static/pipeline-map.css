@@ -131,7 +131,6 @@
 .outline-loop-station .outline-loop-output { fill: #365a66; font-size: 12px; font-weight: 800; letter-spacing: .035em; }
 .outline-loop-detail-label { fill: #596a74; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .outline-loop-detail-value { fill: #31445b; font-size: 11px; }
-.outline-loop-detail-prompt { fill: #126478; font-size: 11px; font-weight: 800; text-decoration: underline; cursor: help; }
 .outline-loop-return { fill: #365a66; font-size: 15px; font-weight: 800; }
 .outline-loop.is-inspecting [data-outline-station]:not(.is-highlighted) { opacity: .42; }
 .outline-loop-station.is-highlighted rect, .outline-loop-station:hover rect, .outline-loop-station:focus rect { fill: #edf5f8; stroke: #126478; stroke-width: 2.5; filter: drop-shadow(0 2px 3px #17384a20); }
