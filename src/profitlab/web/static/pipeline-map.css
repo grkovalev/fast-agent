@@ -123,6 +123,7 @@
 .outline-loop-connectors path:last-child { stroke: #4e739c; stroke-width: 3; }
 .outline-loop-connectors marker path { fill: #7892ae; }
 .outline-loop-payloads text { fill: #526779; font-size: 13px; font-weight: 700; letter-spacing: .01em; }
+.outline-loop-payloads, .outline-loop-return, .source-loop-payloads { display: none; }
 .outline-loop-station { cursor: pointer; outline: none; }
 .outline-loop-station rect { fill: #fff; stroke: #aabbd5; stroke-width: 1.5; transition: fill .16s ease, stroke .16s ease, filter .16s ease; }
 .outline-loop-station .outline-loop-number { fill: #667fa8; font-size: 14px; font-weight: 800; letter-spacing: .06em; }
@@ -162,3 +163,22 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 .outline-loop-card { grid-column: 2; align-self: start; margin-top: 1rem; min-width: 0; }
 .outline-stage-explanation, .outline-card-outcome { grid-column: 1; }
 @media (max-width: 900px) { body:has(.pipeline-map--vertical) main { max-width: 1000px; }.outline-stage-explainer { grid-template-columns: 1fr; }.outline-loop, .outline-loop-card, .outline-stage-explanation, .outline-card-outcome { grid-column: 1; }.outline-loop-card { margin-top: .8rem; } }
+
+/* Source uses the same explorable explanation pattern as Outline. */
+.source-stage-slot { z-index: 1; }
+.source-stage-explainer { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(20rem, .85fr); column-gap: 1.5rem; padding: 1.2rem 1.35rem; border-left: 4px solid #438897; border-radius: .45rem; background: linear-gradient(135deg, #fbfdfd, #eff7f7); color: #203c43; box-shadow: 0 1px 5px #17384a18; }
+.source-stage-header, .source-stage-accounting, .source-stage-explainer footer { grid-column: 1 / -1; }
+.source-stage-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: .85rem; border-bottom: 1px solid #cfe0e2; }
+.source-stage-header > a { display: flex; gap: .55rem; color: inherit; text-decoration: none; }
+.source-stage-header > a:hover strong { text-decoration: underline; }
+.source-stage-header .stage-icon { font-size: 1.45rem; }.source-stage-header small { display: block; color: #596a74; }.source-stage-header .stage-status { flex: 0 0 auto; margin: 0; }
+.source-loop { position: relative; grid-column: 1; min-width: 0; margin: 1rem 0 .7rem; }.source-loop figcaption { margin-bottom: .55rem; color: #365a66; font-size: .82rem; font-weight: 700; }.source-loop svg { display: block; width: 100%; height: auto; overflow: visible; }
+.source-loop-connectors path { stroke: #5b9cab; stroke-width: 2.5; }.source-loop-connectors marker path { fill: #5b9cab; }.source-loop-payloads text { fill: #476b73; font-size: 13px; font-weight: 700; letter-spacing: .01em; }
+.source-loop-station { cursor: pointer; outline: none; }.source-loop-station rect { fill: #fff; stroke: #9bc3ca; stroke-width: 1.5; transition: fill .16s ease, stroke .16s ease, filter .16s ease; }.source-loop-number { fill: #438897; font-size: 14px; font-weight: 800; letter-spacing: .06em; }.source-loop-title { fill: #234b54; font-size: 20px; font-weight: 800; }.source-loop-purpose { fill: #465f64; font-size: 14px; }.source-loop-output { fill: #365a66; font-size: 12px; font-weight: 800; letter-spacing: .035em; }
+.source-loop.is-inspecting [data-source-station]:not(.is-highlighted) { opacity: .42; }.source-loop-station.is-highlighted rect, .source-loop-station:hover rect, .source-loop-station:focus rect { fill: #edf8f8; stroke: #126478; stroke-width: 2.5; filter: drop-shadow(0 2px 3px #17384a20); }.source-loop [data-source-connector].is-highlighted { stroke: #126478; stroke-width: 4; }.source-loop [data-source-connector].is-flowing { stroke-dasharray: 8 10; animation: source-flow 850ms ease-out 1; }
+@keyframes source-flow { from { stroke-dashoffset: 36; } to { stroke-dashoffset: 0; } }
+.source-loop-card { grid-column: 2; align-self: start; min-width: 0; margin: 1rem 0; padding: .85rem 1rem; border-top: 3px solid #438897; background: #f4fafa; }.source-loop-card .eyebrow { margin: 0 0 .2rem; color: #47717a; font-size: .69rem; font-weight: 800; letter-spacing: .07em; }.source-loop-card h3 { margin: 0 0 .65rem; color: #234b54; font-size: 1rem; }.source-loop-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem 1rem; margin: 0; }.source-loop-card div { min-width: 0; }.source-loop-card dt { color: #596a74; font-size: .66rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }.source-loop-card dd { margin: .18rem 0 0; color: #314f55; font-size: .78rem; line-height: 1.35; }
+.source-stage-explanation { grid-column: 1; margin: 0 0 .8rem; color: #465f64; font-size: .8rem; line-height: 1.45; }.source-stage-accounting { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; margin: .85rem 0; }.source-stage-accounting div { padding: .6rem; border-left: 2px solid #9bc3ca; background: #fff; }.source-stage-accounting dt { color: #596a74; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }.source-stage-accounting dd { margin: .28rem 0 0; color: #314f55; font-size: .78rem; line-height: 1.35; }.source-stage-explainer footer { display: flex; gap: .5rem; color: #596a74; font-variant-numeric: tabular-nums; }
+@media (max-width: 900px) { .source-stage-explainer { grid-template-columns: 1fr; }.source-loop, .source-loop-card, .source-stage-explanation { grid-column: 1; }.source-loop-card { margin-top: .8rem; } }
+@media (max-width: 600px) { .source-stage-explainer { padding: 1rem; }.source-stage-header { align-items: flex-start; }.source-loop { margin-inline: -.25rem; }.source-loop svg { min-height: 35rem; }.source-loop-card dl, .source-stage-accounting { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .source-loop-station rect { transition: none; }.source-loop [data-source-connector].is-flowing { animation: none; } }

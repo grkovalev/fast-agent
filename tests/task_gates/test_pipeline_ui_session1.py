@@ -99,22 +99,30 @@ def test_source_card_uses_persisted_sec_filing_and_canonical_line_result(tmp_pat
         overview = client.get('/v2/runs/source-map-run/pipeline')
 
     assert 'data-source-card' in overview.text
-    assert 'aria-label="SEC filing source transformation"' in overview.text
-    assert '>1 · Request</small><b>SEC primary filing</b>' in overview.text
-    assert '>Primary filing HTML · 10-K · report date 2025-12-31</em>' in overview.text
-    assert '>2 · Convert</small><b>Visible HTML only</b>' in overview.text
-    assert 'Remove hidden and Inline XBRL-only content, plus taxonomy, context, unit, scale, and format metadata.' in overview.text
-    assert f'>3 · Store</small><b>{document.ref.line_count:,} canonical visible lines</b>' in overview.text
-    assert 'Numbered lines retain links to their sanitized HTML anchors.' in overview.text
+    assert 'data-source-loop' in overview.text
+    assert 'aria-label="Source flow: Request, Convert, Store"' in overview.text
+    assert 'How the SEC filing becomes canonical source' in overview.text
+    assert '>Request</text>' in overview.text
+    assert '>Primary filing HTML · 10-K · report date 2025-12-31</dd>' in overview.text
+    assert '>Convert</text>' in overview.text
+    assert 'Keep reader-visible filing content; remove metadata.' in overview.text
+    assert '>Store</text>' in overview.text
+    assert f'>{document.ref.line_count:,} canonical visible lines</dd>' in overview.text
+    assert 'Persist stable numbered lines and HTML anchors.' in overview.text
+    assert 'The source flow is useful as shown.' in overview.text
     source_start = overview.text.index('data-source-card')
     outline_start = overview.text.index('data-stage-card="outline"')
     source_card = overview.text[source_start:outline_start]
     assert 'Process summary placeholder' not in source_card
     assert 'Prompt control placeholder' not in source_card
     stylesheet = (Path(__file__).parents[2] / 'src/profitlab/web/static/pipeline-map.css').read_text()
-    assert '.source-card-flow' in stylesheet
-    assert '.pipeline-map--vertical .pipeline-card { box-sizing: border-box; block-size: 12rem; }' in stylesheet
-    assert '.pipeline-map--vertical .pipeline-card { block-size: auto; }' in stylesheet
+    assert '.source-stage-explainer' in stylesheet
+    assert '.source-loop-station' in stylesheet
+    assert '@media (prefers-reduced-motion: reduce)' in stylesheet
+    script = (Path(__file__).parents[2] / 'src/profitlab/web/static/source-loop.js').read_text()
+    assert '[data-source-loop]' in script
+    assert 'removes hidden and Inline XBRL-only content' in script
+    assert "prefers-reduced-motion: reduce" in script
 
 
 def test_outline_card_uses_request_prompt_template_and_persisted_outcome(tmp_path):
