@@ -135,6 +135,30 @@ class OutlineSection(V2Contract):
     boundary_warnings: list[str] = Field(default_factory=list)
 
 
+class OutlineProposal(BaseModel):
+    """The navigation-only object requested from the outline model."""
+    model_config = ConfigDict(extra='ignore', frozen=True)
+
+    generated_topic: str
+    exact_source_title: str | None = None
+    start_line: int = Field(ge=1)
+    end_line: int = Field(ge=1)
+    exact_representative_quote: str | None = None
+    section_type: str | None = None
+    parent_topic_hint: str | None = None
+    continues_previous: bool = False
+
+
+class OutlineContinuation(BaseModel):
+    """Validated navigation metadata carried into the next outline window."""
+    model_config = ConfigDict(extra='forbid', frozen=True)
+
+    generated_topic: str
+    exact_source_title: str | None = None
+    end_line: int = Field(ge=1)
+    parent_topic_hint: str | None = None
+
+
 class OutlineRunSummary(V2Contract):
     """Persisted, run-specific accounting for the bounded outline pass."""
     source_line_count: int = Field(ge=0)

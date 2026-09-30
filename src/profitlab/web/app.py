@@ -272,11 +272,8 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         outline_content = {
             'prompt': OutlineService.prompt_view(),
             'system_prompt': OutlineService.system_prompt,
-            'response_contract': ('{"sections":[{"generated_topic":"Revenue",'
-                                  '"exact_source_title":"Revenue","start_line":912,'
-                                  '"end_line":948,"exact_representative_quote":"…",'
-                                  '"section_type":"child","parent_topic_hint":"Results",'
-                                  '"continues_previous":false}]}'),
+            'response_contract': OutlineService.response_contract_view(),
+            'inspection': OutlineService.inspection_view(settings),
             'model': settings.outline_model,
             'prompt_version': settings.outline_prompt_version,
             'window_lines': settings.outline_window_lines,

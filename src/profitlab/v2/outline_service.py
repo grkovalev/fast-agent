@@ -7,7 +7,7 @@ import httpx
 from openai import AsyncOpenAI
 
 from .canonical import CanonicalDocument
-from .contracts import OutlineSection, SourceRange
+from .contracts import OutlineContinuation, OutlineProposal, OutlineSection, SourceRange
 
 
 @dataclass(frozen=True)
@@ -85,6 +85,84 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
             '{continuation}', '[prior validated navigation metadata]'
         ).replace('{lines}', '[numbered canonical filing lines for this window]')
 
+    @staticmethod
+    def _example_proposal() -> OutlineProposal:
+        return OutlineProposal(
+            generated_topic='Revenue', exact_source_title='Revenue', start_line=912,
+            end_line=948, exact_representative_quote='…', section_type='child',
+            parent_topic_hint='Results', continues_previous=False,
+        )
+
+    @classmethod
+    def response_contract_view(cls) -> str:
+        """A representative response built from the typed LLM payload contract."""
+        return json.dumps({'sections': [cls._example_proposal().model_dump()]}, ensure_ascii=False)
+
+    @classmethod
+    def inspection_view(cls, settings) -> dict:
+        """Server-owned examples for the Outline station inspector.
+
+        The browser receives these shapes rather than maintaining its own copies of
+        the request, proposal, continuation, or persisted-section payloads.
+        """
+        proposal = cls._example_proposal()
+        continuation = OutlineContinuation(
+            generated_topic='Revenue', exact_source_title='Revenue', end_line=840,
+            parent_topic_hint='Results',
+        )
+        section = OutlineSection(
+            section_id='outline-000912', generated_topic=proposal.generated_topic,
+            exact_source_title=proposal.exact_source_title,
+            exact_representative_quote=proposal.exact_representative_quote,
+            primary_range=SourceRange(document_id='filing-document', source_hash='0' * 64,
+                                      start_line=proposal.start_line, end_line=proposal.end_line),
+            parent_topic_hint=proposal.parent_topic_hint, section_type=proposal.section_type,
+        )
+        window_end = settings.outline_window_lines
+        return {
+            'window': {
+                'accepts': {
+                    'prior_context': [continuation.model_dump()],
+                    'canonical_lines': [{'line': 1, 'text': '…'}],
+                },
+                'does': ('Advances by the configured window step while retaining overlap, so a '
+                         'section that crosses a boundary remains legible in the next request.'),
+                'outputs': {
+                    'window_start_line': 1, 'window_end_line': window_end,
+                    'overlap_lines': settings.outline_overlap_lines,
+                    'window_step_lines': max(1, window_end - settings.outline_overlap_lines),
+                    'continuation_context': [continuation.model_dump()],
+                },
+                'guarantee': ('Only sanitized, visible filing lines enter the loop. The window is '
+                              'a source boundary, not generated text.'),
+            },
+            'validate': {
+                'accepts': {'sections': [proposal.model_dump()]},
+                'does': ('Re-reads every declared title, range, and representative quote from the '
+                         'canonical window. It accepts only proposals whose bounds and text are exact.'),
+                'outputs': {
+                    'accepted': [proposal.model_dump()],
+                    'rejected': [{'reason': 'quote mismatch'}],
+                },
+                'guarantee': ('A model suggestion never becomes source evidence by itself; failed '
+                              'proposals remain inspectable as rejected.'),
+            },
+            'reconcile': {
+                'accepts': {
+                    'accepted_ranges': [proposal.model_dump()],
+                    'rejected_proposals': [{'reason': 'quote mismatch'}],
+                },
+                'does': ('Merges adjacent windows, removes overlap duplicates, and resolves a single '
+                         'ordered owner for each accepted canonical range before preparing the next window.'),
+                'outputs': {
+                    'outline_sections': [section.model_dump(mode='json')],
+                    'continuation_context': [continuation.model_dump()],
+                },
+                'guarantee': ('Overlapping windows do not create duplicate navigation. Uncertain gaps '
+                              'remain visible instead of being silently assigned.'),
+            },
+        }
+
     async def _live_proposals(self, document: CanonicalDocument, start: int, end: int,
                               continuation: list[dict], client=None):
         if not self.settings.llm_api_key.get_secret_value():
@@ -123,11 +201,13 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
             return None, 'exact source title does not match the referenced lines'
         if quote is not None and (not isinstance(quote, str) or quote not in source):
             return None, 'representative quote does not match the referenced lines'
-        return {'generated_topic': topic.strip(), 'exact_source_title': title,
-                'exact_representative_quote': quote, 'start_line': first, 'end_line': last,
-                'section_type': proposal.get('section_type') if isinstance(proposal.get('section_type'), str) else None,
-                'parent_topic_hint': proposal.get('parent_topic_hint') if isinstance(proposal.get('parent_topic_hint'), str) else None,
-                'continues_previous': proposal.get('continues_previous') is True}, None
+        return OutlineProposal(
+            generated_topic=topic.strip(), exact_source_title=title,
+            exact_representative_quote=quote, start_line=first, end_line=last,
+            section_type=proposal.get('section_type') if isinstance(proposal.get('section_type'), str) else None,
+            parent_topic_hint=proposal.get('parent_topic_hint') if isinstance(proposal.get('parent_topic_hint'), str) else None,
+            continues_previous=proposal.get('continues_previous') is True,
+        ).model_dump(), None
 
     async def _batch(self, document: CanonicalDocument, start: int, end: int, continuation: list[dict], *, client=None):
         source_hash, config_hash = self._range_hash(document, start, end, continuation), self._configuration_hash()
@@ -156,11 +236,11 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
                         warnings.append(f'Lines {start}-{end}: rejected proposal: {warning}.')
                     else:
                         accepted.append(valid)
-                continuation = [{'generated_topic': item['generated_topic'],
-                                 'exact_source_title': item['exact_source_title'],
-                                 'end_line': item['end_line'],
-                                 'parent_topic_hint': item['parent_topic_hint']}
-                                for item in accepted[-8:]]
+                continuation = [OutlineContinuation(
+                    generated_topic=item['generated_topic'],
+                    exact_source_title=item['exact_source_title'], end_line=item['end_line'],
+                    parent_topic_hint=item['parent_topic_hint'],
+                ).model_dump() for item in accepted[-8:]]
         finally:
             await client_context.aclose()
         # Explicit visible headings take precedence. Duplicate overlap proposals collapse by range/title.

@@ -50,6 +50,9 @@
     const prettyJson = (value) => {
       try { return JSON.stringify(JSON.parse(value), null, 2); } catch { return value; }
     };
+    const inspection = (() => {
+      try { return JSON.parse(runtimeText('[data-outline-inspection]', '{}')); } catch { return {}; }
+    })();
     const showPrompt = () => {
       const add = (tag, text, className) => {
         const node = document.createElement(tag);
@@ -68,6 +71,28 @@
       add('pre', prettyJson(runtimeText('[data-outline-response-contract]', '{"sections":[{"generated_topic":"Revenue","exact_source_title":"Revenue","start_line":912,"end_line":948,"exact_representative_quote":"…","section_type":"child","parent_topic_hint":"Results","continues_previous":false}]}')));
       card.hidden = false;
     };
+    const showStationLogic = (key, item) => {
+      const panel = inspection[key];
+      if (!panel) return;
+      const add = (tag, text, className) => {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        node.textContent = text;
+        card.append(node);
+      };
+      card.replaceChildren();
+      add('p', `${item.number} · ${item.title}`, 'eyebrow');
+      add('h3', item.heading);
+      add('h4', 'Accepts');
+      add('pre', JSON.stringify(panel.accepts, null, 2));
+      add('h4', 'Does');
+      add('p', panel.does);
+      add('h4', 'Outputs');
+      add('pre', JSON.stringify(panel.outputs, null, 2));
+      add('h4', 'Guarantee');
+      add('p', panel.guarantee);
+      card.hidden = false;
+    };
 
     // On phones, crop the same vertical SVG to its station column instead of
     // scaling its type down. The return path moves to the visible outer edge.
@@ -76,52 +101,100 @@
       const returning = loop.querySelector('[data-outline-connector="reconcile-window"]');
       const returnLabel = loop.querySelector('.outline-loop-payloads text:last-child');
       if (mobileLayout.matches) {
-        svg.setAttribute('viewBox', '180 0 360 760');
-        returning.setAttribute('d', 'M520 596C666 596 666 91 520 91');
+        svg.setAttribute('viewBox', '180 0 360 1290');
+        returning.setAttribute('d', 'M520 1180C666 1180 666 91 520 91');
         returnLabel.setAttribute('x', '560');
       } else {
-        svg.setAttribute('viewBox', '0 0 720 760');
-        returning.setAttribute('d', 'M200 596C54 596 54 91 200 91');
+        svg.setAttribute('viewBox', '0 0 720 1290');
+        returning.setAttribute('d', 'M200 1180C54 1180 54 91 200 91');
         returnLabel.setAttribute('x', '116');
       }
     };
     setLayout();
     mobileLayout.addEventListener('change', setLayout);
 
-    const proposeStation = loop.querySelector('[data-outline-station="propose"]');
-    const proposePurpose = proposeStation.querySelector('.outline-loop-purpose');
-    proposePurpose.textContent = 'Identify headings and';
-    const purposeContinuation = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-    purposeContinuation.setAttribute('x', '224');
-    purposeContinuation.setAttribute('dy', '16');
-    purposeContinuation.textContent = 'boundaries in source lines.';
-    proposePurpose.append(purposeContinuation);
-    proposeStation.querySelector('.outline-loop-output').setAttribute('display', 'none');
-    const expandPropose = () => {
-      if (proposeStation.querySelector('[data-propose-detail]')) return;
+    const expandStation = (key, layout) => {
+      const station = loop.querySelector(`[data-outline-station="${key}"]`);
+      if (station.querySelector('[data-station-detail]')) return;
       const makeText = (text, x, y, className) => {
         const node = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        node.setAttribute('data-propose-detail', ''); node.setAttribute('x', x); node.setAttribute('y', y);
+        node.setAttribute('data-station-detail', ''); node.setAttribute('x', x); node.setAttribute('y', y);
         node.setAttribute('class', className); node.textContent = text;
-        proposeStation.append(node);
+        station.append(node);
       };
-      proposeStation.querySelector('rect').setAttribute('height', '280');
-      svg.setAttribute('viewBox', mobileLayout.matches ? '180 0 360 900' : '0 0 720 900');
-      makeText('Accepts', 224, 313, 'outline-loop-detail-label');
-      makeText('Canonical lines 841–1740', 224, 331, 'outline-loop-detail-value');
-      makeText('and prior section context.', 224, 346, 'outline-loop-detail-value');
-      makeText('Does', 224, 370, 'outline-loop-detail-label');
-      makeText('Sends each bounded line window and', 224, 388, 'outline-loop-detail-value');
-      makeText('continuation context to the configured LLM', 224, 403, 'outline-loop-detail-value');
-      makeText('with a navigation-only request.', 224, 418, 'outline-loop-detail-value');
-      makeText('Outputs', 224, 464, 'outline-loop-detail-label');
-      makeText('{title: “Revenue”, start: 912, end: 948}', 224, 482, 'outline-loop-detail-value');
-      ['validate', 'reconcile'].forEach((key) => loop.querySelector(`[data-outline-station="${key}"]`).setAttribute('transform', 'translate(0 168)'));
-      loop.querySelector('[data-outline-connector="propose-validate"]').setAttribute('d', 'M360 495V544');
-      loop.querySelector('[data-outline-connector="validate-reconcile"]').setAttribute('d', 'M360 656V705');
-      loop.querySelector('[data-outline-connector="reconcile-window"]').setAttribute('d', mobileLayout.matches ? 'M520 817C666 817 666 91 520 91' : 'M200 817C54 817 54 91 200 91');
+      if (layout.translate) station.setAttribute('transform', `translate(0 ${layout.translate})`);
+      station.querySelector('rect').setAttribute('height', layout.height);
+      const purpose = station.querySelector('.outline-loop-purpose');
+      purpose.textContent = layout.purpose[0];
+      layout.purpose.slice(1).forEach((line) => {
+        const continuation = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+        continuation.setAttribute('x', '224');
+        continuation.setAttribute('dy', '16');
+        continuation.textContent = line;
+        purpose.append(continuation);
+      });
+      station.querySelector('.outline-loop-output').setAttribute('display', 'none');
+      layout.detail.forEach(([text, y, className]) => makeText(text, 224, y, className));
     };
-    expandPropose();
+    expandStation('window', {
+      height: '250', purpose: ['Select a bounded canonical-line', 'slice from the filing.'],
+      detail: [
+        ['Accepts', 155, 'outline-loop-detail-label'],
+        ['Prior continuation context.', 173, 'outline-loop-detail-value'],
+        ['Does', 197, 'outline-loop-detail-label'],
+        ['Preserves a readable, overlapping set of', 215, 'outline-loop-detail-value'],
+        ['visible canonical source lines.', 230, 'outline-loop-detail-value'],
+        ['Outputs', 259, 'outline-loop-detail-label'],
+        ['{lines: 841–1740, overlap: 60}', 277, 'outline-loop-detail-value']
+      ]
+    });
+    expandStation('propose', {
+      translate: 113, height: '280', purpose: ['Identify headings and', 'boundaries in source lines.'],
+      detail: [
+        ['Accepts', 313, 'outline-loop-detail-label'],
+        ['Canonical lines 841–1740', 331, 'outline-loop-detail-value'],
+        ['and prior section context.', 346, 'outline-loop-detail-value'],
+        ['Does', 370, 'outline-loop-detail-label'],
+        ['Sends each bounded line window and', 388, 'outline-loop-detail-value'],
+        ['continuation context to the configured LLM', 403, 'outline-loop-detail-value'],
+        ['with a navigation-only request.', 418, 'outline-loop-detail-value'],
+        ['Outputs', 464, 'outline-loop-detail-label'],
+        ['{title: “Revenue”, start: 912, end: 948}', 482, 'outline-loop-detail-value']
+      ]
+    });
+    expandStation('validate', {
+      translate: 268, height: '250', purpose: ['Check every proposed range, title,', 'and quote against the source.'],
+      detail: [
+        ['Accepts', 487, 'outline-loop-detail-label'],
+        ['Navigation proposals.', 505, 'outline-loop-detail-value'],
+        ['Does', 529, 'outline-loop-detail-label'],
+        ['Requires an exact source match within', 547, 'outline-loop-detail-value'],
+        ['the proposed canonical-line window.', 562, 'outline-loop-detail-value'],
+        ['Outputs', 591, 'outline-loop-detail-label'],
+        ['{accepted: [912–948], rejected: […]}', 609, 'outline-loop-detail-value']
+      ]
+    });
+    expandStation('reconcile', {
+      translate: 393, height: '250', purpose: ['Resolve overlap into one', 'ordered navigation map.'],
+      detail: [
+        ['Accepts', 648, 'outline-loop-detail-label'],
+        ['Accepted ranges and rejected proposals.', 666, 'outline-loop-detail-value'],
+        ['Does', 690, 'outline-loop-detail-label'],
+        ['Deduplicates overlap and carries the', 708, 'outline-loop-detail-value'],
+        ['last validated section into the next window.', 723, 'outline-loop-detail-value'],
+        ['Outputs', 752, 'outline-loop-detail-label'],
+        ['{prior: [{title: “Revenue”, endsAt: 948}]}', 770, 'outline-loop-detail-value']
+      ]
+    });
+    loop.querySelector('[data-outline-connector="window-propose"]').setAttribute('d', 'M360 292V328');
+    loop.querySelector('[data-outline-connector="propose-validate"]').setAttribute('d', 'M360 608V644');
+    loop.querySelector('[data-outline-connector="validate-reconcile"]').setAttribute('d', 'M360 894V930');
+    const payloads = loop.querySelectorAll('.outline-loop-payloads text');
+    payloads[0].setAttribute('y', '315');
+    payloads[1].setAttribute('y', '631');
+    payloads[2].setAttribute('y', '917');
+    loop.querySelector('.outline-loop-return').setAttribute('y', '1232');
+    setLayout();
     card.hidden = true;
 
     const clear = () => {
@@ -141,7 +214,7 @@
 
     const select = (key) => {
       const item = details[key];
-      if (key === 'propose') showPrompt();
+      if (key === 'propose') showPrompt(); else showStationLogic(key, item);
       const connector = loop.querySelector(`[data-outline-connector="${item.flow}"]`);
       connector.classList.remove('is-flowing');
       void connector.getBoundingClientRect();
