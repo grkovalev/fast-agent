@@ -11,7 +11,7 @@ from profitlab.sec.service import normalize_ticker
 from .benchmark import RetrievalBenchmarkService
 from .chunk_scoring import ChunkScoringService
 from .chunking import SourceRangeChunker
-from .contracts import STAGE_NAMES, V2Run
+from .contracts import STAGE_NAMES, OutlineRunSummary, V2Run
 from .evaluation_service import EvaluationService
 from .facts_service import CompanyFactsService
 from .findings_service import FindingsService
@@ -120,9 +120,19 @@ class V2PipelineService:
                 try:
                     document = self.repo.canonical_refs(run_id)[0]
                     canonical = self.repo.canonical_document(run_id, document.document_id)
-                    sections, warnings, models, cached_count = await OutlineService(
+                    sections, warnings, models, cached_count, window_count = await OutlineService(
                         self.settings, self.repo).build(canonical)
                     self.repo.save_outline_sections(run_id, sections)
+                    self.repo.save_outline_summary(run_id, OutlineRunSummary(
+                        source_line_count=canonical.ref.line_count,
+                        window_count=window_count,
+                        live_requests=window_count - cached_count,
+                        cached_batches=cached_count,
+                        rejected_proposals=len(warnings),
+                        validated_ranges=len(sections),
+                        models=models,
+                        prompt_version=self.settings.outline_prompt_version,
+                    ))
                 except Exception as error:  # noqa: BLE001 - persist provider failures before ending the run
                     failed = running.model_copy(update={
                         'status': 'failed', 'finished_at': datetime.now(UTC),
@@ -135,7 +145,9 @@ class V2PipelineService:
                     self.repo.update_run(run_id, status='failed', summary=failed.summary,
                                          kind='run_finished')
                     return self.repo.get_run(run_id)
-                summary = f'Validated {len(sections)} primary outline ranges using {", ".join(models)}.'
+                summary = (f'Accepted {canonical.ref.line_count} canonical lines in {window_count} window '
+                           f'batch(es); validated {len(sections)} primary outline ranges using '
+                           f'{", ".join(models)}.')
                 if cached_count:
                     summary += f' {cached_count} cached window batch(es) reused.'
                 if warnings:

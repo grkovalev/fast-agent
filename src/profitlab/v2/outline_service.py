@@ -20,6 +20,7 @@ class OutlineBatch:
 class OutlineService:
     """Keep generated navigation metadata separate from canonical source text."""
     prompt_version = 'outline-v1'
+    system_prompt = 'You produce constrained filing navigation JSON.'
 
     def __init__(self, settings, repository):
         self.settings, self.repo = settings, repository
@@ -50,8 +51,13 @@ class OutlineService:
             start += step
 
     @staticmethod
-    def _prompt(document: CanonicalDocument, start: int, end: int, continuation: list[dict]) -> str:
-        lines = '\n'.join(f'{item.line_number}: {item.text}' for item in document.lines[start - 1:end])
+    def _prompt_template() -> str:
+        """The request instruction with only safe, named dynamic slots.
+
+        Keeping this beside ``_prompt`` lets the overview expose the actual request
+        instruction without copying filing text or prior navigation metadata into
+        the page.
+        """
         return '''Return JSON only: {"sections":[...]}. Each section may contain only:
 generated_topic, exact_source_title, start_line, end_line, exact_representative_quote,
 section_type, parent_topic_hint, continues_previous. Build exactly two navigation levels:
@@ -62,7 +68,22 @@ extends rather than starts a duplicate section. Use the prior validated navigati
 below; it is metadata only, not filing source. Titles and quotes
 must be exact copied substrings from those lines. Do not summarize source as a quote.
 Propose navigational topics and ranges only within this window.\n\nPrior context:\n''' + \
-            json.dumps(continuation, ensure_ascii=False) + '\n\nNumbered filing lines:\n' + lines
+            '{continuation}\n\nNumbered filing lines:\n{lines}'
+
+    @classmethod
+    def _prompt(cls, document: CanonicalDocument, start: int, end: int,
+                continuation: list[dict]) -> str:
+        lines = '\n'.join(f'{item.line_number}: {item.text}' for item in document.lines[start - 1:end])
+        return cls._prompt_template().replace(
+            '{continuation}', json.dumps(continuation, ensure_ascii=False)
+        ).replace('{lines}', lines)
+
+    @classmethod
+    def prompt_view(cls) -> str:
+        """A safe rendering of the exact request template used by ``_prompt``."""
+        return cls._prompt_template().replace(
+            '{continuation}', '[prior validated navigation metadata]'
+        ).replace('{lines}', '[numbered canonical filing lines for this window]')
 
     async def _live_proposals(self, document: CanonicalDocument, start: int, end: int,
                               continuation: list[dict], client=None):
@@ -75,7 +96,7 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
                           api_key=self.settings.llm_api_key.get_secret_value(),
                           max_retries=0, http_client=client)
         response = await sdk.chat.completions.create(model=self.settings.outline_model,
-            messages=[{'role': 'system', 'content': 'You produce constrained filing navigation JSON.'},
+            messages=[{'role': 'system', 'content': self.system_prompt},
                       {'role': 'user', 'content': self._prompt(document, start, end, continuation)}],
             response_format={'type': 'json_object'})
         content = response.choices[0].message.content or '{}'
@@ -120,11 +141,12 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
         return OutlineBatch(proposals, actual_model, False)
 
     async def build(self, document: CanonicalDocument):
-        accepted, warnings, models, cached_count, continuation = [], [], set(), 0, []
+        accepted, warnings, models, cached_count, continuation, window_count = [], [], set(), 0, [], 0
         client_context = httpx.AsyncClient(timeout=self.settings.provider_timeout)
         await client_context.__aenter__()
         try:
             for start, end in self.windows(document):
+                window_count += 1
                 batch = await self._batch(document, start, end, continuation, client=client_context)
                 models.add(batch.actual_model)
                 cached_count += batch.cached
@@ -176,4 +198,4 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
             sections[0] = sections[0].model_copy(update={
                 'boundary_warnings': sections[0].boundary_warnings + warnings,
             })
-        return sections, warnings, sorted(models), cached_count
+        return sections, warnings, sorted(models), cached_count, window_count

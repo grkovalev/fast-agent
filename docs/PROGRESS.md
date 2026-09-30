@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T40 — Source card: SEC filing to canonical visible lines.** (**DONE**).
-- Next work: **T41 — Outline card: canonical lines to navigable topics.**
+- Current task: **T41 — Outline card: canonical lines to validated navigation ranges.** (**DONE**).
+- Next work: **T42 — Sections card: visible outline descriptors to Jev relevance scores.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -346,6 +346,79 @@ denominator.
   than inventing a result.
 - Next: **T41 — Outline card: canonical lines to navigable topics.**
 
+## T41 local acceptance and handoff
+
+- Replaced only the Pipeline overview's Outline-card placeholders with the actual
+  navigation path: numbered canonical-line windows → configured LLM → reconciled,
+  source-validated outline ranges. The card explicitly distinguishes generated
+  navigation metadata from source text; titles, representative quotes, and line
+  ranges are checked against canonical filing lines.
+- The keyboard- and touch-accessible **Prompt used** disclosure is a sibling of the
+  card link, so opening it does not navigate away. Its content comes from the same
+  `OutlineService._prompt_template()` used by `_prompt` for the Chat Completions
+  request, with only the prior-navigation metadata and numbered filing lines replaced
+  by safe placeholders. It also identifies the configured outline model and prompt
+  version without displaying filing text, provider payloads, or credentials.
+- The card shows a validated-range count and a concise provider/cache/rejection
+  outcome only when the persisted outline-stage snapshot has those values. It does
+  not fabricate a window count or cache result for a queued/new run.
+- Inspected and timed the existing focused map route gate before changes: **5 passed**
+  in 2.18s (2.79s wall), with the existing Starlette/AnyIO deprecation warning.
+  Added the T41 scenario to that focused gate: it verifies the three-step process,
+  generated/source distinction, persisted range/cache/rejection outcome, model and
+  prompt version, safe request-template placeholders, and non-placeholder scope. No
+  obsolete tests were removed.
+- `time uv run pytest tests/task_gates/test_pipeline_ui_session1.py -q` — **6
+  passed** in 1.25s (1.58s wall), with the existing warning. `uv run ruff check .`
+  and `git diff --check` passed. No SEC, LLM, or Jev call was needed; browser
+  automation was not run per task policy.
+- Manual verification: run `uv run profitlab serve`, open a completed run at
+  `/v2/runs/<run-id>/pipeline`, and inspect **Outline**. Confirm the three panels
+  read canonical windows → configured LLM → reconciled ranges; confirm it calls
+  generated topics navigation metadata and source titles/quotes/ranges validated.
+  Open **Prompt used** by keyboard and pointer: it should reveal the safe template,
+  configured model, and prompt version without navigating. Then open a new queued
+  run and confirm no validated range count or claimed provider/cache outcome appears.
+- Next: **T42 — Sections card: visible outline descriptors to Jev relevance scores.**
+
+### T41 follow-up — readable outline accounting
+
+- Expanded the Outline overview card beyond the shared fixed card height so its
+  three-step explanation, visible prompt intent, and persisted accounting remain
+  readable. The collapsed control is now explicitly labelled **Prompt used: exact
+  request instructions**; it displays the configured model/prompt version and the
+  source-derived instruction template with safe dynamic placeholders.
+- New successful outline passes persist a small run-owned accounting record: accepted
+  canonical-line count, window count, actual non-cached LLM request count, cached
+  batches, rejected proposals, validated ranges, returned models, and prompt version.
+  The overview renders this as Input / LLM work / Validated output. It never derives
+  counts from the current settings or invents details for legacy/queued/failed passes.
+  As with the existing fresh-only V2 schema contract, a database created before this
+  schema revision is intentionally unsupported and must be recreated rather than
+  migrated.
+- `time uv run pytest tests/task_gates/test_pipeline_ui_session1.py
+  tests/task_gates/test_t33.py -q` — **9 passed** in 1.22s (1.55s wall), with the
+  existing Starlette/AnyIO deprecation warning. `uv run ruff check .` and `git diff
+  --check` passed. No provider call or browser automation was run.
+
+### T41 follow-up — outline explainer and provider timeout
+
+- Replaced the Outline card treatment with a standalone stage explainer. Its compact
+  header remains the stage link, while its own readable panels describe the input,
+  request, validation/reconciliation, implementation algorithm, and persisted work
+  accounting. Pipeline connectors now render behind cards, preventing an arrow/border
+  from painting over card content.
+- Prompt constraints are now an inline keyboard-accessible tooltip directly attached
+  to the explanation; its opened panel retains the exact safe request template,
+  configured model, and prompt version. It does not compete with the stage link.
+- Increased the shared provider per-request timeout from **30 seconds to 60 seconds**.
+  This applies to LLM and Jev requests; the existing 120-second provider total timeout
+  remains unchanged.
+- `time uv run pytest tests/task_gates/test_pipeline_ui_session1.py
+  tests/task_gates/test_t33.py -q` — **9 passed** in 1.22s (1.53s wall), with the
+  existing Starlette/AnyIO deprecation warning. `uv run ruff check .` and `git diff
+  --check` passed. No provider call or browser automation was run.
+
 ## Task tracker
 
 Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live verification separate. Initially no check has run.
@@ -392,6 +465,7 @@ Use `TODO`, `IN_PROGRESS`, `DONE`, or `BLOCKED`. Keep local acceptance and live 
 | UI-1 | Pipeline architecture map and stage navigation | DONE | Manual browser inspection pending |
 | T39 | Pipeline-card vertical layout scaffold | DONE | Manual browser inspection pending |
 | T40 | Source card: SEC filing to canonical visible lines | DONE | Manual browser inspection pending |
+| T41 | Outline card: canonical lines to validated navigation ranges | DONE | Manual browser inspection pending |
 
 ## T32 final evidence
 

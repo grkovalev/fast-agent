@@ -6,7 +6,8 @@ from fastapi.testclient import TestClient
 
 from profitlab.settings import Settings
 from profitlab.v2.canonical import canonicalize_html
-from profitlab.v2.contracts import StageSnapshot, V2Run
+from profitlab.v2.contracts import OutlineRunSummary, StageSnapshot, V2Run
+from profitlab.v2.outline_service import OutlineService
 from profitlab.v2.storage import V2Repository
 from profitlab.web.app import create_app
 
@@ -114,6 +115,63 @@ def test_source_card_uses_persisted_sec_filing_and_canonical_line_result(tmp_pat
     assert '.source-card-flow' in stylesheet
     assert '.pipeline-map--vertical .pipeline-card { box-sizing: border-box; block-size: 12rem; }' in stylesheet
     assert '.pipeline-map--vertical .pipeline-card { block-size: auto; }' in stylesheet
+
+
+def test_outline_card_uses_request_prompt_template_and_persisted_outcome(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None,
+                        outline_model='outline-test-model',
+                        outline_prompt_version='outline-test-v9')
+    repo = V2Repository(tmp_path)
+    now = datetime.now(UTC)
+    repo.create_run(V2Run(run_id='outline-map-run', ticker='MAP', created_at=now, updated_at=now))
+    repo.update_stage(StageSnapshot(
+        run_id='outline-map-run', stage='outline', position=2, status='completed',
+        completed_work=3, total_work=3,
+        summary='Validated 3 primary outline ranges using returned-outline-model. '
+                '1 cached window batch(es) reused. 2 proposal(s) rejected.'),
+        event_kind='stage_finished', event_summary='outline saved')
+    repo.save_outline_summary('outline-map-run', OutlineRunSummary(
+        source_line_count=1_970, window_count=3, live_requests=2, cached_batches=1,
+        rejected_proposals=2, validated_ranges=3,
+        models=['returned-outline-model'], prompt_version='outline-test-v9'))
+
+    with TestClient(create_app(settings)) as client:
+        overview = client.get('/v2/runs/outline-map-run/pipeline')
+
+    assert 'data-outline-card' in overview.text
+    assert 'Numbered canonical-line windows' in overview.text
+    assert 'JSON navigation proposals only, never replacement source text.' in overview.text
+    assert 'One source-ranged outline' in overview.text
+    assert 'Range stays in its window; title and quote must exactly match.' in overview.text
+    assert '900 lines · 60 overlap' in overview.text
+    assert 'After validation, the next window receives up to 8 validated navigation descriptors' in overview.text
+    assert '900 lines · 60 overlap · advance 840 lines.' in overview.text
+    assert 'Reject and record it. It never changes source text or creates a section.' in overview.text
+    assert 'Every canonical line has one primary owner; missing boundaries become warned unlabeled ranges.' in overview.text
+    assert 'How this stage works' in overview.text
+    assert 'Accepted input' in overview.text
+    assert '1970 canonical lines · 3 windows' in overview.text
+    assert '2 requests · 1 cached batch reused' in overview.text
+    assert '3 ranges stored · 2 proposals rejected' in overview.text
+    assert 'Prompt constraints' in overview.text
+    assert 'outline-test-model' in overview.text
+    assert 'outline-test-v9' in overview.text
+    # The page comes from the same template that _prompt fills before the API call;
+    # only dynamic filing values are replaced with deliberately safe placeholders.
+    assert 'Return JSON only: {&#34;sections&#34;:[...]}' in overview.text
+    assert '[prior validated navigation metadata]' in overview.text
+    assert '[numbered canonical filing lines for this window]' in overview.text
+    assert OutlineService.prompt_view().startswith('Return JSON only: {"sections":[...]}')
+    outline_start = overview.text.index('data-outline-card')
+    sections_start = overview.text.index('data-stage-card="section_score"')
+    outline_card = overview.text[outline_start:sections_start]
+    assert 'Process summary placeholder' not in outline_card
+    assert 'Prompt control placeholder' not in outline_card
+    stylesheet = (Path(__file__).parents[2] / 'src/profitlab/web/static/pipeline-map.css').read_text()
+    assert '.outline-stage-explainer' in stylesheet
+    assert '.outline-architecture' in stylesheet
+    assert '.outline-prompt-tooltip summary' in stylesheet
+    assert '.pipeline-card-list li:not(:last-child)::after { position: absolute; z-index: 0;' in stylesheet
 
 
 def test_pipeline_map_exposes_persisted_progress_and_live_update_contract(tmp_path):

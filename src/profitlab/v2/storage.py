@@ -11,6 +11,7 @@ from .canonical import CanonicalDocument
 from .contracts import (
     STAGE_NAMES,
     CanonicalDocumentRef,
+    OutlineRunSummary,
     OutlineSection,
     PipelineEvent,
     ReportBatch,
@@ -47,6 +48,7 @@ class V2Repository:
     def _assert_current_schema(self, db):
         required_tables = {
             'runs', 'stages', 'events', 'filings', 'canonical_documents', 'outline_sections',
+            'outline_run_summaries',
             'outline_batches', 'scores', 'exploration_actions', 'chunks', 'chunk_ranges',
             'findings', 'structured_facts', 'comparisons', 'chunk_score_batches',
             'chunk_score_summaries', 'finding_batches', 'finding_summaries',
@@ -108,6 +110,7 @@ class V2Repository:
             CREATE TABLE outline_sections (run_id TEXT NOT NULL, section_id TEXT NOT NULL,
                 filing_id TEXT, start_line INTEGER, end_line INTEGER, payload TEXT NOT NULL,
                 PRIMARY KEY(run_id, section_id));
+            CREATE TABLE outline_run_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
             CREATE TABLE outline_batches (
                 source_range_hash TEXT NOT NULL, prompt_version TEXT NOT NULL,
                 configuration_hash TEXT NOT NULL, actual_model TEXT NOT NULL,
@@ -511,9 +514,21 @@ class V2Repository:
             db.executemany('''INSERT INTO outline_sections
                 (run_id, section_id, filing_id, start_line, end_line, payload)
                 VALUES (?, ?, ?, ?, ?, ?)''', [
-                    (run_id, item.section_id, item.primary_range.document_id,
+                (run_id, item.section_id, item.primary_range.document_id,
                      item.primary_range.start_line, item.primary_range.end_line,
-                     item.model_dump_json()) for item in sections])
+                    item.model_dump_json()) for item in sections])
+
+    def save_outline_summary(self, run_id: str, summary: OutlineRunSummary):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('INSERT OR REPLACE INTO outline_run_summaries (run_id, payload) VALUES (?, ?)',
+                       (run_id, summary.model_dump_json()))
+
+    def outline_summary(self, run_id: str) -> OutlineRunSummary | None:
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM outline_run_summaries WHERE run_id=?',
+                             (run_id,)).fetchone()
+        return OutlineRunSummary.model_validate_json(row['payload']) if row else None
 
     def outline_sections(self, run_id: str, *, page: int | None = None,
                          per_page: int = 100) -> list[OutlineSection]:

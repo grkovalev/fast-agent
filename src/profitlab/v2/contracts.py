@@ -135,6 +135,18 @@ class OutlineSection(V2Contract):
     boundary_warnings: list[str] = Field(default_factory=list)
 
 
+class OutlineRunSummary(V2Contract):
+    """Persisted, run-specific accounting for the bounded outline pass."""
+    source_line_count: int = Field(ge=0)
+    window_count: int = Field(ge=0)
+    live_requests: int = Field(ge=0)
+    cached_batches: int = Field(ge=0)
+    rejected_proposals: int = Field(ge=0)
+    validated_ranges: int = Field(ge=0)
+    models: list[str] = Field(default_factory=list)
+    prompt_version: str = Field(min_length=1)
+
+
 class TextChunk(V2Contract):
     chunk_id: StableID
     section_id: StableID

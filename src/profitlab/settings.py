@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     typesafe_base_url: str = 'https://api.typesafe.ai'
     typesafe_model: str = 'jev-latest'
     max_http_attempts: int = Field(3, ge=1, le=5)
-    provider_timeout: float = Field(30, gt=0, le=120)
+    provider_timeout: float = Field(60, gt=0, le=120)
     provider_total_timeout: float = Field(120, gt=0, le=300)
     provider_max_response_bytes: int = Field(2000000, ge=1024)
     structured_output_repairs: int = Field(1, ge=0, le=2)
