@@ -6,6 +6,16 @@ The pipeline page is an editorial, explorable explanation of how the report is a
 
 The page must remain useful without interaction. Interactions add inspection and flow cues; they must not be required to understand the route.
 
+## Editorial restraint
+
+- Let the diagram, station titles, and station content explain the route. Do not add prose that
+  merely tells readers how to hover, focus, click, or tap the diagram.
+- Do not label connector lines when the label only repeats what the adjacent station already says.
+  Directional arrows are sufficient for the route; put meaningful input and output detail in the
+  station and its inspector instead.
+- Remove decorative loop captions (for example, “next Window”) when the return arrow itself makes
+  the continuation clear.
+
 ## Outline loop
 
 Represent the outline operation as one responsive inline-SVG loop:
@@ -13,7 +23,8 @@ Represent the outline operation as one responsive inline-SVG loop:
 `Window → Propose → Validate → Reconcile → next Window`
 
 - Draw an unambiguous return arrow from Reconcile to Window.
-- Label every connector with its payload: canonical line window, navigation proposals, accepted ranges plus rejected proposals, and continuation context.
+- Use arrows to make every handoff and the return path unambiguous. Keep payload detail in the
+  adjacent station and inspector rather than repeating it over connector lines.
 - Each station has a number, title, clear one-line description, and a concrete description of its output.
 - Preserve the loop in a vertical reading layout on narrow screens. Do not make labels illegible by simply shrinking the SVG.
 - Never introduce a canvas grid, pan/zoom controls, draggable nodes, minimap, side-panel workflow editor, or graph/workflow dependency for this page.

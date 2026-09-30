@@ -109,7 +109,6 @@ def test_source_card_uses_persisted_sec_filing_and_canonical_line_result(tmp_pat
     assert '>Store</text>' in overview.text
     assert f'>{document.ref.line_count:,} canonical visible lines</dd>' in overview.text
     assert 'Persist stable numbered lines and HTML anchors.' in overview.text
-    assert 'The source flow is useful as shown.' in overview.text
     source_start = overview.text.index('data-source-card')
     outline_start = overview.text.index('data-stage-card="outline"')
     source_card = overview.text[source_start:outline_start]
