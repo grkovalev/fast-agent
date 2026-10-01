@@ -63,6 +63,56 @@ class CompanyFactsService:
         })
         return facts, alternatives, source_hash
 
+    @classmethod
+    def inspection_view(cls, *, summary: dict | None = None,
+                        finding_count: int = 0):
+        """Return the server-owned Facts explainer contract.
+
+        The browser receives the actual configured concept mapping and durable
+        accounting, but does not recreate the SEC selection policy.
+        """
+        summary = summary or {}
+        mapping = [
+            {'metric': metric, 'concept': concept, 'unit': unit, 'label': label}
+            for metric, concept, unit, label in FACT_TARGETS
+        ]
+        alternatives = summary.get('alternatives', {})
+        return {
+            'sealed_findings': finding_count,
+            'supported_facts': summary.get('supported_facts', 0),
+            'alternative_groups': len(alternatives),
+            'provenance': summary.get('provenance', 'SEC Company Facts JSON'),
+            'checkpoint': {
+                'accepts': {'findings': 'sealed quote-backed visible claims',
+                            'filing_identity': 'discovered company CIK and annual filing accession'},
+                'does': 'Requires the findings checkpoint to complete before the independent SEC-data lane can begin.',
+                'outputs': {'eligible_request': 'one company CIK scoped to the selected filing'},
+                'guarantee': 'Company Facts cannot enter discovery, scoring, or findings generation.',
+            },
+            'retrieve': {
+                'accepts': {'eligible_request': 'one company CIK',
+                            'source': 'SEC Company Facts JSON endpoint'},
+                'does': 'Fetches one bounded Company Facts dataset and retains its source URL and content hash.',
+                'outputs': {'company_facts_dataset': 'raw SEC JSON with durable provenance'},
+                'guarantee': 'The filing HTML is never reparsed as Inline XBRL.',
+            },
+            'normalize': {
+                'accepts': {'company_facts_dataset': 'raw SEC JSON',
+                            'filing_identity': 'accession, form, and annual report date'},
+                'does': 'Selects configured annual, same-accession facts with exact Decimal values and literal units; ordered concepts are fallbacks for one metric.',
+                'outputs': {'structured_facts': 'configured annual metric, Decimal, period, unit, and filing provenance'},
+                'guarantee': 'Duplicate or ineligible candidates remain diagnostics; a selected fact is never guessed or converted.',
+                'policy': {'concept_mapping': mapping},
+            },
+            'store': {
+                'accepts': {'structured_facts': 'normalized independent annual facts',
+                            'alternatives': 'unselected or duplicate candidate diagnostics'},
+                'does': 'Persists the raw dataset, normalized facts, mappings, and alternatives for later comparison.',
+                'outputs': {'comparison_input': 'immutable structured facts available only to Evaluate'},
+                'guarantee': 'Persisting Facts cannot revise sealed findings or their source quotes.',
+            },
+        }
+
     @staticmethod
     def normalize(dataset, filing):
         facts_root = dataset.get('facts', {}).get('us-gaap', {}) if isinstance(dataset, dict) else {}

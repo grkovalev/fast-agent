@@ -220,13 +220,24 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 @media (prefers-reduced-motion: reduce) { .findings-loop [data-findings-connector].is-flowing { animation: none; } }
 
 /* Evaluate makes the post-seal merge legible without turning it into a workflow editor. */
+.facts-stage-explainer { border-left-color: #438897; background: linear-gradient(135deg, #fbfdfd, #eff7f7); color: #203c43; }
+.facts-stage-explainer .chunks-stage-header { border-bottom-color: #cfe0e2; }.facts-stage-explainer .stage-icon { color: #126478; }
+.facts-loop.is-inspecting [data-facts-station]:not(.is-highlighted) { opacity: .42; }.facts-loop [data-facts-station].is-highlighted rect, .facts-loop [data-facts-station]:hover rect, .facts-loop [data-facts-station]:focus rect { fill: #edf8f8; stroke: #126478; }
+.facts-loop [data-facts-connector].is-highlighted { stroke: #126478; stroke-width: 4; }.facts-loop [data-facts-connector].is-flowing { stroke-dasharray: 8 10; animation: facts-flow 850ms ease-out 1; }
+@keyframes facts-flow { from { stroke-dashoffset: 36; } to { stroke-dashoffset: 0; } }
+.facts-loop-card { border-top-color: #438897; background: #f4fafa; }.facts-loop-card .eyebrow { color: #47717a; }.facts-loop-card h3, .facts-loop-card h4 { color: #234b54; }.facts-loop-card dd, .facts-stage-accounting dd { color: #314f55; }.facts-stage-accounting div { border-left-color: #9bc3ca; }
+@media (max-width: 600px) { .facts-loop svg { min-height: 45rem; }.facts-stage-accounting { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .facts-loop [data-facts-connector].is-flowing { animation: none; } }
+
+/* Evaluate makes the post-seal merge legible without turning it into a workflow editor. */
 .evaluate-stage-explainer { border-left-color: #5d8e79; background: linear-gradient(135deg, #fbfdfb, #eef6f1); color: #254537; }
 .evaluate-stage-explainer .chunks-stage-header { border-bottom-color: #d2e3d8; }.evaluate-stage-explainer .stage-icon { color: #34735a; }
 .evaluate-loop .chunks-loop-connectors path { stroke: #6b9d7e; }.evaluate-loop .chunks-loop-connectors marker path { fill: #6b9d7e; }
+.evaluate-input-cards rect { fill: #fff; stroke: #a8c9b2; stroke-width: 1.5; }.evaluate-input-cards text:nth-of-type(3n + 1) { fill: #4d8865; font-size: 11px; font-weight: 800; letter-spacing: .07em; }.evaluate-input-cards text:nth-of-type(3n + 2) { fill: #28503d; font-size: 19px; font-weight: 800; }.evaluate-input-cards text:nth-of-type(3n) { fill: #466557; font-size: 12px; }.evaluate-loop-inputs path { stroke: #6b9d7e; stroke-width: 2.5; }.evaluate-loop-inputs marker path { fill: #6b9d7e; }
 .evaluate-loop .chunks-loop-station rect { stroke: #a8c9b2; }.evaluate-loop .chunks-loop-number { fill: #4d8865; }.evaluate-loop .chunks-loop-title { fill: #28503d; }.evaluate-loop .chunks-loop-purpose { fill: #466557; }
 .evaluate-loop.is-inspecting [data-evaluate-station]:not(.is-highlighted) { opacity: .42; }.evaluate-loop [data-evaluate-station].is-highlighted rect, .evaluate-loop [data-evaluate-station]:hover rect, .evaluate-loop [data-evaluate-station]:focus rect { fill: #eff8f1; stroke: #34735a; }
 .evaluate-loop [data-evaluate-connector].is-highlighted { stroke: #34735a; stroke-width: 4; }.evaluate-loop [data-evaluate-connector].is-flowing { stroke-dasharray: 8 10; animation: evaluate-flow 850ms ease-out 1; }
 @keyframes evaluate-flow { from { stroke-dashoffset: 36; } to { stroke-dashoffset: 0; } }
 .evaluate-loop-card { border-top-color: #5d8e79; background: #f4faf5; }.evaluate-loop-card .eyebrow { color: #47715a; }.evaluate-loop-card h3, .evaluate-loop-card h4 { color: #28503d; }.evaluate-loop-card dd, .evaluate-stage-accounting dd { color: #315742; }.evaluate-stage-accounting div { border-left-color: #9fc6af; }
-@media (max-width: 600px) { .evaluate-loop svg { min-height: 45rem; }.evaluate-stage-accounting { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .evaluate-loop svg { min-height: 58rem; }.evaluate-stage-accounting { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .evaluate-loop [data-evaluate-connector].is-flowing { animation: none; } }

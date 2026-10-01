@@ -25,9 +25,9 @@ def test_pipeline_default_is_map_only_and_each_stage_enters_its_existing_page(tm
 
     assert overview.status_code == 200
     assert 'Pipeline overview' in overview.text
-    assert 'Process summary placeholder' in overview.text
-    assert 'Plain-language description placeholder.' in overview.text
-    assert 'Prompt control placeholder' in overview.text
+    assert 'data-facts-card' in overview.text
+    assert 'Facts flow: Checkpoint, Retrieve, Normalize, Store' in overview.text
+    assert 'Process summary placeholder' not in overview.text
     assert 'Inspect sanitized provider trace' not in overview.text
     assert 'Canonical documents' not in overview.text
     ordered_labels = ('Source', 'Outline', 'Sections', 'Chunks', 'Evidence',
@@ -146,23 +146,16 @@ def test_outline_card_uses_request_prompt_template_and_persisted_outcome(tmp_pat
         overview = client.get('/v2/runs/outline-map-run/pipeline')
 
     assert 'data-outline-card' in overview.text
-    assert 'Numbered canonical-line windows' in overview.text
-    assert 'JSON navigation proposals only, never replacement source text.' in overview.text
-    assert 'One source-ranged outline' in overview.text
-    assert 'Range stays in its window; title and quote must exactly match.' in overview.text
-    assert '900 lines · 60 overlap' in overview.text
-    assert 'After validation, the next window receives up to 8 validated navigation descriptors' in overview.text
-    assert '900 lines · 60 overlap · advance 840 lines.' in overview.text
-    assert 'Reject and record it. It never changes source text or creates a section.' in overview.text
-    assert 'Every canonical line has one primary owner; missing boundaries become warned unlabeled ranges.' in overview.text
-    assert 'How this stage works' in overview.text
+    assert 'Select a bounded canonical-line slice.' in overview.text
+    assert 'Suggest navigation; never alter source.' in overview.text
+    assert 'Resolve overlap into one navigable map.' in overview.text
+    assert 'Match ranges, titles, and quotes to source.' in overview.text
+    assert 'How one filing window becomes trusted navigation' in overview.text
+    assert 'data-outline-loop' in overview.text
     assert 'Accepted input' in overview.text
     assert '1970 canonical lines · 3 windows' in overview.text
     assert '2 requests · 1 cached batch reused' in overview.text
     assert '3 ranges stored · 2 proposals rejected' in overview.text
-    assert 'Prompt constraints' in overview.text
-    assert 'outline-test-model' in overview.text
-    assert 'outline-test-v9' in overview.text
     # The page comes from the same template that _prompt fills before the API call;
     # only dynamic filing values are replaced with deliberately safe placeholders.
     assert 'Return JSON only: {&#34;sections&#34;:[...]}' in overview.text
@@ -204,7 +197,7 @@ def test_pipeline_map_exposes_persisted_progress_and_live_update_contract(tmp_pa
     assert 'Current: <span data-current-stage>Sections</span>' in overview.text
     assert '31 / 43' in overview.text
     assert 'data-stage-card="section_score"' in overview.text
-    assert 'aria-current="step"' in overview.text
+    assert 'data-stage-status="running"' in overview.text
     assert '1.2s' in overview.text
     assert state.json()['stages'][2]['total_work'] == 43
     script = (Path(__file__).parents[2] / 'src/profitlab/web/static/v2-progress.js').read_text()

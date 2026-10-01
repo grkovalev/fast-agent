@@ -18,6 +18,7 @@ from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
 from profitlab.v2.chunking import SourceRangeChunker
 from profitlab.v2.chunk_scoring import ChunkScoringService
 from profitlab.v2.evaluation_service import EvaluationService, cross_run_scorecard
+from profitlab.v2.facts_service import CompanyFactsService
 from profitlab.v2.findings_service import FindingsService
 from profitlab.v2.outline_service import OutlineService
 from profitlab.v2.section_scoring import SectionScoringService
@@ -318,6 +319,11 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                 settings, summary=pipeline.repo.finding_summary(run_id),
                 finding_count=len(persisted_findings)),
         }
+        facts_content = {
+            'inspection': CompanyFactsService.inspection_view(
+                summary=pipeline.repo.fact_summary(run_id),
+                finding_count=len(persisted_findings)),
+        }
         evaluation_content = {
             'inspection': EvaluationService.inspection_view(
                 settings, summary=pipeline.repo.comparison_summary(run_id),
@@ -335,6 +341,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             **(chunk_content if item.stage == 'chunk' else {}),
             **(evidence_content if item.stage == 'chunk_score' else {}),
             **(findings_content if item.stage == 'findings' else {}),
+            **(facts_content if item.stage == 'facts' else {}),
             **(evaluation_content if item.stage == 'evaluate' else {}),
         } for item in state['stages']]
         if stage is None:
