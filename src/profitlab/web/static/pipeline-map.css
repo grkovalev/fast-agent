@@ -207,3 +207,14 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 .evidence-loop.is-inspecting [data-evidence-station]:not(.is-highlighted) { opacity: .42; }
 .evidence-loop [data-evidence-connector].is-highlighted { stroke: #126478; stroke-width: 4; }
 .evidence-loop [data-evidence-station] rect { x: 130px; width: 460px; }
+
+/* Findings extends the same explorable treatment to its real five-stage gate. */
+.findings-stage-explainer { border-left-color: #438897; background: linear-gradient(135deg, #fbfdfd, #eff7f7); color: #203c43; }
+.findings-loop.is-inspecting [data-findings-station]:not(.is-highlighted) { opacity: .42; }
+.findings-loop [data-findings-connector].is-highlighted { stroke: #126478; stroke-width: 4; }
+.findings-loop [data-findings-connector].is-flowing { stroke-dasharray: 8 10; animation: findings-flow 850ms ease-out 1; }
+@keyframes findings-flow { from { stroke-dashoffset: 36; } to { stroke-dashoffset: 0; } }
+.findings-loop-card { border-top-color: #438897; background: #f4fafa; }
+.findings-stage-accounting { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 600px) { .findings-loop svg { min-height: 55rem; }.findings-stage-accounting { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .findings-loop [data-findings-connector].is-flowing { animation: none; } }

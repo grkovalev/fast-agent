@@ -18,6 +18,7 @@ from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
 from profitlab.v2.chunking import SourceRangeChunker
 from profitlab.v2.chunk_scoring import ChunkScoringService
 from profitlab.v2.evaluation_service import cross_run_scorecard
+from profitlab.v2.findings_service import FindingsService
 from profitlab.v2.outline_service import OutlineService
 from profitlab.v2.section_scoring import SectionScoringService
 
@@ -311,6 +312,12 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                 settings, chunks=persisted_chunks, scores=persisted_chunk_scores,
                 summary=pipeline.repo.chunk_score_summary(run_id)),
         }
+        persisted_findings = pipeline.repo.findings(run_id)
+        findings_content = {
+            'inspection': FindingsService.inspection_view(
+                settings, summary=pipeline.repo.finding_summary(run_id),
+                finding_count=len(persisted_findings)),
+        }
         stage_cards = [item.model_dump() | {
             'icon': stage_presentation[item.stage][0],
             'label': stage_presentation[item.stage][1],
@@ -322,6 +329,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             **(section_content if item.stage == 'section_score' else {}),
             **(chunk_content if item.stage == 'chunk' else {}),
             **(evidence_content if item.stage == 'chunk_score' else {}),
+            **(findings_content if item.stage == 'findings' else {}),
         } for item in state['stages']]
         if stage is None:
             active = next((item for item in stage_cards if item['status'] == 'running'), None)
