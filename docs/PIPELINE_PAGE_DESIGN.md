@@ -15,6 +15,10 @@ The page must remain useful without interaction. Interactions add inspection and
   station and its inspector instead.
 - Remove decorative loop captions (for example, “next Window”) when the return arrow itself makes
   the continuation clear.
+- When adding a new expanded pipeline stage, reuse the established Source/Outline explainer
+  composition: stage header, readable inline SVG route, adjacent inspector on wide screens, and
+  accounting beneath. Do not introduce a separate color system, card anatomy, or interaction
+  convention for one stage.
 
 ## Outline loop
 
@@ -65,6 +69,10 @@ JavaScript. The browser may format server-supplied inspection data, but it must 
 parallel presentation model. When an outline contract changes, update the backend contract and
 the inspector output together; the UI should receive the new shape without a frontend schema edit.
 
+Apply this ownership rule to every provider-backed stage, not only Outline. For example, a
+retrieval-scoring inspector should show the backend-defined visible-input model, the actual
+provider request and score questions, and the configured deterministic selection policy.
+
 ## Interaction
 
 - Hover and focus may highlight a station and its incoming/outgoing connectors.
@@ -92,6 +100,9 @@ Do not show “Tools: none” or `json_object` response-format implementation de
 - On wide screens, use a main loop column and an information side rail; collapse to one column below the layout breakpoint.
 - Leave room to increase station-card height and for wrapped text. Prefer growing a card over clipping or reducing type size.
 - Reuse the existing muted blue/teal visual language, borders, and typography.
+- Render structured payloads as full-width, wrapped code blocks inside the inspector. Never squeeze
+  JSON into a definition-list cell or a narrow card column; contain tall values with a sensible
+  maximum height and scrolling.
 
 ## Accessibility
 

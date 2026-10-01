@@ -17,6 +17,7 @@ from profitlab.v2 import STAGE_NAMES, SequentialReportBatchService, V2PipelineSe
 from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
 from profitlab.v2.evaluation_service import cross_run_scorecard
 from profitlab.v2.outline_service import OutlineService
+from profitlab.v2.section_scoring import SectionScoringService
 
 WEB_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
@@ -285,6 +286,16 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             # detailed accounting is only rendered after its durable save.
             'outcome': outline_stage.summary if outline_summary is None else None,
         }
+        section_content = {
+            'model': settings.typesafe_model,
+            'preview_limit': 600,
+            'batch_size': settings.section_score_batch_size,
+            'keep_threshold': settings.section_score_keep_threshold,
+            'uncertain_threshold': settings.section_score_uncertain_threshold,
+            'max_selected': settings.section_score_max_selected,
+            'max_uncertain': settings.section_score_max_uncertain,
+            'inspection': SectionScoringService.inspection_view(settings),
+        }
         stage_cards = [item.model_dump() | {
             'icon': stage_presentation[item.stage][0],
             'label': stage_presentation[item.stage][1],
@@ -293,6 +304,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             'status_label': stage_status_presentation[item.status][1],
             **(source_content if item.stage == 'source' else {}),
             **(outline_content if item.stage == 'outline' else {}),
+            **(section_content if item.stage == 'section_score' else {}),
         } for item in state['stages']]
         if stage is None:
             active = next((item for item in stage_cards if item['status'] == 'running'), None)
