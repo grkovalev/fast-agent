@@ -202,3 +202,8 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 @media (max-width: 900px) { .chunks-stage-explainer { grid-template-columns: 1fr; }.chunks-loop, .chunks-loop-card { grid-column: 1; }.chunks-loop-card { margin-top: .8rem; } }
 @media (max-width: 600px) { .chunks-stage-explainer { padding: 1rem; }.chunks-stage-header { align-items: flex-start; }.chunks-loop { margin-inline: -.25rem; }.chunks-loop svg { min-height: 35rem; }.chunks-loop-card dl, .chunks-stage-accounting { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .chunks-loop-station rect { transition: none; }.chunks-loop [data-chunks-connector].is-flowing { animation: none; } }
+
+/* Evidence intentionally shares the Chunks explainer anatomy and teal language. */
+.evidence-loop.is-inspecting [data-evidence-station]:not(.is-highlighted) { opacity: .42; }
+.evidence-loop [data-evidence-connector].is-highlighted { stroke: #126478; stroke-width: 4; }
+.evidence-loop [data-evidence-station] rect { x: 130px; width: 460px; }
