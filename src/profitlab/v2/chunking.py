@@ -19,6 +19,52 @@ class SourceRangeChunker:
     def __init__(self, settings):
         self.settings = settings
 
+    @classmethod
+    def inspection_view(cls, settings, *, selected_sections: int = 0,
+                        chunks: list[TextChunk] | None = None):
+        """Describe the deterministic range contract used by the chunk stage.
+
+        This is deliberately owned by the chunker: the UI may format this data,
+        but it must not recreate the boundary or sizing policy in JavaScript.
+        """
+        chunks = chunks or []
+        core_lines = sum(item.core_range.end_line - item.core_range.start_line + 1
+                         for item in chunks)
+        return {
+            'selected_sections': selected_sections,
+            'chunk_count': len(chunks),
+            'core_lines': core_lines,
+            'max_request_size': max((item.request_size_estimate for item in chunks), default=0),
+            'split': {
+                'accepts': 'Selected outline sections and their canonical visible lines only.',
+                'does': ('Walks canonical atomic lines in source order, stopping before a core '
+                         'range exceeds the configured size or request budget.'),
+                'outputs': {'section_id': 'ordered bounded core source ranges'},
+                'guarantee': 'No model is called and no source text is generated or truncated.',
+                'policy': {
+                    'path': 'SourceRangeChunker — deterministic, no model request',
+                    'core_target_tokens': settings.chunk_target_tokens,
+                    'request_budget': settings.chunk_request_budget,
+                    'question_overhead': settings.chunk_question_overhead,
+                    'estimator': ESTIMATOR_VERSION,
+                },
+            },
+            'context': {
+                'accepts': 'A bounded core range and preceding core lines in the same section.',
+                'does': 'Adds only a trailing prefix of the preceding core, up to the overlap limit.',
+                'outputs': {'context_ranges': 'preceding source ranges for reading context'},
+                'guarantee': 'Overlap is context, never separately discovered evidence or core coverage.',
+                'policy': {'overlap_tokens': settings.chunk_overlap_tokens},
+            },
+            'store': {
+                'accepts': 'Core ranges plus optional preceding context ranges.',
+                'does': 'Persists TextChunk range metadata and links adjacent chunks within a section.',
+                'outputs': {'TextChunk': ['chunk_id', 'section_id', 'core_range', 'context_ranges',
+                                          'request_size_estimate']},
+                'guarantee': 'The stored source ranges remain the authoritative, inspectable record.',
+            },
+        }
+
     def _request_estimate(self, document: CanonicalDocument, core: SourceRange,
                           context: list[SourceRange]) -> int:
         return self.settings.chunk_question_overhead + estimate('\n'.join(
