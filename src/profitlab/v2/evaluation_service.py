@@ -182,6 +182,56 @@ def cross_run_scorecard(repo, *, version_id: str | None = None) -> dict:
 
 
 class EvaluationService:
+    @classmethod
+    def inspection_view(cls, settings, *, summary: dict | None = None,
+                        finding_count: int = 0):
+        """Return the server-owned contract used by the Evaluate explainer.
+
+        Evaluation is intentionally a post-seal boundary: this view describes
+        the actual deterministic and optional scale-aware work without asking
+        the browser to recreate comparison rules or provider configuration.
+        """
+        summary = summary or {}
+        return {
+            'structured_facts': summary.get('structured_facts_considered', 0),
+            'published_findings': finding_count,
+            'exact_matches': summary.get('exact_matches', 0),
+            'scale_aware_calls': summary.get('evaluation_jev_calls', 0),
+            'pair': {
+                'accepts': {'findings': 'sealed quote-backed visible claims',
+                            'structured_facts': 'independently loaded SEC Company Facts'},
+                'does': 'Groups findings by their sealed type and pairs them only with configured metric and annual-period candidates.',
+                'outputs': {'comparison_candidates': 'finding/fact pairs plus unpaired records'},
+                'guarantee': 'Facts load only after findings seal; neither input can rewrite the other.',
+            },
+            'compare': {
+                'accepts': {'comparison_candidates': 'finding/fact pairs plus unpaired records'},
+                'does': 'Checks exact Decimal value, annual period, and literal visible unit with deterministic rules.',
+                'outputs': {'deterministic_state': 'exact, missed, mismatch, unresolved, additional, or duplicate diagnostic'},
+                'guarantee': 'A mismatch remains a recorded result; evaluation never repairs discovery.',
+            },
+            'verify': {
+                'accepts': {'deterministic_state': 'period or unit mismatch candidates',
+                            'visible_context': 'cited core line and retained source context'},
+                'does': 'For bounded eligible pairs, asks Jev whether an explicitly visible scale or unit proves equivalence.',
+                'outputs': {'scale_aware_verdict': 'confirmed equivalence or rejected'},
+                'guarantee': 'No conversion, attribution, or scale is inferred; the bounded verdict does not alter either value.',
+                'request': {
+                    'model': settings.typesafe_model,
+                    'maximum_pairs': settings.evaluation_scale_max_pairs,
+                    'request_character_budget': settings.evaluation_scale_request_char_budget,
+                    'rule': 'Visible context must explicitly prove the same annual metric and value.',
+                },
+            },
+            'record': {
+                'accepts': {'deterministic_state': 'all comparison records',
+                            'scale_aware_verdict': 'available bounded verdicts'},
+                'does': 'Persists the comparison matrix, provenance, diagnostics, and coverage summary for inspection.',
+                'outputs': {'comparisons': 'independent fiscal-year comparison records'},
+                'guarantee': 'Published findings, quotes, scores, and Company Facts remain unchanged.',
+            },
+        }
+
     """Compare; never recover, rewrite, or otherwise improve discovery output."""
 
     def __init__(self, settings_or_repository, repository=None):

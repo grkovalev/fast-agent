@@ -218,3 +218,15 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 .findings-stage-accounting { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 600px) { .findings-loop svg { min-height: 55rem; }.findings-stage-accounting { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .findings-loop [data-findings-connector].is-flowing { animation: none; } }
+
+/* Evaluate makes the post-seal merge legible without turning it into a workflow editor. */
+.evaluate-stage-explainer { border-left-color: #5d8e79; background: linear-gradient(135deg, #fbfdfb, #eef6f1); color: #254537; }
+.evaluate-stage-explainer .chunks-stage-header { border-bottom-color: #d2e3d8; }.evaluate-stage-explainer .stage-icon { color: #34735a; }
+.evaluate-loop .chunks-loop-connectors path { stroke: #6b9d7e; }.evaluate-loop .chunks-loop-connectors marker path { fill: #6b9d7e; }
+.evaluate-loop .chunks-loop-station rect { stroke: #a8c9b2; }.evaluate-loop .chunks-loop-number { fill: #4d8865; }.evaluate-loop .chunks-loop-title { fill: #28503d; }.evaluate-loop .chunks-loop-purpose { fill: #466557; }
+.evaluate-loop.is-inspecting [data-evaluate-station]:not(.is-highlighted) { opacity: .42; }.evaluate-loop [data-evaluate-station].is-highlighted rect, .evaluate-loop [data-evaluate-station]:hover rect, .evaluate-loop [data-evaluate-station]:focus rect { fill: #eff8f1; stroke: #34735a; }
+.evaluate-loop [data-evaluate-connector].is-highlighted { stroke: #34735a; stroke-width: 4; }.evaluate-loop [data-evaluate-connector].is-flowing { stroke-dasharray: 8 10; animation: evaluate-flow 850ms ease-out 1; }
+@keyframes evaluate-flow { from { stroke-dashoffset: 36; } to { stroke-dashoffset: 0; } }
+.evaluate-loop-card { border-top-color: #5d8e79; background: #f4faf5; }.evaluate-loop-card .eyebrow { color: #47715a; }.evaluate-loop-card h3, .evaluate-loop-card h4 { color: #28503d; }.evaluate-loop-card dd, .evaluate-stage-accounting dd { color: #315742; }.evaluate-stage-accounting div { border-left-color: #9fc6af; }
+@media (max-width: 600px) { .evaluate-loop svg { min-height: 45rem; }.evaluate-stage-accounting { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .evaluate-loop [data-evaluate-connector].is-flowing { animation: none; } }
