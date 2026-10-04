@@ -67,8 +67,8 @@
       add('p', runtimeText('[data-outline-system-prompt]'));
       add('h4', 'User prompt');
       add('pre', runtimeText('[data-outline-user-prompt]'));
-      add('h4', 'Returns');
-      add('pre', prettyJson(runtimeText('[data-outline-response-contract]', '{"sections":[{"generated_topic":"Revenue","exact_source_title":"Revenue","start_line":912,"end_line":948,"exact_representative_quote":"…","section_type":"child","parent_topic_hint":"Results","continues_previous":false}]}')));
+      add('h4', 'Illustrative response instance');
+      add('pre', prettyJson(runtimeText('[data-outline-response-contract]')));
       card.hidden = false;
     };
     const showStationLogic = (key, item) => {

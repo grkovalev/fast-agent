@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import httpx
 from openai import AsyncOpenAI
 
-from .canonical import CanonicalDocument
+from .canonical import CanonicalDocument, CanonicalLine
 from .contracts import OutlineContinuation, OutlineProposal, OutlineSection, SourceRange
 
 
@@ -123,7 +123,10 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
             'window': {
                 'accepts': {
                     'prior_context': [continuation.model_dump()],
-                    'canonical_lines': [{'line': 1, 'text': '…'}],
+                    'canonical_lines': [CanonicalLine(
+                        line_number=1, text='Illustrative visible line',
+                        element_type='paragraph', html_anchor='line-1',
+                        dom_reference='/html/body/p[1]').model_dump()],
                 },
                 'does': ('Advances by the configured window step while retaining overlap, so a '
                          'section that crosses a boundary remains legible in the next request.'),

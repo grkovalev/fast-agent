@@ -17,9 +17,20 @@ from profitlab.v2 import STAGE_NAMES, SequentialReportBatchService, V2PipelineSe
 from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
 from profitlab.v2.chunk_scoring import ChunkScoringService
 from profitlab.v2.chunking import SourceRangeChunker
+from profitlab.v2.contracts import (
+    CanonicalDocumentRef,
+    FactComparison,
+    Finding,
+    OutlineSection,
+    ScoredItem,
+    SourceRange,
+    StructuredFact,
+    TextChunk,
+)
 from profitlab.v2.evaluation_service import EvaluationService, cross_run_scorecard
 from profitlab.v2.facts_service import CompanyFactsService
 from profitlab.v2.findings_service import FindingsService
+from profitlab.v2.inspection import contract_envelopes
 from profitlab.v2.outline_service import OutlineService
 from profitlab.v2.section_scoring import SectionScoringService
 
@@ -242,10 +253,10 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         except FileNotFoundError:
             filing = {}
         report_date = filing.get('report_date', '')
-        company_facts = pipeline.repo.company_fact_dataset(run_id)
+        company_name_from_facts = pipeline.repo.company_fact_entity_name(run_id)
         report_identity = {
             'company_name': (filing.get('company_name')
-                             or (company_facts or {}).get('payload', {}).get('entityName')
+                             or company_name_from_facts
                              or 'Not available'),
             'report_year': report_date[:4] or 'Not available',
             'created_on': state['run'].created_at.strftime('%Y-%m-%d'),
@@ -300,34 +311,32 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             'max_uncertain': settings.section_score_max_uncertain,
             'inspection': SectionScoringService.inspection_view(settings),
         }
-        selected_section_ids = {item.item_id for item in pipeline.repo.scores(run_id, 'section_score')
-                                if item.policy_decision == 'selected'}
-        persisted_chunks = pipeline.repo.chunks(run_id)
+        totals = pipeline.repo.inspection_totals(run_id)
         chunk_content = {
             'inspection': SourceRangeChunker.inspection_view(
-                settings, selected_sections=len(selected_section_ids), chunks=persisted_chunks),
+                settings, selected_sections=totals['decisions']['section_score'].get('selected', 0),
+                totals=totals['chunks']),
         }
-        persisted_chunk_scores = pipeline.repo.scores(run_id, 'chunk_score')
         evidence_content = {
             'inspection': ChunkScoringService.inspection_view(
-                settings, chunks=persisted_chunks, scores=persisted_chunk_scores,
+                settings, totals=totals['chunks'],
+                decisions=totals['decisions']['chunk_score'],
                 summary=pipeline.repo.chunk_score_summary(run_id)),
         }
-        persisted_findings = pipeline.repo.findings(run_id)
         findings_content = {
             'inspection': FindingsService.inspection_view(
                 settings, summary=pipeline.repo.finding_summary(run_id),
-                finding_count=len(persisted_findings)),
+                finding_count=totals['finding_count']),
         }
         facts_content = {
             'inspection': CompanyFactsService.inspection_view(
                 summary=pipeline.repo.fact_summary(run_id),
-                finding_count=len(persisted_findings)),
+                finding_count=totals['finding_count']),
         }
         evaluation_content = {
             'inspection': EvaluationService.inspection_view(
                 settings, summary=pipeline.repo.comparison_summary(run_id),
-                finding_count=len(persisted_findings)),
+                finding_count=totals['finding_count']),
         }
         stage_cards = [item.model_dump() | {
             'icon': stage_presentation[item.stage][0],
@@ -358,7 +367,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                     }}
         selected = next(item for item in stage_cards if item['stage'] == stage)
         page = max(1, page)
-        data_stages = {'outline', 'section_score', 'chunk', 'chunk_score', 'findings', 'facts', 'evaluate'}
+        data_stages = {'outline', 'section_score', 'chunk', 'chunk_score', 'findings'}
         outline = pipeline.repo.outline_sections(run_id, page=page) if stage in data_stages else []
         chunks = pipeline.repo.chunks(run_id, page=page) if stage in {'chunk', 'chunk_score', 'findings'} else []
         findings = pipeline.repo.findings(run_id, page=page) if stage in {'findings', 'evaluate'} else []
@@ -386,12 +395,36 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                   'comparisons': pipeline.repo.comparisons(run_id, page=page) if stage == 'evaluate' else [],
                   'comparison_summary': pipeline.repo.comparison_summary(run_id) if stage == 'evaluate' else None,
                   'evaluation_cards': []}
+        examples = {}
+        for model, items in (
+            (CanonicalDocumentRef, canonical_refs), (OutlineSection, outline),
+            (TextChunk, chunks), (Finding, findings),
+            (ScoredItem, result['section_scores'] or result['chunk_scores']),
+            (StructuredFact, result['structured_facts']),
+            (FactComparison, result['comparisons']),
+        ):
+            if items:
+                examples[model] = items[0]
+        ranged = next((item.primary_range for item in outline), None)
+        if ranged is None:
+            ranged = next((item.core_range for item in chunks), None)
+        if ranged is None:
+            ranged = next((item.source_range for item in findings), None)
+        if ranged is not None:
+            examples[SourceRange] = ranged
+        result['contract_envelopes'] = contract_envelopes(stage, examples)
         if stage == 'evaluate':
             # A comparison page is bounded, but its cards need the linked inputs even
             # when the finding or fact sorts onto a different storage page.
-            all_findings = {item.finding_id: item for item in pipeline.repo.findings(run_id)}
-            all_facts = {item.fact_id: item for item in pipeline.repo.structured_facts(run_id)}
-            chunks = {item.chunk_id: item for item in pipeline.repo.chunks(run_id)}
+            linked_findings = pipeline.repo.findings_for_ids(run_id, [
+                finding_id for comparison in result['comparisons']
+                for finding_id in comparison.finding_ids])
+            all_findings = {item.finding_id: item for item in linked_findings}
+            all_facts = {item.fact_id: item for item in pipeline.repo.structured_facts_for_ids(
+                run_id, [item.fact_id for item in result['comparisons'] if item.fact_id])}
+            chunks = {item.chunk_id: item for item in pipeline.repo.chunks_for_ids(
+                run_id, [item.source_chunk_id for item in linked_findings
+                         if item.source_chunk_id])}
             documents = {}
 
             def visible_context(finding):

@@ -245,3 +245,7 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 .pipeline-map [data-stage-accounting] > dl { margin-block: .85rem; }
 .pipeline-map .accounting-provenance { margin: .75rem 0 0; color: #596a74; font-size: .76rem; }
 .pipeline-map [data-stage-container].is-active { box-shadow: 0 0 0 2px #347d8d, 0 1px 5px #17384a18; }
+.runtime-contracts { margin-block: 2rem; min-width: 0; }
+.runtime-contracts details { border: 1px solid #c4d5dc; border-radius: .5rem; margin-block: .6rem; padding: .75rem 1rem; }
+.runtime-contracts summary { cursor: pointer; font-weight: 650; }
+.runtime-contracts pre { box-sizing: border-box; max-height: 28rem; max-width: 100%; overflow: auto; padding: 1rem; white-space: pre-wrap; overflow-wrap: anywhere; background: #f3f8fa; }

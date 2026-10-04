@@ -21,7 +21,7 @@ class SourceRangeChunker:
 
     @classmethod
     def inspection_view(cls, settings, *, selected_sections: int = 0,
-                        chunks: list[TextChunk] | None = None):
+                        chunks: list[TextChunk] | None = None, totals: dict | None = None):
         """Describe the deterministic range contract used by the chunk stage.
 
         This is deliberately owned by the chunker: the UI may format this data,
@@ -30,11 +30,14 @@ class SourceRangeChunker:
         chunks = chunks or []
         core_lines = sum(item.core_range.end_line - item.core_range.start_line + 1
                          for item in chunks)
+        totals = totals or {'count': len(chunks), 'core_lines': core_lines,
+                            'max_request_size': max((item.request_size_estimate for item in chunks),
+                                                    default=0)}
         return {
             'selected_sections': selected_sections,
-            'chunk_count': len(chunks),
-            'core_lines': core_lines,
-            'max_request_size': max((item.request_size_estimate for item in chunks), default=0),
+            'chunk_count': totals['count'],
+            'core_lines': totals['core_lines'],
+            'max_request_size': totals['max_request_size'],
             'split': {
                 'accepts': 'Selected outline sections and their canonical visible lines only.',
                 'does': ('Walks canonical atomic lines in source order, stopping before a core '
@@ -59,8 +62,7 @@ class SourceRangeChunker:
             'store': {
                 'accepts': 'Core ranges plus optional preceding context ranges.',
                 'does': 'Persists TextChunk range metadata and links adjacent chunks within a section.',
-                'outputs': {'TextChunk': ['chunk_id', 'section_id', 'core_range', 'context_ranges',
-                                          'request_size_estimate']},
+                'outputs': {'TextChunk': TextChunk.model_json_schema()},
                 'guarantee': 'The stored source ranges remain the authoritative, inspectable record.',
             },
         }

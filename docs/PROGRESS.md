@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T49 — Repair live progress and accounting truthfulness.** (**DONE; live visual verification pending**).
-- Next work: **T50 — Make contract inspection derive from runtime models.**
+- Current task: **T50 — Make contract inspection derive from runtime models.** (**DONE; manual visual verification pending**).
+- Next work: **T51 — Reuse real prompt and request builders.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,6 +18,63 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T50 local acceptance and handoff
+
+- Selected stage pages expose a generic runtime-contract section generated from
+  Pydantic validation schemas. Persisted examples come only from the bounded
+  selected page; missing examples are explicitly unavailable. The envelope carries
+  identity, stage, schema/instance kind, provenance, and availability. No provider
+  request is made to render it, and arbitrary settings are not serialized.
+- Contract owners: `canonical.py` owns `CanonicalDocument` and `CanonicalLine`;
+  `contracts.py` owns `CanonicalDocumentRef`, `SourceRange`, `OutlineProposal`,
+  `OutlineContinuation`, `OutlineSection`, `TextChunk`, `ScoredItem`, `Finding`,
+  `StructuredFact`, and `FactComparison`; `section_scoring.py` owns
+  `JevVisibleContext`; `chunk_scoring.py` now owns the actual typed
+  `EvidenceDescriptor`; `findings_service.py` now owns the typed
+  `FindingProposal` validated on the parser path. The envelope in
+  `inspection.py` adds presentation metadata without copying domain fields.
+  Public projections remain bounded to these named contracts and one persisted
+  instance per contract on the current page. Source text and raw SEC datasets
+  are excluded from this generic inspector.
+- Replaced the handwritten `TextChunk`, Evidence descriptor, and Findings
+  proposal field lists with model schemas. The Outline line illustration now
+  validates as `CanonicalLine`; the Sections request illustration validates as
+  `JevVisibleContext`. The Outline response is labeled as an illustrative
+  instance and its browser fallback payload was removed. Prompt/question
+  construction and business-branch prose still need the T51/T52 editorial work;
+  schema propagation does not generate those explanations.
+- The overview now uses SQL aggregates for chunk, score, and finding accounting
+  and a narrow Company Facts entity-name projection. It no longer expands all
+  chunks, scores, findings, or the raw Company Facts dataset to build stage
+  inspectors. The Evaluate page loads only findings, facts, and chunks linked
+  from its current comparison page. Existing selected-stage URLs, source links,
+  and trace paths remain intact. No replay or storage migration was added.
+- Inspected the existing UI and parser/storage paths before editing. Added five
+  focused tests for schema propagation, nested range and exact Decimal JSON,
+  rendered schema and secret redaction, bounded overview loads, and Findings
+  acceptance/rejection compatibility. No tests were removed. Focused gate:
+  `.venv/bin/pytest -q tests/task_gates/test_t50_contract_inspection.py` —
+  5 passed in 0.72s; the same gate passed through `uv run pytest` in 0.70s
+  after cache access was approved. Full suite after shared parser/storage
+  changes: `.venv/bin/pytest -q` — 31 passed in 2.19s. `node --test
+  tests/task_gates/test_t49_progress.cjs`, `uv run ruff check .`, and
+  `git diff --check` passed. No SEC or provider calls were made.
+- Manual visual verification remains pending. In the already-running UI, open
+  `/v2/runs/<run_id>/pipeline?stage=chunk`, then select Outline, Evidence,
+  Findings, Facts, and Evaluate. Expand Runtime contracts: confirm nested
+  ranges, neighbor links, optional fields, enum states, and persisted versus
+  unavailable examples are readable and stay within the page at wide and
+  phone widths. Compare the rendered schema for each stage with the existing
+  station inspector and check long JSON wrapping. Do not start a second app
+  against user run storage. The current session did not perform browser visual
+  inspection.
+- Follow-up: the template now omits the Runtime contracts introduction when
+  its contract rows are unavailable (for example, a running Python process
+  still serving the previous route context). The focused T50 gate passed again
+  (5 tests). After restarting, the user confirmed the section looks okay;
+  wide/mobile layout and full stage-by-stage visual checks remain pending.
+- Next: **T51 — Reuse real prompt and request builders.**
 
 ## T49 local acceptance and handoff
 

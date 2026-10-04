@@ -498,6 +498,25 @@ class V2Repository:
                               (run_id,)).fetchall()
         return [CanonicalDocumentRef.model_validate(dict(row)) for row in rows]
 
+    def inspection_totals(self, run_id: str) -> dict:
+        """Small aggregates for an overview; never expand persisted item payloads."""
+        with self.connect() as db:
+            chunks = db.execute('''SELECT COUNT(*) AS count,
+                COALESCE(SUM(json_extract(payload, '$.core_range.end_line') -
+                    json_extract(payload, '$.core_range.start_line') + 1), 0) AS core_lines,
+                COALESCE(MAX(json_extract(payload, '$.request_size_estimate')), 0) AS max_request_size
+                FROM chunks WHERE run_id=?''', (run_id,)).fetchone()
+            findings = db.execute('SELECT COUNT(*) AS count FROM findings WHERE run_id=?',
+                                  (run_id,)).fetchone()
+            score_rows = db.execute('''SELECT score_kind,
+                json_extract(payload, '$.policy_decision') AS decision, COUNT(*) AS count
+                FROM scores WHERE run_id=? GROUP BY score_kind, decision''', (run_id,)).fetchall()
+        decisions = {'section_score': {}, 'chunk_score': {}}
+        for row in score_rows:
+            if row['score_kind'] in decisions:
+                decisions[row['score_kind']][row['decision']] = row['count']
+        return {'chunks': dict(chunks), 'finding_count': findings['count'], 'decisions': decisions}
+
     def visible_html(self, run_id: str, document_id: str) -> bytes:
         with self.connect() as db:
             row = db.execute('SELECT visible_html FROM canonical_documents WHERE run_id=? '
@@ -650,6 +669,11 @@ class V2Repository:
                 rows = db.execute(query, (run_id,)).fetchall()
         return [Finding.model_validate_json(row['payload']) for row in rows]
 
+    def findings_for_ids(self, run_id: str, finding_ids: list[str]):
+        from .contracts import Finding
+
+        return self._payloads_for_ids('findings', 'finding_id', run_id, finding_ids, Finding)
+
     def filing(self, run_id: str):
         with self.connect() as db:
             row = db.execute('SELECT payload FROM filings WHERE run_id=? ORDER BY filing_id LIMIT 1',
@@ -676,6 +700,12 @@ class V2Repository:
         return {**{key: row[key] for key in ('cik', 'source_url', 'source_hash', 'retrieved_at')},
                 'payload': json.loads(bytes(row['payload']))}
 
+    def company_fact_entity_name(self, run_id: str) -> str | None:
+        with self.connect() as db:
+            row = db.execute("SELECT json_extract(payload, '$.entityName') AS entity_name "
+                             'FROM company_fact_datasets WHERE run_id=?', (run_id,)).fetchone()
+        return row['entity_name'] if row else None
+
     def save_structured_facts(self, run_id: str, facts):
         self.get_run(run_id)
         with self.connect() as db:
@@ -696,6 +726,12 @@ class V2Repository:
             else:
                 rows = db.execute(query, (run_id,)).fetchall()
         return [StructuredFact.model_validate_json(row['payload']) for row in rows]
+
+    def structured_facts_for_ids(self, run_id: str, fact_ids: list[str]):
+        from .contracts import StructuredFact
+
+        return self._payloads_for_ids('structured_facts', 'fact_id', run_id, fact_ids,
+                                      StructuredFact)
 
     def save_fact_summary(self, run_id: str, payload: dict):
         self.get_run(run_id)
@@ -843,6 +879,25 @@ class V2Repository:
             else:
                 rows = db.execute(query, (run_id,)).fetchall()
         return [TextChunk.model_validate_json(row['payload']) for row in rows]
+
+    def chunks_for_ids(self, run_id: str, chunk_ids: list[str]) -> list[TextChunk]:
+        return self._payloads_for_ids('chunks', 'chunk_id', run_id, chunk_ids, TextChunk)
+
+    def _payloads_for_ids(self, table, id_column, run_id, ids, model):
+        """Load only objects linked from one rendered page of comparisons."""
+        ids = list(dict.fromkeys(item for item in ids if item))
+        if not ids:
+            return []
+        result = []
+        with self.connect() as db:
+            for start in range(0, len(ids), 500):
+                batch = ids[start:start + 500]
+                placeholders = ', '.join('?' for _ in batch)
+                rows = db.execute(
+                    f'SELECT payload FROM {table} WHERE run_id=? AND {id_column} IN ({placeholders})',
+                    (run_id, *batch)).fetchall()
+                result.extend(model.model_validate_json(row['payload']) for row in rows)
+        return result
 
     def chunk(self, run_id: str, chunk_id: str) -> TextChunk:
         with self.connect() as db:

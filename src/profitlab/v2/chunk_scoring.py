@@ -6,11 +6,24 @@ import re
 from dataclasses import dataclass
 from time import monotonic
 
+from pydantic import BaseModel, ConfigDict
+
 from profitlab.providers.jev import JevRequest, NoulQuestion
 
 from .canonical import CanonicalDocument
 from .contracts import OutlineSection, ScoredItem, TextChunk
 from .section_scoring import TARGETS, SectionScoringService
+
+
+class EvidenceDescriptor(BaseModel):
+    """The visible chunk object sent in a Jev evidence-scoring request."""
+    model_config = ConfigDict(extra='forbid', frozen=True)
+
+    chunk_id: str
+    section_id: str
+    visible_heading_path: list[str]
+    exact_chunk_text: str
+    filing_metadata: dict[str, str]
 
 
 @dataclass(frozen=True)
@@ -31,26 +44,22 @@ class ChunkScoringService:
 
     @classmethod
     def inspection_view(cls, settings, *, chunks: list[TextChunk] | None = None,
-                        scores: list[ScoredItem] | None = None, summary: dict | None = None):
+                        scores: list[ScoredItem] | None = None, summary: dict | None = None,
+                        totals: dict | None = None, decisions: dict | None = None):
         """Describe the provider request and deterministic evidence policy for the UI.
 
         Keeping this here means the pipeline card formats the same contract and
         configuration that the scorer uses, rather than maintaining a browser copy.
         """
         chunks, scores, summary = chunks or [], scores or [], summary or {}
-        decisions = {name: sum(item.policy_decision == name for item in scores)
-                     for name in ('selected', 'uncertain', 'skipped')}
-        descriptor = {
-            'chunk_id': 'persisted TextChunk id',
-            'section_id': 'validated outline section id',
-            'visible_heading_path': ['exact visible headings only'],
-            'exact_chunk_text': 'context ranges followed by the core range',
-            'filing_metadata': {'ticker': 'run ticker', 'filing_id': 'canonical filing id'},
-        }
+        decisions = decisions if decisions is not None else {
+            name: sum(item.policy_decision == name for item in scores)
+            for name in ('selected', 'uncertain', 'skipped')}
+        descriptor = EvidenceDescriptor.model_json_schema()
         return {
-            'input_chunks': len(chunks),
-            'selected': decisions['selected'],
-            'uncertain': decisions['uncertain'],
+            'input_chunks': totals['count'] if totals is not None else len(chunks),
+            'selected': decisions.get('selected', 0),
+            'uncertain': decisions.get('uncertain', 0),
             'retained_characters': summary.get('retained_characters', 0),
             'describe': {
                 'accepts': 'Persisted chunk source ranges, validated heading path, and filing identity.',
@@ -89,14 +98,12 @@ class ChunkScoringService:
                     filing_metadata: dict[str, str]):
         text = '\n'.join([*(document.slice(item) for item in chunk.context_ranges),
                           document.slice(chunk.core_range)])
-        descriptor = {
-            'chunk_id': chunk.chunk_id,
-            'section_id': chunk.section_id,
-            'visible_heading_path': [item for item in
-                                     (section.parent_topic_hint, section.exact_source_title) if item],
-            'exact_chunk_text': text,
-            'filing_metadata': filing_metadata,
-        }
+        descriptor = EvidenceDescriptor(
+            chunk_id=chunk.chunk_id, section_id=chunk.section_id,
+            visible_heading_path=[item for item in
+                                  (section.parent_topic_hint, section.exact_source_title) if item],
+            exact_chunk_text=text, filing_metadata=filing_metadata,
+        ).model_dump()
         SectionScoringService._guard(descriptor)
         return descriptor
 

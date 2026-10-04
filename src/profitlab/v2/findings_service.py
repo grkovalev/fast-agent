@@ -8,12 +8,27 @@ from decimal import Decimal, InvalidOperation
 
 import httpx
 from openai import AsyncOpenAI
+from pydantic import BaseModel, ConfigDict, Field
 
 from profitlab.providers.jev import JevRequest, NoulQuestion
 
 from .canonical import CanonicalDocument
 from .contracts import Finding, SourceRange
 from .section_scoring import TARGETS, SectionScoringService
+
+
+class FindingProposal(BaseModel):
+    """The provider's citation candidate, before source and amount validation."""
+    model_config = ConfigDict(extra='ignore', frozen=True)
+
+    exact_quote: str
+    source_chunk_id: str
+    source_line: int
+    amount: str
+    unit: str | None = None
+    period: str | None = None
+    attribution: str | None = None
+    limitations: list[str] = Field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -46,16 +61,7 @@ class FindingsService:
         contract for a provider-backed stage.
         """
         summary = summary or {}
-        proposal = {
-            'exact_quote': 'verbatim substring from one retained core line',
-            'source_chunk_id': 'retained TextChunk id',
-            'source_line': 'core evidence line number',
-            'amount': 'plain decimal string present in exact_quote',
-            'unit': 'string or null',
-            'period': 'string or null',
-            'attribution': 'string or null',
-            'limitations': ['unresolved context, if any'],
-        }
+        proposal = FindingProposal.model_json_schema()
         return {
             'retained_chunks': summary.get('retained_chunks_after_budget', 0),
             'published': finding_count,
@@ -286,6 +292,9 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
                    if proposal.get(field) is not None and not isinstance(proposal[field], str)]
         if unknown:
             return None, 'unit, period, and attribution must be strings or null'
+        # This projection is validated by the same model exposed to inspection.
+        # The checks above retain the existing, specific rejection diagnostics.
+        FindingProposal.model_validate({**proposal, 'limitations': limitations})
         return Finding(finding_id='finding-' + hashlib.sha256(
             f'{chunk.chunk_id}:{quote}:{amount}:{proposal.get("target")}'.encode()).hexdigest()[:16],
             exact_quote=quote, source_range=location, amount=amount, source_chunk_id=chunk.chunk_id,
