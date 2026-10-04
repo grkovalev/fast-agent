@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T48 — Align the durable pipeline page brief.** (**DONE**).
-- Next work: **T49 — Repair live progress and accounting truthfulness.**
+- Current task: **T49 — Repair live progress and accounting truthfulness.** (**DONE; live visual verification pending**).
+- Next work: **T50 — Make contract inspection derive from runtime models.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,6 +18,42 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T49 local acceptance and handoff
+
+- The overview and selected-stage page now render the same run/status labels and
+  work availability as live updates. Stable stage containers carry active state,
+  while accessible stage links update their labels and current-step treatment.
+  Both overall counters and the current-stage label update from persisted state.
+- Running timers distinguish wall elapsed time from recorded active time. Terminal
+  stages display recorded active time. SSE, polling, clock, and delayed refreshes
+  stop on terminal state and page exit; a later stream error cannot restart polling.
+- Overview accounting regions refresh from the persisted pipeline page when a
+  stage finishes, leaving any selected station inspector in place. Pending,
+  partial, unavailable, and measured zero output have distinct labels. The
+  visible provider configuration is labeled as current rather than a recorded
+  historical request. Existing source and sanitized-trace links remain intact.
+- Inspected and timed the existing six-test pipeline UI gate before editing
+  (1.45s). Its running-state fixture now restores a coherent run status after
+  startup recovery. Added one rendered state/accounting gate and one non-browser
+  Node state/timer/lifecycle gate. No tests were removed. Final focused Python
+  gate: `uv run pytest -q tests/task_gates/test_t49_pipeline_state.py
+  tests/task_gates/test_pipeline_ui_session1.py` — 7 passed in 1.37s.
+  `node --test tests/task_gates/test_t49_progress.cjs` — 1 passed in 90ms.
+  `uv run ruff check .` and `git diff --check` passed. Ruff first needed
+  external cache access, then found the pre-existing app import order; it was
+  fixed in the touched file. No provider or SEC calls were made.
+- Manual visual verification remains pending. In the already-running UI, open
+  `/v2/runs/<run_id>/pipeline` for a live run. Compare both progress counters,
+  current stage, run label, expanded active stage, work count, and timer before
+  and after a stage finishes; select a station and confirm its inspector remains
+  selected after accounting refresh. Disconnect and reconnect the stream, then
+  refresh a completed, partial, failed, cancelled, or interrupted run and compare
+  labels and accounting. Check a queued stage against a completed zero-output
+  stage. Use isolated test storage for controlled states; do not start another
+  app against user run storage. The current session did not perform browser
+  visual inspection.
+- Next: **T50 — Make contract inspection derive from runtime models.**
 
 ## T48 local acceptance and handoff
 

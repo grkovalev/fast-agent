@@ -241,3 +241,7 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 .evaluate-loop-card { border-top-color: #5d8e79; background: #f4faf5; }.evaluate-loop-card .eyebrow { color: #47715a; }.evaluate-loop-card h3, .evaluate-loop-card h4 { color: #28503d; }.evaluate-loop-card dd, .evaluate-stage-accounting dd { color: #315742; }.evaluate-stage-accounting div { border-left-color: #9fc6af; }
 @media (max-width: 600px) { .evaluate-loop svg { min-height: 58rem; }.evaluate-stage-accounting { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .evaluate-loop [data-evaluate-connector].is-flowing { animation: none; } }
+.pipeline-map [data-stage-accounting] { grid-column: 1 / -1; min-width: 0; }
+.pipeline-map [data-stage-accounting] > dl { margin-block: .85rem; }
+.pipeline-map .accounting-provenance { margin: .75rem 0 0; color: #596a74; font-size: .76rem; }
+.pipeline-map [data-stage-container].is-active { box-shadow: 0 0 0 2px #347d8d, 0 1px 5px #17384a18; }

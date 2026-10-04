@@ -190,6 +190,7 @@ def test_pipeline_map_exposes_persisted_progress_and_live_update_contract(tmp_pa
                                         status='running', completed_work=31, total_work=43,
                                         started_at=now, active_seconds=.5),
                           event_kind='stage_started', event_summary='scoring')
+        repo.update_run('live-map-run', status='running', summary='scoring', kind='run_started')
         overview = client.get('/v2/runs/live-map-run/pipeline')
         state = client.get('/v2/runs/live-map-run/state')
 

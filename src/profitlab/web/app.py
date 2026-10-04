@@ -15,8 +15,8 @@ from profitlab.sec.ticker_picker import RandomEligibleTickerPicker
 from profitlab.settings import Settings
 from profitlab.v2 import STAGE_NAMES, SequentialReportBatchService, V2PipelineService
 from profitlab.v2.benchmark import RetrievalBenchmarkService, load_dataset
-from profitlab.v2.chunking import SourceRangeChunker
 from profitlab.v2.chunk_scoring import ChunkScoringService
+from profitlab.v2.chunking import SourceRangeChunker
 from profitlab.v2.evaluation_service import EvaluationService, cross_run_scorecard
 from profitlab.v2.facts_service import CompanyFactsService
 from profitlab.v2.findings_service import FindingsService
@@ -349,9 +349,12 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             current = active or next((item for item in stage_cards
                                       if item['stage'] == state['run'].selected_stage), None)
             return {**state, 'report_identity': report_identity, 'overview': True, 'stage_cards': stage_cards,
+                    'run_status_symbol': stage_status_presentation[state['run'].status][0],
+                    'run_status_label': stage_status_presentation[state['run'].status][1],
                     'map_progress': {
                         'completed': sum(item['status'] == 'completed' for item in stage_cards),
-                        'current_label': current['label'] if current else 'Waiting to start',
+                        'current_label': ('None' if state['run'].status not in ('queued', 'running')
+                                          else current['label'] if current else 'Waiting to start'),
                     }}
         selected = next(item for item in stage_cards if item['stage'] == stage)
         page = max(1, page)
@@ -370,6 +373,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                 value, label = max(candidates, key=lambda item: (item[0], item[1]))
                 finding_score_lookup[score.item_id] = {'label': label, 'score': value}
         result = {**state, 'report_identity': report_identity, 'map_progress': {'completed': sum(item['status'] == 'completed' for item in stage_cards)}, 'overview': False, 'stage_cards': stage_cards, 'selected': selected, 'page': page, 'canonical_refs': canonical_refs,
+                  'run_status_label': stage_status_presentation[state['run'].status][1],
                   'outline_sections': outline, 'section_lookup': {x.section_id: x for x in outline},
                   'section_scores': pipeline.repo.scores(run_id, 'section_score', page=page) if stage == 'section_score' else [],
                   'section_actions': [], 'chunks': chunks,
