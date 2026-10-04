@@ -33,6 +33,7 @@ from profitlab.v2.findings_service import FindingsService
 from profitlab.v2.inspection import contract_envelopes
 from profitlab.v2.outline_service import OutlineService
 from profitlab.v2.section_scoring import SectionScoringService
+from profitlab.v2.source_service import V2SourceService
 
 WEB_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
@@ -283,6 +284,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                 'received': 'Awaiting SEC response',
                 'stored': 'Canonical visible lines pending',
             }
+        source_content['inspection'] = V2SourceService.inspection_view(**source_content)
         outline_stage = next(item for item in state['stages'] if item.stage == 'outline')
         outline_summary = pipeline.repo.outline_summary(run_id)
         outline_content = {

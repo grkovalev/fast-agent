@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T51 — Reuse real prompt and request builders.** (**DONE; manual visual verification pending**).
-- Next work: **T52 — Share rendering and interaction without imposing one diagram.**
+- Current task: **T52 — Share rendering and interaction without imposing one diagram.** (**DONE; manual visual verification pending**).
+- Next work: **T53 — Establish page hierarchy and semantic connections.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,6 +18,47 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T52 local acceptance and handoff
+
+- All eight overview stages now use one server-rendered inspector partial for the
+  first station and for selectable station templates. The same partial renders
+  nested request/policy objects and newly exposed service fields. The Source
+  inspection description moved to `V2SourceService`; the other seven stages
+  retain their existing service-owned inspection views. Headers, timers, and
+  progress footers share template macros. Selected-stage runtime schemas and
+  instances use the same generic value renderer.
+- One small browser controller handles pointer and keyboard selection, selected
+  state, connector highlighting, and reduced motion for every stage. It clones
+  server-rendered content; it contains no policy thresholds, contract fields,
+  questions, or source examples. The eight unused stage controllers and dormant
+  map-layout template branches were removed. The Outline diagram is no longer
+  rewritten after load. Existing selected-stage, source, and trace links remain.
+- Inspected and timed the existing T50/T51 and pipeline UI gates before editing:
+  13 passed in 1.90s. Updated one obsolete JS-source assertion and one prompt
+  encoding assertion; no existing tests were removed. New rendered integration
+  coverage checks all 29 station controls, 21 selection templates, duplicate IDs,
+  initial content, and backend field propagation. A non-browser Node check covers
+  keyboard/pointer parity, selected state, highlighting, and reduced motion.
+- Focused Python gate: `.venv/bin/pytest -q tests/task_gates/test_t52_inspector.py
+  tests/task_gates/test_pipeline_ui_session1.py tests/task_gates/test_t49_pipeline_state.py
+  tests/task_gates/test_t50_contract_inspection.py
+  tests/task_gates/test_t51_request_inspection.py` — 15 passed in 1.85s.
+  `node --test tests/task_gates/test_t52_inspector.cjs
+  tests/task_gates/test_t49_progress.cjs` — 2 passed in 87ms.
+  Final `uv run pytest -q` — 34 passed in 2.18s; `uv run ruff check .` and
+  `git diff --check` passed. uv needed an outside-sandbox run because its macOS
+  system-configuration initialization crashed in the sandbox. No provider, SEC,
+  or shared user run storage was accessed.
+- Manual visual verification remains pending under the no-browser-automation
+  policy. In the already-running UI, open `/v2/runs/<run_id>/pipeline`. Confirm
+  every first station explains its stage with JavaScript disabled; then select
+  first, last, and provider stations by pointer and keyboard. Check that the
+  diagram remains visible, selected state is apparent, long nested requests
+  wrap and scroll within the inspector, and reduced-motion mode stops connector
+  animation. Check wide and phone widths, selected-stage links, source links,
+  and sanitized trace links. No browser automation or live provider check ran.
+- Next: **T53 — Establish page hierarchy and semantic connections.**
 
 ## T51 local acceptance and handoff
 

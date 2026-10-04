@@ -249,3 +249,12 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 .runtime-contracts details { border: 1px solid #c4d5dc; border-radius: .5rem; margin-block: .6rem; padding: .75rem 1rem; }
 .runtime-contracts summary { cursor: pointer; font-weight: 650; }
 .runtime-contracts pre { box-sizing: border-box; max-height: 28rem; max-width: 100%; overflow: auto; padding: 1rem; white-space: pre-wrap; overflow-wrap: anywhere; background: #f3f8fa; }
+.pipeline-inspector { min-width: 0; }
+.pipeline-inspector dl > div.is-json { grid-column: 1 / -1; }
+.pipeline-inspector dd { min-width: 0; overflow-wrap: anywhere; }
+.pipeline-inspector dd p { margin: 0; }
+.pipeline-inspector pre { box-sizing: border-box; width: 100%; max-width: 100%; max-height: 20rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pipeline-inspector-extra { min-width: 0; margin-top: .8rem; }
+.pipeline-inspector-extra h4 { margin: 0 0 .35rem; text-transform: capitalize; }
+[data-source-station].is-selected rect, [data-outline-station].is-selected rect, [data-sections-station].is-selected rect, [data-chunks-station].is-selected rect, [data-evidence-station].is-selected rect, [data-findings-station].is-selected rect, [data-facts-station].is-selected rect, [data-evaluate-station].is-selected rect { stroke-width: 3; }
+@media (prefers-reduced-motion: reduce) { .pipeline-map [class*="loop"] [class*="is-flowing"] { animation: none !important; } }

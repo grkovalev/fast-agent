@@ -1,0 +1,28 @@
+{% macro value(content) -%}
+{% if content is string %}<p>{{ content }}</p>{% elif content is none %}<p>Unavailable</p>{% else %}<pre>{{ content | tojson(indent=2) }}</pre>{% endif %}
+{%- endmacro %}
+
+{% macro stage_header(item, classes, subtitle) -%}
+<header class="{{ classes }}"><a href="?stage={{ item.stage }}" data-stage-card="{{ item.stage }}"{% if item.status == 'running' %} aria-current="step"{% endif %} aria-label="{{ item.label }} — {{ item.status_label }}"><span class="stage-icon" aria-hidden="true">{{ item.icon }}</span><span><strong>{{ item.label }}</strong><small>{{ subtitle }}</small></span></a><small class="stage-status status-{{ item.status }}" data-stage="{{ item.stage }}" data-stage-status="{{ item.status }}"><span aria-hidden="true">{{ item.status_symbol }}</span><span>{{ item.status_label }}</span></small></header>
+{%- endmacro %}
+
+{% macro stage_footer(item) -%}
+<footer><small class="stage-progress" data-stage-progress="{{ item.stage }}">{% if item.total_work is not none and item.status != 'queued' %}{{ item.completed_work }} / {{ item.total_work }}{% elif item.status == 'running' %}Work total pending{% endif %}</small><small class="stage-duration" data-stage-duration="{{ item.stage }}" data-status="{{ item.status }}" data-active-started-at="{{ item.started_at.isoformat() if item.started_at else '' }}" data-active-seconds="{{ item.active_seconds }}" data-queued-seconds="{{ item.queued_seconds }}" data-backoff-seconds="{{ item.retry_backoff_seconds }}">{% if item.status in ['completed', 'partial', 'failed', 'cancelled', 'interrupted'] %}Active {{ '%.1f' | format(item.active_seconds) }}s{% elif item.status == 'running' %}Recorded active {{ '%.1f' | format(item.active_seconds) }}s{% endif %}</small></footer>
+{%- endmacro %}
+
+{% macro panel(item, key, number, title, card_id, classes, hidden=false) -%}
+{% set inspection = item.inspection[key] %}
+<{% if hidden %}template data-station-template="{{ key }}"{% else %}section class="{{ classes }} pipeline-inspector" id="{{ card_id }}" data-station-card aria-live="polite" tabindex="-1"{% endif %}>
+<p class="eyebrow">{{ number }} · {{ title }}</p><h3>{{ title }} · {{ item.label }}</h3>
+<dl>{% for field, label in [('accepts', 'Accepts'), ('does', 'Does'), ('outputs', 'Outputs'), ('guarantee', 'Guarantee')] %}
+{% if field in inspection %}<div class="{% if inspection[field] is not string %}is-json{% endif %}"><dt>{{ label }}</dt><dd>{{ value(inspection[field]) }}</dd></div>{% endif %}
+{% endfor %}</dl>
+{% for field, content in inspection.items() if field not in ('accepts', 'does', 'outputs', 'guarantee') %}
+<section class="pipeline-inspector-extra"><h4>{{ field | replace('_', ' ') | title }}</h4>{{ value(content) }}</section>
+{% endfor %}
+</{% if hidden %}template{% else %}section{% endif %}>
+{%- endmacro %}
+
+{% macro contract(contract) -%}
+<details><summary>{{ contract.identity }} · {{ contract.kind }}{% if contract.instance %} · {{ contract.instance_kind }}{% endif %}</summary><h4>Validation schema</h4>{{ value(contract.schema) }}{% if contract.instance %}<h4>Persisted run instance</h4>{{ value(contract.instance) }}{% else %}<p>Persisted instance unavailable on this page.</p>{% endif %}</details>
+{%- endmacro %}

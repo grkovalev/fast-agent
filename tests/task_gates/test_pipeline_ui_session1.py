@@ -118,9 +118,11 @@ def test_source_card_uses_persisted_sec_filing_and_canonical_line_result(tmp_pat
     assert '.source-stage-explainer' in stylesheet
     assert '.source-loop-station' in stylesheet
     assert '@media (prefers-reduced-motion: reduce)' in stylesheet
-    script = (Path(__file__).parents[2] / 'src/profitlab/web/static/source-loop.js').read_text()
-    assert '[data-source-loop]' in script
-    assert 'removes hidden and Inline XBRL-only content' in script
+    script = (Path(__file__).parents[2] /
+              'src/profitlab/web/static/pipeline-inspector.js').read_text()
+    assert 'data-${prefix}-loop' in script
+    assert 'data-station-template' in script
+    assert 'Inline XBRL-only content' in overview.text
     assert "prefers-reduced-motion: reduce" in script
 
 
@@ -157,7 +159,7 @@ def test_outline_card_uses_request_prompt_template_and_persisted_outcome(tmp_pat
     assert '2 requests · 1 cached batch reused' in overview.text
     assert '3 ranges stored · 2 proposals rejected' in overview.text
     # The page shows a request constructed by the runtime builder from illustrative lines.
-    assert 'Return JSON only: {&#34;sections&#34;:[...]}' in overview.text
+    assert 'Return JSON only' in overview.text
     assert '1: Illustrative visible filing line.' in overview.text
     assert OutlineService.prompt_view().startswith('Return JSON only: {"sections":[...]}')
     outline_start = overview.text.index('data-outline-card')

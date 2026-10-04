@@ -20,6 +20,30 @@ class _V2Trace:
 
 
 class V2SourceService:
+    @staticmethod
+    def inspection_view(*, request: str, received: str, stored: str) -> dict:
+        return {
+            'request': {
+                'accepts': 'Selected ticker and annual filing identity.',
+                'does': 'Locates and requests the SEC primary annual filing for the report.',
+                'outputs': received,
+                'guarantee': 'The document identity is retained before downstream transformation.',
+            },
+            'convert': {
+                'accepts': received,
+                'does': ('Converts filing HTML to canonical visible text, removing hidden and '
+                         'Inline XBRL-only content and metadata.'),
+                'outputs': 'Sanitized visible lines.',
+                'guarantee': 'No source text is invented or supplied by hidden metadata.',
+            },
+            'store': {
+                'accepts': 'Sanitized visible lines and source HTML anchors.',
+                'does': 'Persists stable line numbers and sanitized HTML anchors.',
+                'outputs': stored,
+                'guarantee': 'Later source links resolve to the retained line-addressable record.',
+            },
+        }
+
     def __init__(self, settings, repository):
         self.settings, self.repo = settings, repository
 
