@@ -4,6 +4,10 @@ Execute one task per session, in order. Completed implementation history is reco
 
 Commands and checks below are acceptance contracts to implement, not claims that they already exist.
 
+Pipeline review follow-ups: [T48–T60](PIPELINE_IMPROVEMENT_TASKS.md), with findings
+and rationale in [PIPELINE_IMPLEMENTATION_REVIEW.md](PIPELINE_IMPLEMENTATION_REVIEW.md).
+These are proposed implementation tasks; the review changes documentation only.
+
 ## Execution policy for every task
 
 1. Read repository instructions, `PROGRESS.md`, the relevant specification sections, and the selected task. Resume an `IN_PROGRESS` task before starting a later task.
