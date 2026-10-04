@@ -1,14 +1,22 @@
 # Pipeline UI reorganization plan
 
+> Historical T39–T47 implementation plan. For T48–T60, the
+> [pipeline page design brief](PIPELINE_PAGE_DESIGN.md) is the active visual and
+> interaction contract. Its stage-specific compositions supersede the shared
+> desktop card size, identical card anatomy, and fixed inspector placement below.
+> The stage order, selected-stage links, accessible status, and Facts-below-Evaluate
+> spatial relationship remain applicable. See the
+> [follow-up tasks](PIPELINE_IMPROVEMENT_TASKS.md).
+
 ## Goal
 
 Make the default Pipeline page a spacious, icon-led process map, rather than a
 linear stage rail combined with the selected stage's detailed inspector.
 
-## Current visual contract — T39 and later
+## Historical visual contract — T39–T47
 
-This section supersedes the earlier two-horizontal-lane diagram and is the
-single layout contract for subsequent card work. The overview is a vertical,
+This section superseded the earlier two-horizontal-lane diagram for T39–T47
+card work. The implemented overview has a vertical,
 top-to-bottom reading path:
 
 ```text
@@ -51,8 +59,8 @@ card or obscure its link.
 
 T39 established the shared card frame. T40 completed the Source card with its
 persisted SEC request → visible-HTML conversion → canonical-line storage diagram.
-Each following task replaces placeholders on exactly one card, retains the shared
-desktop card size and responsive behavior, and does not change pipeline execution.
+Each following task replaced placeholders on exactly one card, retained the shared
+desktop card size and responsive behavior, and did not change pipeline execution.
 
 | Task | Card | Bounded overview content |
 | --- | --- | --- |

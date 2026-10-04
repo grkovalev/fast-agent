@@ -6,7 +6,8 @@ Commands and checks below are acceptance contracts to implement, not claims that
 
 Pipeline review follow-ups: [T48–T60](PIPELINE_IMPROVEMENT_TASKS.md), with findings
 and rationale in [PIPELINE_IMPLEMENTATION_REVIEW.md](PIPELINE_IMPLEMENTATION_REVIEW.md).
-These are proposed implementation tasks; the review changes documentation only.
+T48 updates the active [pipeline page design brief](PIPELINE_PAGE_DESIGN.md);
+the T39–T47 card layout rules below are historical for the follow-up work.
 
 ## Execution policy for every task
 

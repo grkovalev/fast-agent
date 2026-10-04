@@ -1,112 +1,144 @@
 # Pipeline page design brief
 
-## Intent
+## Intent and scope
 
-The pipeline page is an editorial, explorable explanation of how the report is assembled. It should feel closer to a Seeing Theory explanation than a workflow editor, Mermaid diagram, or application canvas.
+The pipeline page is an editorial, explorable explanation of how a report is
+assembled. It should feel closer to a Seeing Theory explanation than a workflow
+editor or application canvas. The initial render must show the route, what each
+stage accepts and produces, and the important decisions and repetitions. Selection
+adds inspection; it must not be required to understand the main flow.
 
-The page must remain useful without interaction. Interactions add inspection and flow cues; they must not be required to understand the route.
+The page explains the implemented pipeline. Preserve backend stage order, validation,
+budgets, outputs, and the independent Facts/Evaluate boundary. Keep the existing
+selected-stage URLs, exact-source links, and sanitized trace links. Do not add
+recording, playback, migrations, a graph engine, a frontend framework, or provider
+dependencies for this page. Replay requirements remain open.
 
-## Editorial restraint
+## Shared visual and interaction language
 
-- Let the diagram, station titles, and station content explain the route. Do not add prose that
-  merely tells readers how to hover, focus, click, or tap the diagram.
-- Do not label connector lines when the label only repeats what the adjacent station already says.
-  Directional arrows are sufficient for the route; put meaningful input and output detail in the
-  station and its inspector instead.
-- Remove decorative loop captions (for example, “next Window”) when the return arrow itself makes
-  the continuation clear.
-- When adding a new expanded pipeline stage, reuse the established Source/Outline explainer
-  composition: stage header, readable inline SVG route, adjacent inspector on wide screens, and
-  accounting beneath. Do not introduce a separate color system, card anatomy, or interaction
-  convention for one stage.
+- Use a compact, always-visible route locator with eight recognizable stages, then
+  give each stage an open explanation region. The locator establishes position;
+  it is not eight more full-size stage cards.
+- Share muted blue/teal colors, typography, borders, status treatments, accessible
+  selection, accounting, and inspector behavior. Use a small semantic vocabulary:
+  source artifacts, operations, decision gates, candidate groups, and persisted
+  outputs. Distinguish them with labels, geometry, and texture as well as color.
+- Let each stage arrange those elements according to its actual transformation.
+  Equal desktop card dimensions and identical internal anatomy are not required.
+  Use wide space for inputs, outcomes, and relationships; do not reserve a permanent
+  empty inspector column.
+- Arrows show data movement and direction. Show scheduling and completion gates
+  separately from data inputs. Label a relationship when its meaning would otherwise
+  be ambiguous; avoid captions that merely repeat adjacent station titles.
+- Avoid a canvas grid, pan/zoom, dragging, minimap, workflow editor, or decorative
+  animation. A station may animate its active connector once on selection; respect
+  reduced motion.
+- Preserve persisted run accounting and state, including partial, failed, cancelled,
+  and interrupted outcomes. Pending or unavailable accounting is not a measured
+  zero. Label illustrative contracts and examples, current configuration, and
+  persisted run data separately. Do not present current configuration as the
+  historical request of an old run without evidence.
 
-## Outline loop
+## The route and its eight compositions
 
-Represent the outline operation as one responsive inline-SVG loop:
+The route runs Source → Outline → Sections → Chunks → Evidence → Findings, then
+Facts, then Evaluate. Facts starts only after Findings is sealed. It fetches an
+independent SEC dataset using filing identity; finding values do not create facts.
+Evaluate alone consumes both findings and facts. Keep Facts physically below
+Evaluate and draw its **data** input upward. Show the Findings-complete **scheduling**
+gate to Facts separately; the Findings-to-Evaluate data input points downward.
+Only Evaluate is a comparison merge. Screen position does not imply that Facts
+runs concurrently with Findings.
 
-`Window → Propose → Validate → Reconcile → next Window`
+| Stage | Open explanation composition | Essential meaning before interaction |
+| --- | --- | --- |
+| Source | Acquisition document → visible-text conversion → numbered canonical lines and retained source. | Downstream work uses addressable visible lines; hidden XBRL metadata is excluded. |
+| Outline | Canonical source strip with overlapping windows; a per-window proposal, validation, and continuation loop; a distinct exit to final whole-document partition. | Generated topics are navigation metadata, not source text. A validated continuation is not yet a persisted section. |
+| Sections | Visible outline-descriptor stack → provider score vectors → deterministic policy gate → selected, uncertain, and skipped groups. | Scores rank retrieval relevance; only selected sections continue. |
+| Chunks | Selected section as a line-addressed band → adjacent core ranges with separate preceding-context bands and neighbor links. | Core ranges own source coverage; overlap repeats context without becoming new coverage. |
+| Evidence | Chunk and target tiles → score vectors → bounded retained set, with separate uncertain and skipped groups. | Coverage, diversity, deduplication, and budgets govern what continues. |
+| Findings | Evidence and navigation inputs → bounded request → proposal validation, conditional repair/rejection, deduplication, type classification, sealed output. | Every published citation and amount passes validation; uncertainty remains visible; extraction and classification are distinct model roles. |
+| Facts | Findings-complete gate plus filing identity → independent SEC dataset → configured concept mapping → normalized fact rows and alternatives. | The gate controls timing; findings do not supply normalization values. |
+| Evaluate | Findings and Facts enter a paired comparison → deterministic outcomes; eligible mismatches may visit optional bounded scale/unit verification before recording. | Exact and ineligible outcomes bypass the model; verification does not repair discovery. |
 
-- Draw an unambiguous return arrow from Reconcile to Window.
-- Use arrows to make every handoff and the return path unambiguous. Keep payload detail in the
-  adjacent station and inspector rather than repeating it over connector lines.
-- Each station has a number, title, clear one-line description, and a concrete description of its output.
-- Preserve the loop in a vertical reading layout on narrow screens. Do not make labels illegible by simply shrinking the SVG.
-- Never introduce a canvas grid, pan/zoom controls, draggable nodes, minimap, side-panel workflow editor, or graph/workflow dependency for this page.
+Keep the stage compositions faithful to runtime branches. For example, Outline
+validates and carries accepted proposals between windows, then deduplicates and
+partitions the entire document *after* the window loop. Its return arrow goes to
+the next window; a separate finalization exit leads to persisted sections. Missing
+boundaries may produce warned unlabeled coverage. Findings repair is conditional
+and bounded, and its candidate replacement semantics must match the service.
+Sections and Evidence selection must visibly distinguish selected, uncertain, and
+skipped outcomes. Evaluate must show a direct bypass around optional verification.
 
-## Station content
+## Station content and inspection
 
-Station content should explain data movement, not repeat generic labels. Prefer this pattern:
+An explanation region should state representative **accepts**, **does**, and
+**outputs** in plain language. Keep concrete transformations, important rejection
+paths, and output identity visible without interaction. Use bounded illustrations
+where complete run data would overwhelm the page, and label them as illustrations.
+Do not show empty placeholder objects or zero counters for unavailable artifacts.
 
-- **Accepts**: representative incoming data.
-- **Does**: the transformation, including the mechanism when useful.
-- **Outputs**: representative outgoing data or payload shape.
+Selecting a station keeps its diagram in place and opens the corresponding inspector
+in one action. On wide screens, place inspection material beside the relevant
+composition when space allows; on narrow screens, stack it beneath. The inspector
+shows the contracts, instructions, effective settings, provenance, source links,
+and policy that matter at that station. It is not a second workflow interface.
+Keep long text wrapped and structured payloads full width, with bounded vertical
+scrolling. Do not squeeze JSON into a definition-list cell or narrow card.
 
-For Propose specifically:
+The backend owns inspection content:
 
-- It accepts a bounded canonical line window plus prior reconciled context.
-- It sends that bounded source material and continuation metadata to the configured LLM with a navigation-only request.
-- It returns navigation proposals, such as a title and source-bounded start/end line range.
-- Keep the explanation wrapped and give the card enough height; never clip long SVG text.
+- Runtime domain classes own fields, types, constraints, and JSON serialization.
+  Reuse actual classes such as `SourceRange`, `TextChunk`, `Finding`, and
+  `FactComparison`; do not copy their fields into JavaScript or a UI-only model.
+- Service request and policy builders own prompts, questions, effective settings,
+  selection rules, and eligibility. Build safe illustrative requests through those
+  same builders without provider I/O. Show the instruction, meaningful user input,
+  and returned object, not transport details such as `json_object`.
+- A small presentation envelope may identify a stage/station, schema or instance,
+  input/output references, availability, provenance, and optional request/policy
+  sections. Separate schema from a validated illustrative instance and from
+  persisted run data. Generic rendering handles safe fields not emphasized in a
+  stage composition.
+- Expose only explicitly chosen public contracts or bounded projections. Do not
+  serialize arbitrary settings, secrets, or unbounded source payloads. Contract
+  changes can propagate through schemas and renderers, but changed business logic
+  or a new branch still needs an editorial update.
 
-## Station inspector and contract ownership
+For Outline specifically, the Window inspector shows prior continuation and
+effective window/overlap behavior; Propose shows the shared system instruction,
+safe user prompt, and returned proposal contract; Validate shows exact source-match
+checks and rejection diagnostics; Reconcile shows accepted/rejected proposals,
+overlap ownership, continuation, and the distinct final partition. Selecting
+Propose opens its provider request directly. Apply the same builder ownership to
+Sections, Evidence, Findings, and Evaluate. Deterministic Source, Chunks, and Facts
+must not imply provider calls.
 
-The side rail is a station inspector, not a second workflow UI. Selecting any station keeps
-the loop in place and shows the logic that matters for that station:
+## Responsive and accessible reading
 
-- **Window**: prior continuation metadata, configured window/overlap/step behavior, and the
-  resulting bounded source window.
-- **Propose**: the actual LLM system prompt, safe user-prompt template, and returned object
-  contract.
-- **Validate**: the proposal shape, exact source-match checks, accepted output, and rejected
-  diagnostics.
-- **Reconcile**: accepted/rejected inputs, overlap ownership, persisted outline sections, and
-  continuation context for the next window.
+At wide widths, use the available width to make the source transformation, loop,
+branch, range partition, and comparison legible. At approximately tablet and phone
+widths, preserve the same meaningful order and connectors by reflowing compositions,
+not by shrinking a desktop SVG until text is illegible. Outline keeps a responsive
+inline-SVG loop with a complete visible return path and separate finalization exit.
+Facts remains below Evaluate with an understandable upward data relationship.
 
-Payload shapes, representative JSON, and configuration-dependent values shown in the inspector
-must be generated by the backend from the same typed contracts and settings used by the pipeline.
-Do not duplicate field lists, JSON examples, line-window settings, or response contracts in
-JavaScript. The browser may format server-supplied inspection data, but it must not define a
-parallel presentation model. When an outline contract changes, update the backend contract and
-the inspector output together; the UI should receive the new shape without a frontend schema edit.
+Keep essential text in the document reading order. Station controls are keyboard
+reachable, have useful accessible names and visible focus, and expose selected
+state. Pointer, touch, and keyboard selection open the same inspection. Hover and
+focus may highlight a station and its connectors, but primary content does not
+depend on them. Connector and state contrast must remain sufficient, and flow
+animation is disabled under `prefers-reduced-motion`. The page must still explain
+the main route with JavaScript disabled and at 200% zoom.
 
-Apply this ownership rule to every provider-backed stage, not only Outline. For example, a
-retrieval-scoring inspector should show the backend-defined visible-input model, the actual
-provider request and score questions, and the configured deterministic selection policy.
+## Relationship to earlier plans
 
-## Interaction
-
-- Hover and focus may highlight a station and its incoming/outgoing connectors.
-- Avoid black floating tooltips for primary content.
-- Avoid card-replacement or collapse behavior. Keep explanatory station content open and stable.
-- A click/tap may animate only the active connector once, subtly, to communicate direction. Respect `prefers-reduced-motion`.
-- Selecting a station opens its corresponding side-rail inspector automatically. It should not
-  require a second click on a secondary label. Selecting Propose specifically opens the LLM Request panel.
-
-## Side-rail inspector
-
-On wide screens, show inspection material beside the loop rather than below it. On narrow screens, stack it beneath the loop.
-
-The Propose view should show values that are sourced from the same application variables used for the actual request:
-
-- System prompt.
-- User prompt template, with safe placeholders for window-specific filing lines and continuation context.
-- The returned object contract, formatted as readable JSON. Show the `sections` array and representative section fields rather than transport implementation metadata.
-
-Do not show “Tools: none” or `json_object` response-format implementation details. Readers care about the object the model returns, not the provider transport setting.
-
-## Layout and growth
-
-- The pipeline workspace may use a wider content width than ordinary pages.
-- On wide screens, use a main loop column and an information side rail; collapse to one column below the layout breakpoint.
-- Leave room to increase station-card height and for wrapped text. Prefer growing a card over clipping or reducing type size.
-- Reuse the existing muted blue/teal visual language, borders, and typography.
-- Render structured payloads as full-width, wrapped code blocks inside the inspector. Never squeeze
-  JSON into a definition-list cell or a narrow card column; contain tall values with a sensible
-  maximum height and scrolling.
-
-## Accessibility
-
-- Station controls must be keyboard reachable and have useful accessible names.
-- Connector and station state must have sufficient visual contrast.
-- Keep essential explanatory text visible without hover, focus, or click.
-- Disable flow animation under reduced-motion preferences.
+This brief supersedes the equal-size desktop cards, same-card anatomy, permanently
+adjacent inspector rail, and literal four-station `Window → Propose → Validate →
+Reconcile → Window` interpretation in the earlier
+[reorganization plan](UI_PIPELINE_REORGANIZATION_PLAN.md) and this brief's previous
+version. Those rules document the T39–T47 implementation history, not the target
+composition for T48–T60. Preserve their useful shared colors, stage navigation,
+status/accessibility behavior, selected-stage routes, and the Facts-below-Evaluate
+spatial contract. The [review](PIPELINE_IMPLEMENTATION_REVIEW.md) explains the
+observed gaps; [follow-up tasks](PIPELINE_IMPROVEMENT_TASKS.md) bound implementation.

@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T41 — Outline card: canonical lines to validated navigation ranges.** (**DONE**).
-- Next work: **T42 — Sections card: visible outline descriptors to Jev relevance scores.**
+- Current task: **T48 — Align the durable pipeline page brief.** (**DONE**).
+- Next work: **T49 — Repair live progress and accounting truthfulness.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,6 +18,33 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T48 local acceptance and handoff
+
+- Updated [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) as the active visual
+  and interaction contract. It now names eight different stage compositions,
+  shared visual tokens and inspection behavior, desktop/mobile intent, essential
+  no-interaction content, runtime ownership of models and prompts, accounting
+  provenance, and replay exclusions. The Outline loop carries per-window
+  continuation and exits separately to whole-document partitioning. Facts remains
+  below Evaluate with an upward data input; a distinct Findings-complete gate
+  controls its later acquisition.
+- Marked [UI_PIPELINE_REORGANIZATION_PLAN.md](UI_PIPELINE_REORGANIZATION_PLAN.md)
+  as T39–T47 history. Its equal desktop card size, identical anatomy, and fixed
+  inspector placement no longer govern T48–T60. Updated task cross-references.
+- Inspected the documentation scope and review before editing. No application
+  files, tests, provider calls, or stored runs were changed. T48 explicitly
+  requires no application test or screenshot. `git diff --check` passed.
+  `uv run ruff check .` ran but reported the pre-existing import order in
+  `src/profitlab/web/app.py` (the `chunk_scoring`/`chunking` imports); T48 did
+  not alter that file. No focused test duration applies to this documentation-only
+  task.
+- Manual handoff: read the eight-row composition table in the brief and confirm
+  that Source→Findings, the Findings-complete Facts gate, the upward Facts data
+  input, and the single Evaluate merge are unambiguous. Browser visual
+  verification belongs to the later UI implementation tasks, not T48.
+- Next: **T49 — Repair live progress and accounting truthfulness**. Its UI
+  handoff must record live visual verification or explicitly leave it pending.
 
 ## T35 decision record
 
