@@ -156,11 +156,9 @@ def test_outline_card_uses_request_prompt_template_and_persisted_outcome(tmp_pat
     assert '1970 canonical lines · 3 windows' in overview.text
     assert '2 requests · 1 cached batch reused' in overview.text
     assert '3 ranges stored · 2 proposals rejected' in overview.text
-    # The page comes from the same template that _prompt fills before the API call;
-    # only dynamic filing values are replaced with deliberately safe placeholders.
+    # The page shows a request constructed by the runtime builder from illustrative lines.
     assert 'Return JSON only: {&#34;sections&#34;:[...]}' in overview.text
-    assert '[prior validated navigation metadata]' in overview.text
-    assert '[numbered canonical filing lines for this window]' in overview.text
+    assert '1: Illustrative visible filing line.' in overview.text
     assert OutlineService.prompt_view().startswith('Return JSON only: {"sections":[...]}')
     outline_start = overview.text.index('data-outline-card')
     sections_start = overview.text.index('data-stage-card="section_score"')

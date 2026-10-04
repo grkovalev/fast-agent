@@ -4,10 +4,12 @@ import json
 import re
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import date
+from decimal import Decimal
 
 from profitlab.providers.jev import JevRequest, NoulQuestion
 
-from .contracts import FactComparison, Finding, StructuredFact
+from .contracts import FactComparison, Finding, SourceRange, StructuredFact
 from .section_scoring import SectionScoringService
 
 # This application-owned mapping is intentionally used only after discovery is
@@ -192,6 +194,21 @@ class EvaluationService:
         the browser to recreate comparison rules or provider configuration.
         """
         summary = summary or {}
+        finding = Finding(
+            finding_id='illustrative-finding', exact_quote='Illustrative net income was 100.',
+            source_range=SourceRange(document_id='illustrative-document',
+                                     source_hash='0' * 64, start_line=1, end_line=1),
+            amount=Decimal(100), source_chunk_id='illustrative-chunk',
+            finding_type='annual_profit', period='2025', validation_state='validated')
+        fact = StructuredFact(
+            fact_id='illustrative-fact', concept='IllustrativeConcept',
+            metric='net_income_consolidated', value=Decimal(100000), unit='USD',
+            period_end=date(2025, 12, 31), accession='illustrative-accession',
+            form='10-K', filed_date=date(2026, 2, 1))
+        request = cls(settings, object())._request(finding, fact, {
+            'declared_core_evidence_line': {'line_number': 1,
+                                            'text': 'Illustrative net income was 100.'},
+            'retained_chunk_core_lines': [], 'retained_context_lines': []})
         return {
             'structured_facts': summary.get('structured_facts_considered', 0),
             'published_findings': finding_count,
@@ -217,10 +234,12 @@ class EvaluationService:
                 'outputs': {'scale_aware_verdict': 'confirmed equivalence or rejected'},
                 'guarantee': 'No conversion, attribution, or scale is inferred; the bounded verdict does not alter either value.',
                 'request': {
-                    'model': settings.typesafe_model,
+                    'kind': 'illustrative request built with current configuration',
+                    'prompt_version': settings.evaluation_scale_prompt_version,
                     'maximum_pairs': settings.evaluation_scale_max_pairs,
                     'request_character_budget': settings.evaluation_scale_request_char_budget,
-                    'rule': 'Visible context must explicitly prove the same annual metric and value.',
+                    'enabled': settings.evaluation_scale_max_pairs > 0,
+                    **request.model_dump(mode='json'),
                 },
             },
             'record': {

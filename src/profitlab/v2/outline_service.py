@@ -7,7 +7,13 @@ import httpx
 from openai import AsyncOpenAI
 
 from .canonical import CanonicalDocument, CanonicalLine
-from .contracts import OutlineContinuation, OutlineProposal, OutlineSection, SourceRange
+from .contracts import (
+    CanonicalDocumentRef,
+    OutlineContinuation,
+    OutlineProposal,
+    OutlineSection,
+    SourceRange,
+)
 
 
 @dataclass(frozen=True)
@@ -80,17 +86,30 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
 
     @classmethod
     def prompt_view(cls) -> str:
-        """A safe rendering of the exact request template used by ``_prompt``."""
-        return cls._prompt_template().replace(
-            '{continuation}', '[prior validated navigation metadata]'
-        ).replace('{lines}', '[numbered canonical filing lines for this window]')
+        """The user message built for a validated illustrative source window."""
+        return cls._messages(cls._inspection_document(), 1, 1, [])[1]['content']
+
+    @staticmethod
+    def _inspection_document() -> CanonicalDocument:
+        return CanonicalDocument(ref=CanonicalDocumentRef(
+            document_id='illustrative-document', filing_id='illustrative-filing',
+            source_hash='0' * 64, line_count=1), lines=[CanonicalLine(
+                line_number=1, text='Illustrative visible filing line.',
+                element_type='paragraph', html_anchor='line-1',
+                dom_reference='/html/body/p[1]')])
+
+    @classmethod
+    def _messages(cls, document, start, end, continuation):
+        return [{'role': 'system', 'content': cls.system_prompt},
+                {'role': 'user', 'content': cls._prompt(document, start, end, continuation)}]
 
     @staticmethod
     def _example_proposal() -> OutlineProposal:
         return OutlineProposal(
-            generated_topic='Revenue', exact_source_title='Revenue', start_line=912,
-            end_line=948, exact_representative_quote='…', section_type='child',
-            parent_topic_hint='Results', continues_previous=False,
+            generated_topic='Illustrative topic', exact_source_title=None, start_line=1,
+            end_line=1, exact_representative_quote='Illustrative visible filing line.',
+            section_type='child', parent_topic_hint='Illustrative parent',
+            continues_previous=False,
         )
 
     @classmethod
@@ -120,6 +139,13 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
         )
         window_end = settings.outline_window_lines
         return {
+            'propose': {
+                'request': {'kind': 'illustrative request built with current configuration',
+                            'model': settings.outline_model,
+                            'prompt_version': settings.outline_prompt_version,
+                            'messages': cls._messages(cls._inspection_document(), 1, 1, [])},
+                'outputs': {'sections': [proposal.model_dump(mode='json')]},
+            },
             'window': {
                 'accepts': {
                     'prior_context': [continuation.model_dump()],
@@ -177,8 +203,7 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
                           api_key=self.settings.llm_api_key.get_secret_value(),
                           max_retries=0, http_client=client)
         response = await sdk.chat.completions.create(model=self.settings.outline_model,
-            messages=[{'role': 'system', 'content': self.system_prompt},
-                      {'role': 'user', 'content': self._prompt(document, start, end, continuation)}],
+            messages=self._messages(document, start, end, continuation),
             response_format={'type': 'json_object'})
         content = response.choices[0].message.content or '{}'
         parsed = json.loads(content)

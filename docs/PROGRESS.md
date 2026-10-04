@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T50 — Make contract inspection derive from runtime models.** (**DONE; manual visual verification pending**).
-- Next work: **T51 — Reuse real prompt and request builders.**
+- Current task: **T51 — Reuse real prompt and request builders.** (**DONE; manual visual verification pending**).
+- Next work: **T52 — Share rendering and interaction without imposing one diagram.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,6 +18,46 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T51 local acceptance and handoff
+
+- Outline's displayed user instruction and system message now come from the same
+  message builder as its live Chat Completions call. Its illustrative response is a
+  validated `OutlineProposal` matching the illustrative canonical line.
+- Sections and Evidence inspectors call their actual `JevRequest` builders, so
+  state, target questions, and configured model come from runtime code. Findings
+  uses its live message builder for illustrative initial and conditional repair
+  requests. Its type-classification inspector uses the live classification request
+  builder, including finite questions and the visible-only rule. Evaluate's
+  inspector builds a typed illustrative finding/fact pair through the scale request
+  builder, including the exact question, rule, Decimal strings, and whether the
+  configured pair limit enables the optional call.
+- Every example is labeled as an illustrative request under current configuration;
+  configured prompt versions and model names are shown separately from persisted
+  run summaries and sanitized traces. No provider I/O, credentials, new dependencies,
+  replay, or backend policy changes were introduced. Source, Chunks, and Facts
+  remain deterministic stages without implied model requests.
+- Inspected the existing T50 schema/render tests and older Outline UI gate before
+  editing. Updated one obsolete placeholder assertion to reflect the builder-made
+  illustrative input; no tests were removed. New T51 gate verifies request parity,
+  Outline example validation, repair branch, classification, exact evaluation
+  amounts, rendered overview content, and credential exclusion.
+- Checks: `.venv/bin/pytest -q tests/task_gates/test_t51_request_inspection.py`
+  passed in 0.67s (2 tests); the final `.venv/bin/pytest -q` passed in 2.34s
+  (33 tests). `uv run ruff check .` passed after sandbox cache access approval;
+  `.venv/bin/ruff check .` and `git diff --check` passed after the final edit.
+- No live provider or SEC smoke check was attempted: this task constructs safe
+  illustrative requests and changes no transport behavior. No run storage was
+  opened outside isolated test fixtures.
+- Manual visual verification remains pending. In the already-running UI, open
+  `/v2/runs/<run_id>/pipeline`, select Outline Propose, Sections Score,
+  Evidence Score, Findings Propose and Classify, and Evaluate Verify. Compare each
+  shown instruction/question to its configured builder, confirm initial versus
+  repair and classification requests, and confirm long messages wrap within the
+  inspector at wide and phone widths. The labels should identify current
+  configuration and illustrative inputs; the historical trace link should remain
+  separate. No browser automation was run under the task policy.
+- Next: **T52 — Share rendering and interaction without imposing one diagram.**
 
 ## T50 local acceptance and handoff
 
