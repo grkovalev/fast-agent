@@ -6,20 +6,22 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: none. **T61 is DONE**: selected SEC facts retain separate statement
-  presentation provenance, with matched/ambiguous/missing/retrieval-failed states.
-  Automated checks and real SEC acquisition passed; manual T61 UI review is pending.
-  **T60 is DONE** with the earlier user-confirmed verification.
+- Current task: none. **T62 is DONE**: selected SEC facts retain verified visible
+  canonical-line mappings from retained Inline XBRL, separate from comparator values.
+  Automated gates and live primary-HTML acquisition passed; manual T62 UI review is
+  pending. T61 manual review also remains pending. **T60 is DONE** with earlier
+  user-confirmed verification.
 - UI documentation: the durable decisions and logic-change review rule are in
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next planned work: **T62**, followed by T63–T64 in the
-  [task register](PIPELINE_IMPROVEMENT_TASKS.md). Exact canonical fact-line mapping
-  and evaluation fact-source panels are not implemented.
-- Latest automated checks: full Python suite passed (54 tests in 5.06s), repository
-  lint and whitespace checks passed. T61 manual visual review and reviewed-case
-  benchmark verification remain pending. Earlier T60 verification does not cover T61.
+- Next planned work: **T63**, followed by T64 in the
+  [task register](PIPELINE_IMPROVEMENT_TASKS.md). Evaluation-card fact-source panels
+  are not implemented; saved mappings are inspectable from the Facts stage.
+- Latest automated checks: full Python suite passed (57 tests in 9.39s), repository
+  lint, whitespace, and focused JavaScript checks passed. T61/T62 manual visual review
+  and reviewed-case benchmark verification remain pending. T60 verification does not
+  cover T61/T62.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -36,14 +38,84 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and the [task register](PIPELINE_IMPROVEMENT_TASKS.md).
-T61 is complete; on the next request start **T62**, mark it IN_PROGRESS, and follow
-the execution policy. Preserve the Findings saved-step diagnostics and CSV request
-representation. Keep `StructuredFact` and verification payloads unchanged: T61
-provenance lives in separate `FactPresentation` diagnostics keyed by stable fact IDs.
-SEC PRE rows are concept presentations, not canonical lines or proven numeric-cell
-locations. T62 must verify retained raw HTML against canonical source and may map
-Inline XBRL even when PRE is missing (including the real MSFT EPS unit mismatch).
-Do not start T62 automatically or delete user data.
+T62 is complete; on the next request start **T63**, mark it IN_PROGRESS, and follow
+the execution policy. Preserve Findings saved-step diagnostics and CSV requests.
+Keep `StructuredFact` and verification payloads unchanged: statement provenance and
+`FactSourceMapping` remain separate diagnostics keyed by stable fact IDs. The mapper
+runs after Findings, checks exact Inline context/unit/Decimal semantics and retained
+source agreement, and preserves canonical numbering/anchors. PRE rows remain
+supporting concept presentations, not canonical lines or proven numeric-cell locations.
+T63 should load saved mappings by linked fact ID, including cross-page comparators;
+never recompute or fetch provenance on page render. Do not start T63 automatically
+or delete user data.
+
+## T62 — Verified canonical fact-source mapping — completed, 2026-10-13
+
+- Added runtime-owned `FactSourceLocation`/`FactSourceMapping`, separate diagnostic
+  persistence and bounded readers. No schema migration or user-data deletion. Each
+  location retains fact ID, `SourceRange`/hash, exact row quote/anchor, raw occurrence
+  and sanitized cell locators, Inline identity/context, entity/period/unit, display
+  text/Decimal, format namespace, sign/scale, transformed Decimal and nearby visible
+  headers. Supporting PRE references are explicitly separate from cell coordinates.
+- After Findings seals and Company Facts values are checkpointed, presentation
+  enrichment is followed by retained-HTML mapping. Missing PRE (including MSFT EPS)
+  does not block mapping. Unknown numeric transforms, numeric continuations,
+  dimensional contexts, hidden occurrences, overflow, and source disagreement cannot
+  manufacture visible links. Verified, ambiguous, hidden-only and unavailable states
+  persist diagnostics. Expected enrichment failures preserve comparators/evaluation.
+- Refactored the existing canonicalizer's transformation into a shared root helper.
+  Mapping uses surviving node identity across wrapper removal, then requires the
+  complete regenerated document and sanitized HTML to equal retained artifacts and
+  verifies each visible numeric cell. Canonical numbering/text/hashes/anchors remain
+  unchanged. No source/provenance metadata is added to discovery or verification
+  provider requests; focused checks compare request payloads before/after enrichment.
+- Reviewed affected Source/Facts/Evaluate control paths. Updated Facts Enrich/Store
+  inspectors, initial Facts composition, saved status/count links and the design brief.
+  The separate mapping details page paginates 20 locations and exposes exact anchors,
+  quotes, context and transformations without SEC/provider I/O. Source acquisition
+  and Evaluate semantics remain unchanged; evaluation-card source panels are T63.
+- Real SEC acquisition: configured contact client downloaded the full MSFT 2024
+  primary HTML (6,861,029 bytes) on 2026-10-13. Stored unchanged in deterministic gzip
+  under `tests/fixtures/t62`; URL, retrieval timestamp and decompressed SHA-256 are
+  in `provenance.json`: `b0b8883d10c9b4eeb4102aa0ce9ea66a30cccf76b0d1d1920864e23ae11c7e6b`.
+  Same-accession Company Facts/SUB/NUM/PRE fixtures are retained from T61.
+- Saved-real-data coverage: eight 2024 occurrences (net income lines 826/840/902/1102,
+  EPS 829/1108, diluted shares 832/1105), scales 6/0/6, repeated statements and 2023
+  comparative cells with distinct contexts/cell locators on the same rows. Each quote,
+  period/unit/entity/value/anchor is verified. Negative comma-decimal/sign, hidden,
+  invalid continuation/format, dimensions, source tampering and overflow use controlled
+  test cases and are not claimed as real SEC observations.
+- Tests inspected: T61 presentation, T59 Facts/Evaluate, T34 source and request-builder
+  checks. Kept their distinct coverage; adjusted T61's persisted-action expectation
+  for separate mappings and asserted unavailable state where its fixture intentionally
+  lacks retained primary HTML. Added three focused invariant/integration tests; no
+  obsolete tests were found or removed.
+- Checks: initial focused baseline `uv run pytest tests/task_gates/test_t61_presentation.py
+  tests/task_gates/test_t59_facts_evaluate.py tests/task_gates/test_t34.py -q` — 9 passed
+  in 1.45s. T62+T61 focused gate — 7 passed in 4.62s; expanded T62 request/comparative
+  gate — 3 passed in 4.16s. Final full `uv run pytest -q` — 57 passed in 9.39s.
+  `uv run ruff check .` and `git diff --check` passed. `node --test
+  tests/task_gates/test_t52_inspector.cjs tests/task_gates/test_t49_progress.cjs` — 2
+  passed, 200ms. Existing Starlette/AnyIO deprecation warning remains.
+- Live scope: SEC primary-filing acquisition succeeded. Mapping/evaluation validation
+  used saved real data in isolated test storage. No live LLM/Jev calls or full live
+  pipeline run were attempted. No second server was started against user storage.
+- Limits: mapper supports recognized dot/comma decimal and zero transformation
+  registries, not arbitrary XBRL processors, external taxonomies, continuation-based
+  numeric reconstruction or separate reports as primary-filing lines. Nearby header
+  rows are visible inspection context; exact period/unit come from Inline metadata.
+  Caps: 50 MB raw HTML, 100,000 occurrences, 1,000 locations/fact, 4 MB run projection.
+  Unsupported/over-limit provenance stays explicit. Only one real company is covered
+  here; two-company end-to-end source debugging acceptance remains T64.
+- **Manual T62 review pending:** in the already-running UI create a fresh MSFT run,
+  wait for Facts, open `/v2/runs/<run_id>/pipeline?stage=facts`, select Enrich and Store,
+  and follow **Inspect saved canonical source mapping** for income/EPS/shares. Confirm
+  repeated occurrences, quoted numeric cells, periods/scales, and **Open fact source**
+  anchors resolve to the right visible row. Review an older run's unavailable message.
+  Check wide/phone widths, keyboard, no JavaScript, and 200% zoom. No browser automation
+  or visual observations are claimed. Existing server prerequisite, if needed:
+  `uv run profitlab serve`.
+- Next task: **T63**; T64 and T61/T62 manual visual review remain open.
 
 ## T61 — SEC presentation provenance — completed, 2026-10-13
 
@@ -291,7 +363,7 @@ Do not start T62 automatically or delete user data.
   tests/task_gates/test_pipeline_ui_session1.py
   tests/task_gates/test_t53_pipeline_hierarchy.py` — 16 passed in 1.93s
   (2.18s wall time). The shared inspector/progress Node gates passed (2 tests).
-  `.venv/bin/ruff check .` and `git diff --check` passed. `uv run ruff check .`
+  `uv run ruff check .` and `git diff --check` passed. `uv run ruff check .`
   required outside-sandbox cache access; its first run identified test style
   issues, which were fixed and checked again with the local Ruff executable.
   All tests used isolated storage; no SEC or provider requests were made.
@@ -325,7 +397,7 @@ Do not start T62 automatically or delete user data.
   no tests were removed. Final checks: `.venv/bin/pytest -q` — 39 passed;
   `node --test tests/task_gates/test_t52_inspector.cjs
   tests/task_gates/test_t49_progress.cjs` — 2 passed;
-  `.venv/bin/ruff check .` and `git diff --check` passed. Tests used isolated
+  `uv run ruff check .` and `git diff --check` passed. Tests used isolated
   storage and made no SEC or provider requests.
 - Manual visual verification remains pending under the no-browser-automation
   policy. In an already-running UI, inspect `/v2/runs/<run_id>/pipeline` at wide,

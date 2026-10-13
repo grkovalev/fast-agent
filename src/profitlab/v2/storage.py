@@ -525,6 +525,15 @@ class V2Repository:
             raise FileNotFoundError(document_id)
         return bytes(row['visible_html'])
 
+    def raw_html(self, run_id: str, document_id: str) -> bytes:
+        """Retained original, only for post-Findings inspection enrichment."""
+        with self.connect() as db:
+            row = db.execute('SELECT raw_html FROM canonical_documents WHERE run_id=? '
+                             'AND document_id=?', (run_id, document_id)).fetchone()
+        if not row:
+            raise FileNotFoundError(document_id)
+        return bytes(row['raw_html'])
+
     def save_outline_sections(self, run_id: str, sections: list[OutlineSection]):
         self.get_run(run_id)
         with self.connect() as db:
@@ -775,6 +784,32 @@ class V2Repository:
                               f"AND stage='facts' AND action_id IN ({placeholders}) ORDER BY action_id",
                               (run_id, *ids)).fetchall()
         return [FactPresentation.model_validate(self._read_diagnostic_payload(row['payload']))
+                for row in rows]
+
+    def save_fact_source_mappings(self, run_id: str, mappings):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute("DELETE FROM exploration_actions WHERE run_id=? AND stage='facts' "
+                       "AND action_id LIKE 'fact-source-%'", (run_id,))
+            db.executemany('INSERT INTO exploration_actions (run_id, action_id, stage, sequence, payload) '
+                           'VALUES (?, ?, ?, ?, ?)', [
+                (run_id, f'fact-source-{item.fact_id}', 'facts', 20000 + position,
+                 self._diagnostic_payload(item.model_dump(mode='json')))
+                for position, item in enumerate(mappings)])
+
+    def fact_sources_for_ids(self, run_id: str, fact_ids: list[str]):
+        from .contracts import FactSourceMapping
+
+        ids = [f'fact-source-{item}' for item in dict.fromkeys(fact_ids)][:100]
+        if not ids:
+            return []
+        placeholders = ', '.join('?' for _ in ids)
+        with self.connect() as db:
+            rows = db.execute(f'SELECT payload FROM exploration_actions WHERE run_id=? '
+                              f"AND stage='facts' AND action_id IN ({placeholders}) ORDER BY action_id",
+                              (run_id, *ids)).fetchall()
+        return [FactSourceMapping.model_validate(self._read_diagnostic_payload(row['payload']))
                 for row in rows]
 
     def save_comparisons(self, run_id: str, comparisons):

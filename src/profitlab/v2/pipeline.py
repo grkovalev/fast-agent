@@ -61,6 +61,7 @@ class V2PipelineService:
         )
         return {name: str(getattr(self.settings, name)) for name in names} | {
             'fact_presentation_version': 'sec-pre-num-v1',
+            'fact_source_mapping_version': 'inline-visible-1',
         }
 
     async def run(self, run_id: str, delay: float = 0, *, implement_source: bool = False):

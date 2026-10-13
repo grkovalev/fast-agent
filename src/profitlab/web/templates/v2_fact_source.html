@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% block page_title %}Fact canonical source mapping{% endblock %}{% block content %}
+<p><a href="/v2/runs/{{ run_id }}/pipeline?stage=facts">← Facts stage</a></p>
+<section><p class="eyebrow">Saved inspection provenance</p><h2>Canonical fact source mapping</h2>
+<p><code>{{ fact_id }}</code> · {{ mapping.status | replace('_', ' ') if mapping else 'unavailable' }}</p>
+<p>Company Facts supplies the comparator. These retained Inline XBRL locations supply inspection only; SEC presentation rows remain separate. No SEC fetch or historical recomputation occurs here.</p>
+{% if mapping %}
+<p>Method {{ mapping.method }} · {{ mapping.locations | length }} verified visible occurrence(s)<br>Document <code>{{ mapping.document_id }}</code><br>Source hash <code>{{ mapping.source_hash }}</code></p>
+{% for diagnostic in mapping.diagnostics %}<p class="muted">{{ diagnostic }}</p>{% endfor %}
+{% for location in locations %}<article><h3>Canonical line {{ location.source_range.start_line }}</h3><blockquote>{{ location.quote }}</blockquote>
+<p><a href="/v2/runs/{{ run_id }}/source/{{ location.source_range.document_id }}/html#{{ location.html_anchor }}">Open fact source</a></p>
+<p>Visible cell: {{ location.cell_text }}<br>Period {{ location.period_start }} to {{ location.period_end }} · entity {{ location.entity_identifier }} · {{ location.unit }}<br>Display {{ location.display_text }} · scale 10^{{ location.scale }} · sign {{ location.sign or 'positive' }} · transformed Decimal {{ location.transformed_value }}</p>
+{% if location.header_context %}<details><summary>Nearby visible period and scale context</summary>{% for text in location.header_context %}<p>{{ text }}</p>{% endfor %}</details>{% endif %}
+<details><summary>Saved occurrence coordinates and transformation</summary><pre>{{ location.model_dump(mode='json') | tojson(indent=2) }}</pre></details></article>{% endfor %}
+{% if page > 1 %}<a href="?fact_id={{ fact_id }}&amp;page={{ page - 1 }}">Previous locations</a>{% endif %} {% if has_next %}<a href="?fact_id={{ fact_id }}&amp;page={{ page + 1 }}">Next locations</a>{% endif %}
+<p><a href="/v2/runs/{{ run_id }}/pipeline/facts/presentation">Separate saved SEC presentation references</a></p>
+{% else %}<p>No source mapping was saved for this fact. Historical runs remain unavailable until a new run saves provenance.</p>{% endif %}
+</section>{% endblock %}

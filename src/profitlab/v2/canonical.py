@@ -131,6 +131,14 @@ def canonicalize_html(raw_html: bytes, *, document_id: str, filing_id: str) -> t
         root = html.document_fromstring(raw_html)
     except (etree.ParserError, ValueError) as error:
         raise ValueError('Source is not a readable HTML document') from error
+    return _canonicalize_root(root, raw_html, document_id=document_id, filing_id=filing_id)
+
+
+def _canonicalize_root(root, raw_html: bytes, *, document_id: str, filing_id: str):
+    """Shared transformation; surviving node identity supports post-Findings provenance.
+
+    No provenance markers are inserted into the canonical source or HTML.
+    """
     _drop_invisible_and_xbrl(root)
     tree = root.getroottree()
     source_hash = hashlib.sha256(raw_html).hexdigest()

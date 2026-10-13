@@ -260,6 +260,44 @@ class FactPresentation(V2Contract):
     method: Literal['sec-pre-num-v1'] = 'sec-pre-num-v1'
 
 
+class FactSourceLocation(V2Contract):
+    """Verified visible occurrence; display metadata never supplies comparator values."""
+    fact_id: StableID
+    source_range: SourceRange
+    html_anchor: str
+    quote: str = Field(min_length=1, max_length=20000)
+    raw_dom_reference: str
+    cell_dom_reference: str | None = None
+    cell_text: str = Field(min_length=1, max_length=20000)
+    inline_id: str | None = None
+    concept_namespace: str
+    context_id: str
+    entity_identifier: str
+    period_start: date
+    period_end: date
+    unit: str
+    display_text: str = Field(min_length=1, max_length=1000)
+    format: str | None = None
+    format_namespace: str | None = None
+    sign: Literal['', '-'] = ''
+    scale: int = Field(ge=-100, le=100)
+    displayed_value: Decimal
+    transformed_value: Decimal
+    header_context: list[str] = Field(default_factory=list, max_length=12)
+
+
+class FactSourceMapping(V2Contract):
+    fact_id: StableID
+    status: Literal['verified', 'ambiguous', 'hidden_only', 'unavailable']
+    method: Literal['inline-visible-1'] = 'inline-visible-1'
+    document_id: StableID | None = None
+    source_hash: Hash | None = None
+    locations: list[FactSourceLocation] = Field(default_factory=list, max_length=1000)
+    # Supporting concept presentations, not an assertion that PRE identifies a cell.
+    presentation_references: list[StatementLocation] = Field(default_factory=list, max_length=10000)
+    diagnostics: list[str] = Field(default_factory=list, max_length=20)
+
+
 class FactComparison(V2Contract):
     comparison_id: StableID
     metric: str | None = None

@@ -117,7 +117,9 @@ def test_saved_facts_enrichment_and_reader_have_no_provider_or_render_io(tmp_pat
     persisted = repo.fact_presentations_for_ids(run.run_id, [fact.fact_id for fact in actual])
     assert {item.status for item in persisted} == {'matched', 'missing'}
     assert EvaluationService(settings, repo).compare(run.run_id) == baseline
-    assert len(repo.exploration_actions(run.run_id, 'facts')) == 4
+    assert len(repo.exploration_actions(run.run_id, 'facts')) == 7
+    assert all(item.status == 'unavailable' for item in repo.fact_sources_for_ids(
+        run.run_id, [fact.fact_id for fact in actual]))  # This HTTP fixture has no retained primary HTML.
     # Cache avoids new archive/index calls; enrichment remains separate from facts.
     PresentationService(settings, repo).enrich(run, actual)
     assert len(calls) == 3

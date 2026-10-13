@@ -58,7 +58,7 @@ runs concurrently with Findings.
 | Chunks | Selected section as a line-addressed band → adjacent core ranges with separate preceding-context bands and neighbor links. | Core ranges own source coverage; overlap repeats context without becoming new coverage. |
 | Evidence | Chunk and target tiles → score vectors → bounded retained set, with separate uncertain and skipped groups. | Coverage, diversity, deduplication, and budgets govern what continues. |
 | Findings | Evidence and navigation inputs → bounded request → proposal validation, conditional repair/rejection, deduplication, type classification, sealed output. | Every published citation and amount passes validation; uncertainty remains visible; extraction and classification are distinct model roles. |
-| Facts | Findings-complete gate plus filing identity → independent Company Facts → configured concept mapping and value checkpoint → bounded SEC presentation enrichment → normalized fact rows with separate statement diagnostics. | Company Facts supplies comparator values; optional presentation provenance cannot change them or block evaluation. |
+| Facts | Findings-complete gate plus filing identity → independent Company Facts → configured concept mapping and value checkpoint → bounded SEC presentation enrichment and retained-HTML source verification → normalized fact rows with separate provenance diagnostics. | Company Facts supplies comparator values; optional presentation provenance cannot change them or block evaluation. |
 | Evaluate | Findings and Facts enter a paired comparison → deterministic outcomes; eligible mismatches may visit optional bounded scale/unit verification before recording. | Exact and ineligible outcomes bypass the model; verification does not repair discovery. |
 
 Keep the stage compositions faithful to runtime branches. For example, Outline
@@ -148,7 +148,7 @@ Propose opens its provider request directly. Apply the same builder ownership to
 Sections, Evidence, Findings, and Evaluate. Deterministic Source, Chunks, and Facts
 must not imply provider calls.
 
-## Fact presentation provenance and planned exact source inspection
+## Fact presentation provenance and verified source inspection
 
 T61 retains SEC statement provenance separately from Company Facts comparator
 values. The Facts composition adds an Enrich station after normalization, which
@@ -175,16 +175,43 @@ USD versus Company Facts USD/shares). PRE does not associate each report row wit
 a specific numeric cell/context; retain all matching concept presentations as
 supporting provenance, not verified visible fact occurrences.
 
+T62 adds a separate `FactSourceMapping` keyed by stable fact ID after presentation
+enrichment. It reads retained original HTML without another SEC request, checks
+Inline XBRL concept namespace, consolidated dimensionless entity, exact start/end
+period, literal unit, and exact transformed Decimal. The bounded dot/comma-decimal
+and zero transforms record format namespace, sign, scale, display text, and value.
+Unsupported transformations or numeric continuation attributes remain unresolved.
+
+Before sanitization the mapper retains surviving line/cell node identity; the shared
+canonicalizer then regenerates the complete canonical document and sanitized HTML.
+Both must equal the retained artifacts byte/text-for-text, including the raw source
+hash. It verifies the visible numeric cell against its canonical quote and records
+a `SourceRange`, line anchor, raw occurrence path, sanitized cell path, and nearby
+visible period/scale rows. Hidden exact occurrences never receive visible links.
+All verified repeated occurrences remain separate. Missing PRE does not prevent an
+Inline match; PRE references remain supporting concept presentations rather than
+numeric-cell coordinates.
+
+Limits are 50 MB retained HTML, 100,000 scanned Inline numeric occurrences, 1,000
+locations per fact, and 4 MB for the run projection. A limit or source disagreement
+produces diagnostics rather than a claimed partial index. Status is verified,
+ambiguous, hidden-only, or unavailable. The Facts Enrich/Store explanations now
+include this second inspection step. Selected Facts rows show saved mapping status
+and occurrence count; a separate saved-mapping page shows 20 locations per page,
+quotes, exact source links, transformation details and visible header context.
+Historical runs without saved mappings remain unavailable. Rendering never rebuilds
+an index or retrieves SEC data.
+
 The user requested verified fact source lines in evaluation results for debugging;
-[T62–T64](PIPELINE_IMPROVEMENT_TASKS.md) track the remaining mapping and UI work.
-Canonical fact-line links are not implemented. An evaluation comparator should expose its visible filing row,
+[T63–T64](PIPELINE_IMPROVEMENT_TASKS.md) track the remaining evaluation/Facts panels
+and real-filing acceptance. Evaluation cards do not yet expose these saved mappings. An evaluation comparator should expose its visible filing row,
 canonical line/range, period and scale context, and an exact sanitized-source link
 beside the existing finding citation details. The selected Facts stage should expose
 the same saved provenance. Keep SEC statement/report/presentation row numbers
 distinct from canonical filing line numbers, and retain multiple occurrences when
 applicable. Ambiguous, hidden-only, and unavailable mappings need explicit reasons.
 
-Presentation enrichment and the planned exact-source mapping run after Findings is sealed and serve inspection only.
+Presentation enrichment and exact-source mapping run after Findings is sealed and serve inspection only.
 Company Facts remains the independent comparator-value source; source-location
 metadata must not change discovery inputs, fact selection, comparison outcomes,
 or scale/unit verification requests. Page rendering reads saved provenance and

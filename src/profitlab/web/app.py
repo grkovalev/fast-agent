@@ -415,6 +415,12 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             run_id, [item.fact_id for item in result['structured_facts']]) if stage == 'facts' else []
         result['fact_presentations'] = {item.fact_id: item.model_dump(mode='json')
                                       for item in presentations}
+        sources = pipeline.repo.fact_sources_for_ids(
+            run_id, [item.fact_id for item in result['structured_facts']]) if stage == 'facts' else []
+        result['fact_sources'] = {item.fact_id: {
+            'status': item.status, 'location_count': len(item.locations),
+            'method': item.method,
+        } for item in sources}
         examples = {}
         for model, items in (
             (CanonicalDocumentRef, canonical_refs), (OutlineSection, outline),
@@ -511,6 +517,22 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             raise HTTPException(404, 'V2 run not found') from None
         return templates.TemplateResponse(request=request, name='v2_fact_presentation.html', context={
             'run_id': run_id, 'actions': pipeline.repo.exploration_actions(run_id, 'facts', limit=100)})
+
+    @app.get('/v2/runs/{run_id}/pipeline/facts/source')
+    def fact_source_details(request: Request, run_id: str, fact_id: str, page: int = 1):
+        if page < 1:
+            raise HTTPException(400, 'Page must be positive')
+        try:
+            pipeline.repo.get_run(run_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V2 run not found') from None
+        mappings = pipeline.repo.fact_sources_for_ids(run_id, [fact_id])
+        mapping = mappings[0] if mappings else None
+        start = (page - 1) * 20
+        return templates.TemplateResponse(request=request, name='v2_fact_source.html', context={
+            'run_id': run_id, 'fact_id': fact_id, 'mapping': mapping,
+            'locations': mapping.locations[start:start + 20] if mapping else [],
+            'page': page, 'has_next': bool(mapping and start + 20 < len(mapping.locations))})
 
     @app.get('/v2/runs/{run_id}/pipeline/{stage}/trace')
     def trace(request: Request, run_id: str, stage: str):

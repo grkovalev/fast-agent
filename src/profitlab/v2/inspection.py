@@ -8,6 +8,7 @@ from .contracts import (
     CanonicalDocumentRef,
     FactComparison,
     FactPresentation,
+    FactSourceMapping,
     Finding,
     OutlineContinuation,
     OutlineProposal,
@@ -27,7 +28,7 @@ STAGE_CONTRACTS: dict[str, tuple[type[BaseModel], ...]] = {
     'chunk': (OutlineSection, TextChunk, SourceRange),
     'chunk_score': (TextChunk, EvidenceDescriptor, ScoredItem),
     'findings': (TextChunk, FindingProposal, Finding, SourceRange),
-    'facts': (StructuredFact, FactPresentation),
+    'facts': (StructuredFact, FactPresentation, FactSourceMapping),
     'evaluate': (Finding, StructuredFact, FactComparison),
 }
 

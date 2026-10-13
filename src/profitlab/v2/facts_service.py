@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 from profitlab.sec.client import COMPANY_FACTS, SECClient, SECError
 
 from .contracts import StructuredFact
+from .fact_source_service import FactSourceService
 from .presentation_service import PresentationService
 from .source_service import _V2Trace
 
@@ -56,17 +57,23 @@ class CompanyFactsService:
                                            source_hash=source_hash, payload=raw)
         self.repo.save_structured_facts(run.run_id, facts)
         presentations = PresentationService(self.settings, self.repo).enrich(run, facts)
+        sources = FactSourceService(self.settings, self.repo).enrich(run, facts, presentations)
         self.repo.save_fact_summary(run.run_id, {
             'cik': cik, 'source_url': source_url, 'source_hash': source_hash,
             'supported_facts': len(facts), 'alternatives': alternatives,
             'mapping': [{'metric': metric, 'concept': concept, 'unit': unit, 'label': label}
                         for metric, concept, unit, label in FACT_TARGETS],
             'provenance': 'SEC Company Facts JSON',
+            'source_mapping': {
+                'method': 'inline-visible-1',
+                'statuses': {status: sum(item.status == status for item in sources)
+                             for status in ('verified', 'ambiguous', 'hidden_only', 'unavailable')},
+            },
             'presentation': {
                 'method': 'sec-pre-num-v1',
                 'statuses': {status: sum(item.status == status for item in presentations)
                              for status in ('matched', 'ambiguous', 'missing', 'retrieval_failed')},
-                'meaning': 'SEC statement presentation rows; canonical filing-line mapping is not yet available.',
+                'meaning': 'SEC statement presentation rows, separate from verified canonical filing lines.',
             },
         })
         return facts, alternatives, source_hash
@@ -102,7 +109,7 @@ class CompanyFactsService:
                             'source': 'SEC Company Facts JSON endpoint'},
                 'does': 'Fetches the Company Facts dataset for one CIK and retains its source URL and content hash.',
                 'outputs': {'company_facts_dataset': 'raw SEC JSON with durable provenance'},
-                'guarantee': 'The filing HTML is never reparsed as Inline XBRL.',
+                'guarantee': 'Company Facts alone supplies comparator values; later retained-HTML inspection supplies provenance only.',
             },
             'normalize': {
                 'accepts': {'company_facts_dataset': 'raw SEC JSON',
@@ -115,7 +122,7 @@ class CompanyFactsService:
             'store': {
                 'accepts': {'structured_facts': 'normalized independent annual facts',
                             'alternatives': 'unselected or duplicate candidate diagnostics'},
-                'does': 'Persists the raw Company Facts dataset, normalized comparator values, mappings, alternatives, and separate statement inspection provenance. Enrichment failure never removes a comparator.',
+                'does': 'Persists the raw Company Facts dataset, normalized comparator values, mappings, alternatives, and separate statement and canonical-line inspection provenance. Enrichment failure never removes a comparator.',
                 'outputs': {'comparison_input': 'immutable structured facts available only to Evaluate'},
                 'guarantee': 'Persisting Facts cannot revise sealed findings or their source quotes.',
                 'policy': {
@@ -128,12 +135,15 @@ class CompanyFactsService:
             'enrich': {
                 'accepts': {'selected_facts': 'stable fact IDs and exact Company Facts identities',
                             'filing_date': 'submission quarter selects the SEC archive'},
-                'does': 'Joins bounded SEC SUB/NUM/PRE records and validates report filenames against the filing directory. Saves every matching statement row separately from comparator values.',
-                'outputs': {'fact_presentation': 'matched, ambiguous, missing, or retrieval_failed inspection provenance'},
+                'does': 'Joins bounded SEC SUB/NUM/PRE records and validates report filenames against the filing directory. Then inspects retained Inline XBRL for exact concept, entity, period, unit and Decimal matches, reproducing canonicalization to verify visible cells and anchors. Saves provenance separately from comparator values.',
+                'outputs': {'fact_presentation': 'matched, ambiguous, missing, or retrieval_failed statement provenance',
+                            'fact_source_mapping': 'verified, ambiguous, hidden_only, or unavailable canonical-line provenance'},
                 'guarantee': 'PRE.line is a presentation row, not a canonical filing line. Missing enrichment never blocks evaluation or changes comparator values.',
                 'policy': {'saved_presentation': summary.get('presentation', 'Unavailable: no saved presentation provenance.'),
                            'current_enrichment_limits': PresentationService.inspection_limits(settings) if settings else 'Unavailable without current settings.',
-                           'period_resolution': 'NUM rounds period ends to month-end and duration to quarters; exact canonical-line mapping is a later task.'},
+                           'saved_source_mapping': summary.get('source_mapping', 'Unavailable: no saved source mappings.'),
+                           'source_mapping_limits': '50 MB retained HTML; 100,000 Inline occurrences; 1,000 locations per fact; 4 MB run projection. Unsupported transforms and source disagreement receive no invented link.',
+                           'period_resolution': 'NUM rounds periods; Inline source mapping requires exact start/end dates and consolidated dimensionless entity context.'},
             },
         }
 
