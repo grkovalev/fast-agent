@@ -6,10 +6,11 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T59 — Facts and Evaluate: show the gate, independent data, and optional verification.** (**DONE; manual visual verification pending**).
-- Next work: **T60 — Verify the page's semantic and contract promises.**
-- Latest verified task: T31 local acceptance; manual browser inspection and reviewed
-  real-case benchmark verification remain pending.
+- Current task: **T60 — Verify the page's semantic and contract promises.** (**IN_PROGRESS**).
+- Next work: finish T60's manual visual and comprehension review, then record the
+  result. There is no numbered task after T60 in the current plan.
+- Latest automated acceptance: T60 focused gates passed. Manual browser inspection
+  and reviewed real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -18,6 +19,39 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: manual browser visual inspection remains pending under the task's no-browser-automation policy. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T60 contract acceptance — IN_PROGRESS, visual review pending
+
+- The assembled route still renders eight stage explanations with a keyboard-reachable
+  inspector, distinct Findings-to-Facts completion gate, independent Facts data
+  input, and the sole Findings/Facts comparison at Evaluate. The existing T49–T59
+  gates cover service branches, persisted state distinctions, source ranges, Decimal
+  precision, bounded overview loading, exact source links, and conditional requests.
+- Added a rendered-route regression showing that a new runtime `TextChunk` field and
+  its minimum constraint reach the selected stage schema without a template or JS
+  field list. A second route regression changes the shared Outline prompt and Sections
+  Jev target question and finds both changes in the overview's illustrative requests.
+  Both routes use isolated test storage and make no provider requests.
+- Removed obsolete stylesheet and JavaScript source-string assertions from the old
+  pipeline UI gate. Route behavior remains covered there; live updates, station
+  selection, and reduced-motion behavior are exercised by the Node gates.
+- Baseline focused Python gates: `uv run pytest -q` for T49–T59 and pipeline UI,
+  26 passed in 2.69s (3.01s wall). Final focused gates including T60: 28 passed
+  in 2.61s (2.86s wall). These are test durations, not a page-speed comparison;
+  no page performance improvement is claimed. `node --test` for T49/T52: 2 passed.
+  `uv run ruff check .` and `git diff --check`: passed. No live provider or SEC
+  check was needed for this inspection-only acceptance pass.
+- Manual visual and comprehension verification remains outstanding under the
+  no-browser-automation task policy. In the already-running UI, open
+  `/v2/runs/<run_id>/pipeline` and each `?stage=<stage>` route. Check wide desktop,
+  about 768px, 390px, and 200% zoom; keyboard and touch station selection; disabled
+  JavaScript; reduced motion; long inspector payloads; pending, running, partial,
+  failed, and completed runs. Compare running state before/after refresh and after
+  terminal updates. Ask a reviewer to explain each stage's inputs, outputs,
+  rejection and repeat paths, and where independent facts first meet findings.
+  Record any visual or comprehension issue before marking T60 done.
+- No replay behavior or storage was added. The next action is the manual visual and
+  reviewer pass for T60; replay requirements remain open.
 
 ## T59 local acceptance and handoff
 

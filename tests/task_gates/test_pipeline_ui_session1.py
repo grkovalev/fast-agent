@@ -1,6 +1,5 @@
 """Session 1 architecture-map navigation contracts."""
 from datetime import UTC, datetime
-from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -73,11 +72,6 @@ def test_pipeline_map_has_textual_statuses_and_accessible_vertical_paths(tmp_pat
     assert 'Evaluate is the only merge point' in overview.text
     assert 'aria-label="Facts flows upward into Evaluate"' in overview.text
     assert 'class="pipeline-card-list pipeline-card-list--vertical"' in overview.text
-    stylesheet = (Path(__file__).parents[2] / 'src/profitlab/web/static/pipeline-map.css').read_text()
-    assert '.pipeline-card:focus-visible' in stylesheet
-    assert '.pipeline-connector--facts-up' in stylesheet
-    assert '.pipeline-card-list--vertical' in stylesheet
-    assert '@media (max-width: 600px)' in stylesheet
 
 
 def test_source_card_uses_persisted_sec_filing_and_canonical_line_result(tmp_path):
@@ -123,16 +117,7 @@ def test_source_card_uses_persisted_sec_filing_and_canonical_line_result(tmp_pat
     source_card = overview.text[source_start:outline_start]
     assert 'Process summary placeholder' not in source_card
     assert 'Prompt control placeholder' not in source_card
-    stylesheet = (Path(__file__).parents[2] / 'src/profitlab/web/static/pipeline-map.css').read_text()
-    assert '.source-stage-explainer' in stylesheet
-    assert '.source-loop-station' in stylesheet
-    assert '@media (prefers-reduced-motion: reduce)' in stylesheet
-    script = (Path(__file__).parents[2] /
-              'src/profitlab/web/static/pipeline-inspector.js').read_text()
-    assert 'data-${prefix}-loop' in script
-    assert 'data-station-template' in script
     assert 'Inline XBRL-only content' in overview.text
-    assert "prefers-reduced-motion: reduce" in script
 
 
 def test_pending_source_does_not_claim_a_saved_document(tmp_path):
@@ -200,11 +185,6 @@ def test_outline_card_uses_request_prompt_template_and_persisted_outcome(tmp_pat
     outline_card = overview.text[outline_start:sections_start]
     assert 'Process summary placeholder' not in outline_card
     assert 'Prompt control placeholder' not in outline_card
-    stylesheet = (Path(__file__).parents[2] / 'src/profitlab/web/static/pipeline-map.css').read_text()
-    assert '.outline-stage-explainer' in stylesheet
-    assert '.outline-architecture' in stylesheet
-    assert '.outline-prompt-tooltip summary' in stylesheet
-    assert '.pipeline-card-list li:not(:last-child)::after { position: absolute; z-index: 0;' in stylesheet
 
 
 def test_pipeline_map_exposes_persisted_progress_and_live_update_contract(tmp_path):
@@ -234,11 +214,6 @@ def test_pipeline_map_exposes_persisted_progress_and_live_update_contract(tmp_pa
     assert 'data-stage-status="running"' in overview.text
     assert '1.2s' in overview.text
     assert state.json()['stages'][2]['total_work'] == 43
-    script = (Path(__file__).parents[2] / 'src/profitlab/web/static/v2-progress.js').read_text()
-    assert 'new EventSource' in script
-    assert 'setInterval' in script
-    assert 'data-stage-progress' in script
-    assert 'stopLiveUpdates' in script
 
 
 def test_selected_stage_header_uses_persisted_partial_or_failed_status(tmp_path):
