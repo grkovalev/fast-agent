@@ -159,5 +159,5 @@ composition introduced in T48–T60. Preserve their useful shared colors, stage 
 status/accessibility behavior, selected-stage routes, and the Facts-below-Evaluate
 spatial contract. The [review](PIPELINE_IMPLEMENTATION_REVIEW.md) explains the
 observed gaps; the [UI task register](PIPELINE_IMPROVEMENT_TASKS.md) records T60's
-closure and verification gap, while
+closure and user-confirmed verification, while
 [completed scopes](PIPELINE_UI_COMPLETED_TASKS.md) retain history.

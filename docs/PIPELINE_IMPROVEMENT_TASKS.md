@@ -5,9 +5,9 @@ T48–T59 are DONE; their implementation scopes are archived in
 [design brief](PIPELINE_PAGE_DESIGN.md) owns durable UI decisions, and
 [PROGRESS.md](PROGRESS.md) records implementation evidence.
 
-**T60 — DONE (closed at the user's request).** Automated gates passed. Manual
-visual and comprehension review was not performed, so this closure does not claim
-visual acceptance. There is no active numbered UI task or later task planned.
+**T60 — DONE.** Automated gates passed, and the user confirmed the remaining UI
+verification on 2026-10-13. Detailed visual observations were not supplied. There
+is no active numbered UI task or later task planned.
 
 ## Shared constraints
 
@@ -46,8 +46,8 @@ bounded overview loading, and no-provider rendering have focused coverage. The
 commands and results are recorded in [PROGRESS.md](PROGRESS.md). No page-speed gain
 is claimed without a measured comparison.
 
-**Unverified follow-up:** the manual visual and comprehension pass below remains
-unperformed. Record its observations and any fixes if it is undertaken later.
+**Verification:** the user confirmed the remaining UI review. The individual
+checklist observations below were not provided, so they are not claimed here.
 
 **Acceptance:** all eight stages are usable without interaction; inspection is consistent;
 running and terminal state agree after refresh; pending, zero, incomplete, example,
@@ -60,5 +60,6 @@ payloads, and available run states. Ask a reviewer to identify: what each stage 
 and produces, what gets rejected, what repeats, and where independent facts first meet
 findings. Record unresolved visual or comprehension issues as remaining work.
 
-**Closure:** [PROGRESS.md](PROGRESS.md) records the passed checks and the manual
-verification gap. No visual observations are claimed. Replay requirements remain open.
+**Closure:** [PROGRESS.md](PROGRESS.md) records the passed checks and user
+confirmation. No itemized visual observations are claimed. Replay requirements
+remain open.

@@ -6,16 +6,16 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: none. **T60 was closed at the user's request** after automated
-  checks passed; manual visual and comprehension review remains unperformed.
+- Current task: none. **T60 is DONE.** Automated checks passed, and the user
+  subsequently confirmed the remaining verification.
 - UI documentation: the durable decisions and logic-change review rule are in
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next work: await the user's next task. If visual acceptance is requested later,
-  perform and record the review below. There is no numbered task after T60.
-- Latest automated acceptance: T60 focused gates passed. Manual browser inspection
-  and reviewed real-case benchmark verification remain pending.
+- Next work: await the user's next task. There is no numbered task after T60.
+- Latest automated acceptance: T60 focused gates passed. The user confirmed UI
+  verification; detailed visual observations were not supplied. Reviewed real-case
+  benchmark verification remains separate and pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -23,21 +23,22 @@
 - Data-retention decision: the user authorizes discarding the current local V2 data when
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
-- Verification gap: manual browser visual inspection remains unperformed under
-  the task's no-browser-automation policy. Live Jev and LLM compatibility probes
-  passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+- Verification provenance: the user confirmed T60 verification on 2026-10-13;
+  no browser automation or detailed observation log was produced by the agent.
+  Live Jev and LLM compatibility probes passed after the follow-up fixes;
+  SEC discovery/download checks remain recorded below.
 
 ## Resume after context reset
 
 Start with [AGENTS.md](../AGENTS.md), the active
 [pipeline page brief](PIPELINE_PAGE_DESIGN.md), and the
 [UI task register](PIPELINE_IMPROVEMENT_TASKS.md). T48–T59 are complete and
-archived. T60 was closed at the user's request after its focused automated checks
-passed. Manual visual and comprehension review of the existing pipeline page and
-selected-stage routes was not performed; do not infer visual acceptance from the
-DONE status. Await the user's next task. No later numbered UI task is defined.
+archived. T60's focused automated checks passed, and the user confirmed the
+remaining UI verification. The user did not supply itemized observations, so do
+not infer which widths, states, or interactions they inspected. Await the user's
+next task. No later numbered UI task is defined.
 
-## T60 contract acceptance — DONE at user's request; visual review unperformed
+## T60 contract acceptance — DONE; user-confirmed UI verification
 
 - The assembled route still renders eight stage explanations with a keyboard-reachable
   inspector, distinct Findings-to-Facts completion gate, independent Facts data
@@ -58,17 +59,11 @@ DONE status. Await the user's next task. No later numbered UI task is defined.
   no page performance improvement is claimed. `node --test` for T49/T52: 2 passed.
   `uv run ruff check .` and `git diff --check`: passed. No live provider or SEC
   check was needed for this inspection-only acceptance pass.
-- Manual visual and comprehension verification remains outstanding under the
-  no-browser-automation task policy. In the already-running UI, open
-  `/v2/runs/<run_id>/pipeline` and each `?stage=<stage>` route. Check wide desktop,
-  about 768px, 390px, and 200% zoom; keyboard and touch station selection; disabled
-  JavaScript; reduced motion; long inspector payloads; pending, running, partial,
-  failed, and completed runs. Compare running state before/after refresh and after
-  terminal updates. Ask a reviewer to explain each stage's inputs, outputs,
-  rejection and repeat paths, and where independent facts first meet findings.
-  Record any visual or comprehension issue before marking T60 done.
-- No replay behavior or storage was added. T60 was closed at the user's request
-  before manual visual review; replay requirements remain open.
+- The user confirmed verification after T60 was closed. The agent did not run
+  browser automation or receive itemized observations for widths, interactions,
+  run states, or the comprehension prompts in the T60 checklist. This records
+  user confirmation without inventing specific visual findings.
+- No replay behavior or storage was added; replay requirements remain open.
 
 ## T59 local acceptance and handoff
 
