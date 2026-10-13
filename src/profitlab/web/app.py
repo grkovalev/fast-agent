@@ -345,6 +345,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                 else f'/v2/runs/{run_id}/pipeline/findings/trace')
         facts_content = {
             'inspection': CompanyFactsService.inspection_view(
+                settings=settings,
                 summary=pipeline.repo.fact_summary(run_id),
                 finding_count=totals['finding_count']),
         }
@@ -410,6 +411,10 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                   'comparisons': pipeline.repo.comparisons(run_id, page=page) if stage == 'evaluate' else [],
                   'comparison_summary': pipeline.repo.comparison_summary(run_id) if stage == 'evaluate' else None,
                   'evaluation_cards': []}
+        presentations = pipeline.repo.fact_presentations_for_ids(
+            run_id, [item.fact_id for item in result['structured_facts']]) if stage == 'facts' else []
+        result['fact_presentations'] = {item.fact_id: item.model_dump(mode='json')
+                                      for item in presentations}
         examples = {}
         for model, items in (
             (CanonicalDocumentRef, canonical_refs), (OutlineSection, outline),
@@ -497,6 +502,15 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             raise HTTPException(404, 'V2 run not found') from None
         pipeline.repo.record_route_measurement(run_id, route=f"pipeline:{stage or 'overview'}", latency_ms=(monotonic() - started) * 1000, payload_bytes=len(body.body))
         return body
+
+    @app.get('/v2/runs/{run_id}/pipeline/facts/presentation')
+    def fact_presentation_details(request: Request, run_id: str):
+        try:
+            pipeline.repo.get_run(run_id)
+        except FileNotFoundError:
+            raise HTTPException(404, 'V2 run not found') from None
+        return templates.TemplateResponse(request=request, name='v2_fact_presentation.html', context={
+            'run_id': run_id, 'actions': pipeline.repo.exploration_actions(run_id, 'facts', limit=100)})
 
     @app.get('/v2/runs/{run_id}/pipeline/{stage}/trace')
     def trace(request: Request, run_id: str, stage: str):

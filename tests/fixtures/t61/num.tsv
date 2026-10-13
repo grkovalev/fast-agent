@@ -1,0 +1,13 @@
+adsh	tag	version	ddate	qtrs	uom	segments	coreg	value	footnote
+0000950170-24-087843	EarningsPerShareDiluted	us-gaap/2023	20220630	4	USD			9.6500	
+0000950170-24-087843	NetIncomeLoss	us-gaap/2023	20230630	4	USD			72361000000.0000	
+0000950170-24-087843	NetIncomeLoss	us-gaap/2023	20240630	4	USD	EquityComponents=RetainedEarnings;		88136000000.0000	
+0000950170-24-087843	WeightedAverageNumberOfDilutedSharesOutstanding	us-gaap/2023	20220630	4	shares			7540000000.0000	
+0000950170-24-087843	EarningsPerShareDiluted	us-gaap/2023	20230630	4	USD			9.6800	
+0000950170-24-087843	NetIncomeLoss	us-gaap/2023	20220630	4	USD			72738000000.0000	
+0000950170-24-087843	NetIncomeLoss	us-gaap/2023	20230630	4	USD	EquityComponents=RetainedEarnings;		72361000000.0000	
+0000950170-24-087843	NetIncomeLoss	us-gaap/2023	20240630	4	USD			88136000000.0000	
+0000950170-24-087843	WeightedAverageNumberOfDilutedSharesOutstanding	us-gaap/2023	20240630	4	shares			7469000000.0000	
+0000950170-24-087843	WeightedAverageNumberOfDilutedSharesOutstanding	us-gaap/2023	20230630	4	shares			7472000000.0000	
+0000950170-24-087843	NetIncomeLoss	us-gaap/2023	20220630	4	USD	EquityComponents=RetainedEarnings;		72738000000.0000	
+0000950170-24-087843	EarningsPerShareDiluted	us-gaap/2023	20240630	4	USD			11.8000	

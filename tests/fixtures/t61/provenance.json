@@ -1,0 +1,28 @@
+{
+  "url": "https://www.sec.gov/files/dera/data/financial-statement-data-sets/2024q3.zip",
+  "timestamp": 1791926023.9031308,
+  "retrieved_at": "2026-10-13T21:13:43.903134+00:00",
+  "sha256": "b1823f2d65189f0d5ecbb1968d683c59df762129ae1b23bda0394093a69e0da9",
+  "accession": "0000950170-24-087843",
+  "projection": "Unmodified MSFT submission rows for three supported tags, all comparative periods and presentations; TSV serialized with original field order.",
+  "files": {
+    "pre.tsv": "5244d6b8f722cc9dd41881e91317a290e11c8b3a336000ba2bc44be3f2de6b11",
+    "sub.tsv": "546d1cfa49d2102db791f1b154171a13523677523b6b49b9ccf7a787721ba431",
+    "num.tsv": "ceb82b0ff4037df82e518dcdcd3773792210a133935338b2bc8ce5105e4337cb"
+  },
+  "sources": {
+    "company_facts.json": {
+      "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000789019.json",
+      "retrieved_at": "2026-10-13T21:14:48.243268+00:00",
+      "source_json_sha256": "f8cdff440803fe348d34ad1fbe1341666ba7f4349a1a481dcb7fc01135fe9b06",
+      "fixture_sha256": "5a08305d4bf987f2bc62f6643170b9ad73459f5ea623362a9c5ad0832b50e13a"
+    },
+    "index.json": {
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000095017024087843/index.json",
+      "retrieved_at": "2026-10-13T21:14:48.870429+00:00",
+      "source_json_sha256": "e000580ba6a5a9981773eb3cc89bd51ac800965a49d8d281cb00382f8bd059ab",
+      "fixture_sha256": "47a7ae908761e2a719c03b8b23efe7df218ab9fa8995b426df09451614662e71"
+    }
+  },
+  "source_json_hash_format": "SHA256 of json.dumps(parsed SEC response, sort_keys=True), matching SECClient cache metadata."
+}

@@ -1,0 +1,7 @@
+adsh	report	line	stmt	inpth	rfile	tag	version	plabel	negating
+0000950170-24-087843	2	17	IS	0	H	NetIncomeLoss	us-gaap/2023	Net income	0
+0000950170-24-087843	2	20	IS	0	H	EarningsPerShareDiluted	us-gaap/2023	Diluted	0
+0000950170-24-087843	2	23	IS	0	H	WeightedAverageNumberOfDilutedSharesOutstanding	us-gaap/2023	Diluted	0
+0000950170-24-087843	3	1	CI	0	H	NetIncomeLoss	us-gaap/2023	Net income	0
+0000950170-24-087843	6	2	CF	0	H	NetIncomeLoss	us-gaap/2023	Net income	0
+0000950170-24-087843	7	10	EQ	0	H	NetIncomeLoss	us-gaap/2023	Net income	0

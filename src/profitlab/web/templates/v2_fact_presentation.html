@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block page_title %}SEC statement provenance{% endblock %}{% block content %}
+<p><a href="/v2/runs/{{ run_id }}/pipeline?stage=facts">← Facts stage</a></p>
+<section><p class="eyebrow">Saved inspection provenance</p><h2>SEC statement presentation records</h2>
+<p>Presentation rows describe SEC statement order, not canonical filing lines. These records do not supply discovery or comparison values. At most 100 saved actions are shown.</p>
+{% for action in actions %}<details><summary>{{ action.action_id }}</summary><pre>{{ action | tojson(indent=2) }}</pre></details>{% else %}<p>No presentation provenance was saved. This page does not retrieve SEC data.</p>{% endfor %}</section>
+{% endblock %}

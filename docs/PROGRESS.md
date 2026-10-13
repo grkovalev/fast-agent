@@ -6,21 +6,20 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: none. **T60 is DONE.** Automated checks passed, and the user
-  subsequently confirmed the remaining verification.
+- Current task: none. **T61 is DONE**: selected SEC facts retain separate statement
+  presentation provenance, with matched/ambiguous/missing/retrieval-failed states.
+  Automated checks and real SEC acquisition passed; manual T61 UI review is pending.
+  **T60 is DONE** with the earlier user-confirmed verification.
 - UI documentation: the durable decisions and logic-change review rule are in
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next planned work: **T61**, followed by T62–T64 in the
-  [task register](PIPELINE_IMPROVEMENT_TASKS.md), to expose verified fact source
-  lines in evaluations. All four tasks are TODO; the user requested task planning,
-  and implementation has not started.
-- Latest automated checks: Findings step-results/CSV follow-up passed the full
-  Python suite (50 tests in 3.42s), repository lint, and whitespace checks.
-  Its visual review remains pending. T60's earlier user-confirmed UI verification
-  does not cover this follow-up. Reviewed real-case benchmark verification also
-  remains separate and pending.
+- Next planned work: **T62**, followed by T63–T64 in the
+  [task register](PIPELINE_IMPROVEMENT_TASKS.md). Exact canonical fact-line mapping
+  and evaluation fact-source panels are not implemented.
+- Latest automated checks: full Python suite passed (54 tests in 5.06s), repository
+  lint and whitespace checks passed. T61 manual visual review and reviewed-case
+  benchmark verification remain pending. Earlier T60 verification does not cover T61.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -35,22 +34,86 @@
 
 ## Resume after context reset
 
-Start with [AGENTS.md](../AGENTS.md), the active
-[pipeline page brief](PIPELINE_PAGE_DESIGN.md), and the
-[UI task register](PIPELINE_IMPROVEMENT_TASKS.md). T48–T59 are complete and
-archived. T60's focused automated checks passed, and the user confirmed the
-remaining UI verification. The user did not supply itemized observations, so do
-not infer which widths, states, or interactions they inspected. T61–T64 are planned
-in the task register. The user requested committing the completed work before a
-context reset, then plans to ask to proceed with the next task. On that request,
-start **T61**, mark it IN_PROGRESS, and follow TASKS.md's execution policy. Do not
-skip ahead to T62–T64 or claim that fact source lines are already implemented.
+Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
+[TASKS.md](TASKS.md), and the [task register](PIPELINE_IMPROVEMENT_TASKS.md).
+T61 is complete; on the next request start **T62**, mark it IN_PROGRESS, and follow
+the execution policy. Preserve the Findings saved-step diagnostics and CSV request
+representation. Keep `StructuredFact` and verification payloads unchanged: T61
+provenance lives in separate `FactPresentation` diagnostics keyed by stable fact IDs.
+SEC PRE rows are concept presentations, not canonical lines or proven numeric-cell
+locations. T62 must verify retained raw HTML against canonical source and may map
+Inline XBRL even when PRE is missing (including the real MSFT EPS unit mismatch).
+Do not start T62 automatically or delete user data.
 
-The completed Findings follow-up is recorded below. It uses existing exploration
-action storage and requires no schema migration. Preserve its saved-step results,
-CSV extraction request representation, bounded previews, and historical availability
-labels when extending fact provenance. SEC `PRE.line` is presentation row order,
-not a canonical filing line; T62 establishes the exact canonical mapping.
+## T61 — SEC presentation provenance — completed, 2026-10-13
+
+- Added runtime-owned `StatementDatasetRef`, `StatementNumericRecord`,
+  `StatementLocation`, and `FactPresentation` contracts. The Company Facts value
+  contract, selection, Decimal values, comparator outcomes, discovery payloads,
+  and optional evaluation-verification inputs remain unchanged.
+- Source now retains the filing date. After Findings seals, Facts checkpoints its
+  independent Company Facts values, selects the submission-quarter SEC archive,
+  and enriches only selected facts. Reuses SEC contact, shared throttling, retries,
+  total deadline, and validated cache behavior. Archive bytes are hash-verified in
+  disk cache with a one-day TTL. No archive or provider I/O occurs during rendering.
+- Limits: 150 MB compressed archive, 1.5 GB expanded members, 10 million scanned
+  rows, 10,000 retained projection rows, 2 MB retained projection, 65,536 bytes per
+  TSV line, and the configured SEC total deadline (default 120 seconds). Archives
+  are streamed without filesystem extraction. Effective bounds and enrichment
+  method join the run timing cohort so older timings are not silently comparable.
+- Join uses exact accession, namespace/tag, same PRE/NUM taxonomy version, annual
+  period bucket, unit, exact Decimal, and consolidated/dimensionless context where
+  supplied. Repeated presentations remain separate; duplicate identical records
+  collapse; multiple matching standard taxonomy years are ambiguous. NUM dates and
+  durations are rounded by SEC, and PRE has no numeric-cell/context coordinates.
+  Those limitations remain explicit; no exact visible origin is claimed.
+- Report links require the matching filename in the selected filing directory
+  index. Saved diagnostics retain archive provenance, bounded SUB/NUM/PRE rows,
+  index source URL/hash, verified report URLs, and fact-linked locations. These use
+  existing compressed exploration-action storage; no schema migration or deletion
+  of user data is needed. Dataset and fact provenance replace atomically, so a
+  failed new enrichment cannot leave an old successful projection alongside it.
+- Enrichment failure keeps valid comparator facts and records a reason. Historical
+  facts lacking saved provenance are unavailable rather than recomputed. Facts
+  overview now has an Enrich station; selected Facts shows up to 20 locations per
+  fact and links to all saved diagnostics. Updated the durable page brief. Evaluate
+  keeps its existing input and verdict explanation: it consumes the same comparator
+  values, and T62/T63 own canonical-line mapping and evaluation provenance panels.
+- Real provenance: saved Microsoft accession `0000950170-24-087843`, filed
+  2024-07-30, fiscal end 2024-06-30, from the SEC 2024q3 archive. Archive URL,
+  retrieval time, full content hash, TSV hashes, Company Facts/index URLs and JSON
+  hashes are in `tests/fixtures/t61/provenance.json`. Archive SHA256:
+  `b1823f2d65189f0d5ecbb1968d683c59df762129ae1b23bda0394093a69e0da9`.
+  Live SEC archive, Company Facts, and directory retrieval succeeded using the
+  configured contact in isolated `/tmp/profitlab-t61-sec` storage. Full 118,280,418
+  byte archive parsing/join took 11.67s and retained 1 SUB, 12 NUM, and 6 PRE rows.
+  Net income matches four concept presentations (IS, CI, CF, EQ); diluted shares
+  matches one. EPS is missing by exact-unit policy: NUM uses USD, while Company
+  Facts uses USD/shares. No conversion was invented. This is live SEC acquisition
+  plus a real-data service check, not a live end-to-end model/pipeline run.
+- Tests inspected: Facts/Evaluate, normalization, schema, shared inspector, cohort,
+  and the full current suite. No tests removed: existing small gates remain relevant.
+  Updated shared inspector counts for the new station. Four focused new tests use
+  saved real SEC data and the actual SEC HTTP/parser/storage/reader path; controlled
+  cases cover second taxonomy version, missing locations, archive failure, checksum
+  corruption, ordering, byte/row/time/expansion limits, and unchanged comparisons.
+- Verification: initial affected gates passed (7 tests in 0.78s); final focused
+  provenance/Facts/inspector/cohort checks passed (11 tests in 1.58s). Full
+  `uv run pytest -q`: 54 passed in 5.06s, existing Starlette/AnyIO deprecation warning.
+  `node --test tests/task_gates/test_t52_inspector.cjs`: passed in 85.95ms.
+  `uv run ruff check .` and `git diff --check`: passed.
+- Commit preparation: staged whitespace review preserves meaningful trailing TSV
+  separators through a fixture-local `.gitattributes` rule; staged checks pass.
+- Manual UI review remains pending; no browser automation or screenshots were used.
+  In the already-running UI, create a new live run through the normal ticker flow,
+  then open `/v2/runs/<run_id>/pipeline` and select Facts → Enrich. Expect saved
+  statuses and current limits to be distinct. Open `?stage=facts`, expand each
+  **SEC statement locations** panel, check repeated presentations and validated
+  **Open SEC statement report** links, then **All saved statement records and
+  provenance**. Older runs show unavailable provenance. Review at desktop/phone
+  widths, keyboard, no JS, and 200% zoom; long labels and hashes should wrap, and
+  every presentation row must remain labeled separately from canonical lines.
+- Next task: **T62 — Map fact occurrences to exact canonical filing lines.**
 
 ## Findings step results and CSV evidence — completed, 2026-10-13
 

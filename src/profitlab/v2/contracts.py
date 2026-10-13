@@ -220,6 +220,46 @@ class StructuredFact(V2Contract):
     filed_date: date
 
 
+class StatementDatasetRef(V2Contract):
+    source_url: str
+    source_hash: Hash
+    retrieved_at: AwareDatetime
+    accession: str
+    quarter: str = Field(pattern=r'^\d{4}q[1-4]$')
+
+
+class StatementNumericRecord(V2Contract):
+    tag: str
+    taxonomy_version: str
+    period_end_month: date
+    duration_quarters: int = Field(ge=0)
+    unit: str
+    value: Decimal
+    coreg: str = ''
+    segments: str = ''
+
+
+class StatementLocation(V2Contract):
+    tag: str
+    taxonomy_version: str
+    report: int = Field(ge=1)
+    statement: str
+    presentation_row: int = Field(ge=1)
+    filer_label: str
+    report_url: str | None = None
+
+
+class FactPresentation(V2Contract):
+    """Inspection-only SEC provenance; never a canonical filing-line claim."""
+    fact_id: StableID
+    status: Literal['matched', 'ambiguous', 'missing', 'retrieval_failed']
+    dataset: StatementDatasetRef | None = None
+    numeric_records: list[StatementNumericRecord] = Field(default_factory=list, max_length=10000)
+    locations: list[StatementLocation] = Field(default_factory=list, max_length=10000)
+    diagnostics: list[str] = Field(default_factory=list, max_length=20)
+    method: Literal['sec-pre-num-v1'] = 'sec-pre-num-v1'
+
+
 class FactComparison(V2Contract):
     comparison_id: StableID
     metric: str | None = None

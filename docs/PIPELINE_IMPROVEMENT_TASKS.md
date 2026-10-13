@@ -8,14 +8,14 @@ T48–T59 are DONE; their implementation scopes are archived in
 **T60 — DONE.** Automated gates passed, and the user confirmed the remaining UI
 verification on 2026-10-13. Detailed visual observations were not supplied.
 
-**T61–T64 — TODO.** The user requested fact source lines in evaluation results
+**T61 — DONE; T62–T64 — TODO.** The user requested fact source lines in evaluation results
 for debugging. These tasks include backend provenance acquisition and mapping;
 statement row numbers alone do not satisfy the requested canonical-line links.
-No implementation task is currently in progress.
+T61 implementation and automated gates are complete; its visual review remains pending.
 
 | Task | Result | Depends on | Status |
 | --- | --- | --- | --- |
-| T61 | SEC statement/report/row provenance for selected facts | Existing Facts stage | TODO |
+| T61 | SEC statement/report/row provenance for selected facts | Existing Facts stage | DONE |
 | T62 | Verified mapping from fact occurrences to canonical filing lines | T61 | TODO |
 | T63 | Fact source lines, quotes, and links in evaluation cards and Facts inspection | T62 | TODO |
 | T64 | Real-filing acceptance of fact source debugging | T63 | TODO |
@@ -77,7 +77,7 @@ remain open.
 
 ## T61 — Retain SEC presentation locations for selected facts
 
-**Status:** TODO.
+**Status:** DONE. Implementation, saved-real-data gates, and live SEC acquisition checks passed; manual UI review remains pending. See [PROGRESS.md](PROGRESS.md).
 
 **Goal:** explain which financial statement and presentation row contains each
 selected SEC fact. This is supporting provenance for T62, not an exact filing-line

@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 from profitlab.sec.client import COMPANY_FACTS, SECClient, SECError
 
 from .contracts import StructuredFact
+from .presentation_service import PresentationService
 from .source_service import _V2Trace
 
 # This narrow mapping is deliberately application-owned, not provider input.  It
@@ -54,18 +55,25 @@ class CompanyFactsService:
         self.repo.save_company_fact_dataset(run.run_id, cik=cik, source_url=source_url,
                                            source_hash=source_hash, payload=raw)
         self.repo.save_structured_facts(run.run_id, facts)
+        presentations = PresentationService(self.settings, self.repo).enrich(run, facts)
         self.repo.save_fact_summary(run.run_id, {
             'cik': cik, 'source_url': source_url, 'source_hash': source_hash,
             'supported_facts': len(facts), 'alternatives': alternatives,
             'mapping': [{'metric': metric, 'concept': concept, 'unit': unit, 'label': label}
                         for metric, concept, unit, label in FACT_TARGETS],
             'provenance': 'SEC Company Facts JSON',
+            'presentation': {
+                'method': 'sec-pre-num-v1',
+                'statuses': {status: sum(item.status == status for item in presentations)
+                             for status in ('matched', 'ambiguous', 'missing', 'retrieval_failed')},
+                'meaning': 'SEC statement presentation rows; canonical filing-line mapping is not yet available.',
+            },
         })
         return facts, alternatives, source_hash
 
     @classmethod
     def inspection_view(cls, *, summary: dict | None = None,
-                        finding_count: int = 0):
+                        finding_count: int = 0, settings=None):
         """Return the server-owned Facts explainer contract.
 
         The browser receives the actual configured concept mapping and durable
@@ -99,7 +107,7 @@ class CompanyFactsService:
             'normalize': {
                 'accepts': {'company_facts_dataset': 'raw SEC JSON',
                             'filing_identity': 'accession, form, and annual report date'},
-                'does': 'Selects configured annual, same-accession facts with exact Decimal values and literal units; ordered concepts are fallbacks for one metric.',
+                'does': 'Selects configured annual, same-accession facts with exact Decimal values and literal units; ordered concepts are fallbacks for one metric. Checkpoints the raw dataset and selected comparator values before presentation enrichment.',
                 'outputs': {'structured_facts': 'configured annual metric, Decimal, period, unit, and filing provenance'},
                 'guarantee': 'Duplicate or ineligible candidates remain diagnostics; a selected fact is never guessed or converted.',
                 'policy': {'concept_mapping': mapping},
@@ -107,9 +115,25 @@ class CompanyFactsService:
             'store': {
                 'accepts': {'structured_facts': 'normalized independent annual facts',
                             'alternatives': 'unselected or duplicate candidate diagnostics'},
-                'does': 'Persists the raw dataset, normalized facts, mappings, and alternatives for later comparison.',
+                'does': 'Persists the raw Company Facts dataset, normalized comparator values, mappings, alternatives, and separate statement inspection provenance. Enrichment failure never removes a comparator.',
                 'outputs': {'comparison_input': 'immutable structured facts available only to Evaluate'},
                 'guarantee': 'Persisting Facts cannot revise sealed findings or their source quotes.',
+                'policy': {
+                    'presentation_rows': 'PRE.line is statement presentation order, never a canonical filing line.',
+                    'join': 'Exact accession, concept namespace/tag and taxonomy version, annual period bucket, unit, Decimal, and consolidated dimensionless context. NUM dates/durations are rounded by SEC.',
+                    'taxonomy': 'Company Facts lacks taxonomy year; retain all matching versions and mark multiple versions ambiguous.',
+                    'saved_presentation': summary.get('presentation', 'Unavailable: no saved presentation provenance.'),
+                },
+            },
+            'enrich': {
+                'accepts': {'selected_facts': 'stable fact IDs and exact Company Facts identities',
+                            'filing_date': 'submission quarter selects the SEC archive'},
+                'does': 'Joins bounded SEC SUB/NUM/PRE records and validates report filenames against the filing directory. Saves every matching statement row separately from comparator values.',
+                'outputs': {'fact_presentation': 'matched, ambiguous, missing, or retrieval_failed inspection provenance'},
+                'guarantee': 'PRE.line is a presentation row, not a canonical filing line. Missing enrichment never blocks evaluation or changes comparator values.',
+                'policy': {'saved_presentation': summary.get('presentation', 'Unavailable: no saved presentation provenance.'),
+                           'current_enrichment_limits': PresentationService.inspection_limits(settings) if settings else 'Unavailable without current settings.',
+                           'period_resolution': 'NUM rounds period ends to month-end and duration to quarters; exact canonical-line mapping is a later task.'},
             },
         }
 

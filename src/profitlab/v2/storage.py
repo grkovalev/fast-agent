@@ -745,6 +745,38 @@ class V2Repository:
             row = db.execute('SELECT payload FROM fact_summaries WHERE run_id=?', (run_id,)).fetchone()
         return json.loads(row['payload']) if row else None
 
+    def save_fact_presentations(self, run_id: str, presentations, *, dataset_payload=None):
+        """Use existing diagnostic storage; comparator payloads and schema stay unchanged."""
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute("DELETE FROM exploration_actions WHERE run_id=? AND stage='facts' "
+                       "AND action_id LIKE 'fact-presentation-%'",
+                       (run_id,))
+            if dataset_payload is not None:
+                db.execute('INSERT INTO exploration_actions (run_id, action_id, stage, sequence, payload) '
+                           'VALUES (?, ?, ?, ?, ?)', (run_id, 'fact-presentation-dataset', 'facts', 0,
+                                                     self._diagnostic_payload(dataset_payload)))
+            db.executemany('INSERT INTO exploration_actions (run_id, action_id, stage, sequence, payload) '
+                           'VALUES (?, ?, ?, ?, ?)', [
+                (run_id, f'fact-presentation-{item.fact_id}', 'facts', position + 1,
+                 self._diagnostic_payload(item.model_dump(mode='json')))
+                for position, item in enumerate(presentations)])
+
+    def fact_presentations_for_ids(self, run_id: str, fact_ids: list[str]):
+        from .contracts import FactPresentation
+
+        ids = [f'fact-presentation-{item}' for item in dict.fromkeys(fact_ids)][:100]
+        if not ids:
+            return []
+        placeholders = ', '.join('?' for _ in ids)
+        with self.connect() as db:
+            rows = db.execute(f'SELECT payload FROM exploration_actions WHERE run_id=? '
+                              f"AND stage='facts' AND action_id IN ({placeholders}) ORDER BY action_id",
+                              (run_id, *ids)).fetchall()
+        return [FactPresentation.model_validate(self._read_diagnostic_payload(row['payload']))
+                for row in rows]
+
     def save_comparisons(self, run_id: str, comparisons):
         run = self.get_run(run_id)
         comparisons = [item.model_copy(update={

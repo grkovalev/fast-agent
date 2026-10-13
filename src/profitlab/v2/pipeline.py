@@ -55,8 +55,13 @@ class V2PipelineService:
             'section_score_uncertain_threshold', 'chunk_score_keep_threshold',
             'chunk_score_uncertain_threshold', 'chunk_score_max_retained',
             'findings_max_requests', 'evaluation_scale_max_pairs',
+            'sec_statement_archive_bytes', 'sec_statement_expanded_bytes',
+            'sec_statement_max_rows', 'sec_statement_projection_rows',
+            'sec_statement_projection_bytes',
         )
-        return {name: str(getattr(self.settings, name)) for name in names}
+        return {name: str(getattr(self.settings, name)) for name in names} | {
+            'fact_presentation_version': 'sec-pre-num-v1',
+        }
 
     async def run(self, run_id: str, delay: float = 0, *, implement_source: bool = False):
         run_started = monotonic()

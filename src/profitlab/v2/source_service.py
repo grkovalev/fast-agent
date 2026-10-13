@@ -66,6 +66,7 @@ class V2SourceService:
                 filing_id = selected.filing_id
                 filing = {'filing_id': selected.filing_id, 'form': selected.form,
                           'report_date': selected.report_date.isoformat(),
+                          'filing_date': selected.filing_date.isoformat(),
                           'accession': selected.accession,
                           'cik': result.company.cik,
                           'company_name': result.company.name,

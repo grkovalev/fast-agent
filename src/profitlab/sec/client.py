@@ -72,18 +72,22 @@ class SECClient:
     def close(self):
         self.client.close()
 
-    def get(self, url, schema, *, stage, document=False):
-        if document:
+    def get(self, url, schema, *, stage, document=False, statement_archive=False):
+        if statement_archive:
+            if not re.fullmatch(r'https://www\.sec\.gov/files/dera/data/financial-statement-data-sets/\d{4}q[1-4]\.zip', url):
+                raise SECError('invalid_url', 'Only official SEC statement archives are allowed.')
+        elif document:
             if not re.fullmatch(r'https://www\.sec\.gov/Archives/edgar/data/[0-9]+/[0-9]{18}/[A-Za-z0-9_.-]+', url):
                 raise SECError('invalid_url', 'Only verified SEC archive URLs are allowed.')
         elif url != TICKERS and not url.startswith(SUBMISSIONS) and not re.fullmatch(
-                r'https://data\.sec\.gov/api/xbrl/companyfacts/CIK\d{10}\.json', url):
+                r'https://data\.sec\.gov/api/xbrl/companyfacts/CIK\d{10}\.json', url) and not re.fullmatch(
+                r'https://www\.sec\.gov/Archives/edgar/data/[0-9]+/[0-9]{18}/index\.json', url):
             raise SECError('invalid_url', 'Only official SEC discovery URLs are allowed.')
         adapter = TypeAdapter(schema)
         call = 'call-' + uuid4().hex
         key = hashlib.sha256(url.encode()).hexdigest()
         path = self.cache / f'{key}.json'
-        if not document and not self.fixture and path.exists():
+        if not document and not statement_archive and not self.fixture and path.exists():
             try:
                 cached = json.loads(path.read_bytes())
                 if cached['url'] == url and time.time() - cached['retrieved_at'] < (
@@ -108,24 +112,32 @@ class SECClient:
                     if time.monotonic() >= self.deadline:
                         raise SECError('time_limit', 'SEC discovery time limit reached.')
                     self.limiter.wait(self.deadline)
-                    with self.client.stream('GET', url, headers={'Accept': 'text/html' if document else 'application/json'}, timeout=min(self.settings.sec_timeout,
+                    accept = 'application/zip' if statement_archive else 'text/html' if document else 'application/json'
+                    with self.client.stream('GET', url, headers={'Accept': accept}, timeout=min(self.settings.sec_timeout,
                             max(.01, self.deadline - time.monotonic()))) as response:
                         body = bytearray()
                         for part in response.iter_bytes():
                             body.extend(part)
-                            if len(body) > self.settings.sec_max_response_bytes:
-                                raise SECError('response_limit', 'SEC JSON exceeds byte limit.')
+                            limit = (self.settings.sec_statement_archive_bytes if statement_archive
+                                     else self.settings.sec_max_response_bytes)
+                            if len(body) > limit:
+                                raise SECError('response_limit', 'SEC response exceeds byte limit.')
                             if time.monotonic() >= self.deadline:
                                 raise SECError('time_limit', 'SEC discovery time limit reached.')
                         out.update(status=response.status_code, response_headers=dict(
                             response.headers), sha256=hashlib.sha256(body).hexdigest(),
-                            response_text=body.decode(errors='replace'))
+                            response_text=None if statement_archive else body.decode(errors='replace'),
+                            response_bytes=len(body))
                         status = response.status_code
                         if status == 429 or status in (500, 502, 503, 504):
                             delay = max(delay, retry_after(response.headers.get('Retry-After')))
                             raise SECError('retryable_http', f'SEC returned HTTP {status}.')
                         if status != 200:
                             raise SECError(f'http_{status}', f'SEC returned HTTP {status}.')
+                        if statement_archive:
+                            if not body.startswith(b'PK\x03\x04'):
+                                raise SECError('unsupported_content', 'Expected SEC statement ZIP archive.')
+                            return bytes(body)
                         if document:
                             if 'html' not in response.headers.get('content-type', '').lower():
                                 raise SECError('unsupported_content', 'Expected HTML annual filing.')
@@ -188,3 +200,44 @@ class SECClient:
         if not re.fullmatch(r'\d{10}', str(cik)):
             raise SECError('invalid_response', 'Invalid SEC CIK for Company Facts.')
         return self.get(f'{COMPANY_FACTS}CIK{cik}.json', dict, stage='facts')
+
+    def statement_archive(self, quarter):
+        """Cache bounded quarterly ZIP bytes, verifying their digest on every read."""
+        if not re.fullmatch(r'\d{4}q[1-4]', quarter):
+            raise SECError('invalid_url', 'Invalid submission quarter.')
+        url = f'https://www.sec.gov/files/dera/data/financial-statement-data-sets/{quarter}.zip'
+        path = self.cache / f'statements-{quarter}.zip'
+        metadata_path = path.with_suffix('.metadata.json')
+        if path.exists() and metadata_path.exists():
+            try:
+                metadata = json.loads(metadata_path.read_bytes())
+                if (metadata['url'] == url and time.time() - metadata['timestamp'] < 86400
+                        and path.stat().st_size <= self.settings.sec_statement_archive_bytes):
+                    raw = path.read_bytes()
+                    if hashlib.sha256(raw).hexdigest() == metadata['sha256']:
+                        return raw, metadata
+            except (ValueError, KeyError, OSError):
+                pass
+        raw = self.get(url, bytes, stage='facts', statement_archive=True)
+        metadata = {'url': url, 'timestamp': time.time(),
+                    'retrieved_at': datetime.now(UTC).isoformat(),
+                    'sha256': hashlib.sha256(raw).hexdigest()}
+        self.cache.mkdir(parents=True, exist_ok=True)
+        for target, content in ((path, raw), (metadata_path, json.dumps(metadata).encode())):
+            descriptor, temporary = tempfile.mkstemp(dir=self.cache)
+            try:
+                with os.fdopen(descriptor, 'wb') as stream:
+                    stream.write(content)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, target)
+            finally:
+                if os.path.exists(temporary):
+                    os.unlink(temporary)
+        return raw, metadata
+
+    def filing_index(self, cik, accession):
+        if not str(cik).isdigit() or not re.fullmatch(r'\d{10}-\d{2}-\d{6}', accession):
+            raise SECError('invalid_url', 'Invalid filing identity for SEC index.')
+        url = f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-", "")}/index.json'
+        return self.get(url, dict, stage='facts')

@@ -6,7 +6,7 @@
     chunks: ['split-context', 'context-store'],
     evidence: ['describe-score', 'score-retain'],
     findings: ['assemble-propose', 'propose-validate', 'validate-classify', 'classify-publish'],
-    facts: ['checkpoint-retrieve', 'retrieve-normalize', 'normalize-store'],
+    facts: ['checkpoint-retrieve', 'retrieve-normalize', 'normalize-enrich', 'enrich-store'],
     evaluate: ['pair-compare', 'compare-verify', 'verify-record']
   };
   const stages = {
