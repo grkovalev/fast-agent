@@ -33,7 +33,30 @@ class SourceRangeChunker:
         totals = totals or {'count': len(chunks), 'core_lines': core_lines,
                             'max_request_size': max((item.request_size_estimate for item in chunks),
                                                     default=0)}
+        sample = [item for item in chunks[:3]
+                  if item.section_id == chunks[0].section_id] if chunks else []
+        if not sample:
+            def example_range(start: int, end: int) -> SourceRange:
+                return SourceRange(document_id='example', source_hash='0' * 64,
+                                   start_line=start, end_line=end)
+
+            sample = [
+                TextChunk(chunk_id='example-1', section_id='example-section',
+                          core_range=example_range(101, 120), request_size_estimate=160,
+                          next_chunk_id='example-2'),
+                TextChunk(chunk_id='example-2', section_id='example-section',
+                          core_range=example_range(121, 140),
+                          context_ranges=[example_range(115, 120)],
+                          request_size_estimate=175, previous_chunk_id='example-1',
+                          next_chunk_id='example-3'),
+                TextChunk(chunk_id='example-3', section_id='example-section',
+                          core_range=example_range(141, 160),
+                          context_ranges=[example_range(135, 140)],
+                          request_size_estimate=180, previous_chunk_id='example-2'),
+            ]
         return {
+            'sample_kind': 'persisted' if chunks else 'illustrative',
+            'sample_chunks': sample,
             'selected_sections': selected_sections,
             'chunk_count': totals['count'],
             'core_lines': totals['core_lines'],

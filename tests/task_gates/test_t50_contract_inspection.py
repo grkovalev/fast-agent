@@ -87,11 +87,19 @@ def test_overview_uses_bounded_aggregates_instead_of_expanding_artifacts(tmp_pat
     def forbid_expansion(*_args, **_kwargs):
         raise AssertionError('overview expanded a persisted artifact')
 
-    for method in ('chunks', 'scores', 'findings', 'company_fact_dataset', 'canonical_document'):
+    original_chunks = V2Repository.chunks
+
+    def bounded_chunks(self, run_id, *, page=None, per_page=100):
+        assert (page, per_page) == (1, 3)
+        return original_chunks(self, run_id, page=page, per_page=per_page)
+
+    monkeypatch.setattr(V2Repository, 'chunks', bounded_chunks)
+    for method in ('scores', 'findings', 'company_fact_dataset', 'canonical_document'):
         monkeypatch.setattr(V2Repository, method, forbid_expansion)
     with TestClient(create_app(settings)) as client:
         response = client.get('/v2/runs/bounded-inspection/pipeline')
     assert response.status_code == 200
+    assert 'Bounded persisted example from this run' in response.text
     assert 'Pipeline overview' in response.text
 
 

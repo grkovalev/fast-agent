@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T56 — Sections and Evidence: show scoring, policy, and distinct outcomes.** (**DONE; manual visual verification pending**).
-- Next work: **T57 — Chunks: show core coverage and repeated context.**
+- Current task: **T57 — Chunks: show core coverage and repeated context.** (**DONE; manual visual verification pending**).
+- Next work: **T58 — Findings: show validation, bounded repair, and publication.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,6 +18,54 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: manual browser visual inspection remains pending under the task's no-browser-automation policy. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T57 local acceptance and handoff
+
+- Follow-up after user review: the first version looked like independent range
+  cards and left “core” and “repeated context” unexplained. The initial diagram
+  now reads as a sequence: take new lines for each chunk's sole core, advance to
+  the next uncovered line, copy a bounded tail of already owned lines into the
+  next chunk's context, and estimate the later scoring request from both ranges
+  plus overhead. A concrete repeated-line example and visible atomic-line boundary
+  rule explain why the same line appears twice without two core owners. Focused
+  tests were rerun: 16 passed in 2.04s (2.28s wall time); `uv run ruff check .`
+  and `git diff --check` passed. Manual visual verification remains pending.
+- Replaced the Chunks process boxes with a line-addressed selected-section band and
+  adjacent core ranges. Striped bands show preceding lines repeated as context, not
+  new coverage. The initial render explains atomic canonical lines, deterministic
+  size limits, and the absence of a model call. The three station controls retain
+  the shared inspector and keyboard behavior.
+- A bounded sample of up to three persisted `TextChunk` records supplies actual
+  core/context ranges, request estimates, source links, and clickable neighbor
+  links. Without saved chunks, the same geometry is explicitly illustrative.
+  Aggregate counts still come from persisted totals, and pending/failed states do
+  not display an invented zero. The chunk detail page also links neighbors and
+  correctly describes an empty context range regardless of chunk position.
+- Inspected and timed the existing contract, inspector, and overview tests before
+  editing: 13 passed in 1.65s. Updated one obsolete test that forbade any overview
+  chunk read to permit only a three-item bounded sample; no tests were removed.
+  Added a chunker/route gate for exact core partition, separate overlap, neighbor
+  links, request bounds, persisted source links, and pending/failed presentation.
+  Focused command: `time .venv/bin/pytest -q tests/task_gates/test_t57_chunks.py
+  tests/task_gates/test_t50_contract_inspection.py
+  tests/task_gates/test_t52_inspector.py
+  tests/task_gates/test_pipeline_ui_session1.py
+  tests/task_gates/test_t53_pipeline_hierarchy.py` — 16 passed in 1.93s
+  (2.18s wall time). The shared inspector/progress Node gates passed (2 tests).
+  `.venv/bin/ruff check .` and `git diff --check` passed. `uv run ruff check .`
+  required outside-sandbox cache access; its first run identified test style
+  issues, which were fixed and checked again with the local Ruff executable.
+  All tests used isolated storage; no SEC or provider requests were made.
+- Manual visual verification remains pending under the no-browser-automation
+  policy. In the already-running UI, open `/v2/runs/<run_id>/pipeline` for a run
+  with stored chunks and one with Chunks still pending or failed. At desktop and
+  phone widths and 200% zoom, confirm cores read in source order, striped context
+  appears within the receiving chunk without claiming ownership, and long range/ID
+  text wraps.
+  Follow a core source link and a Previous/Next chunk link. Tab through Split,
+  Context, and Store; each should open its inspector. The local server prerequisite
+  is `uv run profitlab serve` if needed.
+- Next: **T58 — Findings: show validation, bounded repair, and publication.**
 
 ## T56 local acceptance and handoff
 

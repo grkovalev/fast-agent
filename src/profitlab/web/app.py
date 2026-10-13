@@ -320,6 +320,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         chunk_content = {
             'inspection': SourceRangeChunker.inspection_view(
                 settings, selected_sections=totals['decisions']['section_score'].get('selected', 0),
+                chunks=pipeline.repo.chunks(run_id, page=1, per_page=3),
                 totals=totals['chunks']),
         }
         evidence_content = {
