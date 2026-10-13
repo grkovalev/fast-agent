@@ -32,7 +32,8 @@ def test_pending_zero_and_incomplete_accounting_have_distinct_rendering(tmp_path
         selected = client.get('/v2/runs/accounting-state/pipeline?stage=facts').text
     assert 'data-stage-progress="source"></small>' in page
     assert 'data-stage-progress="chunk">0 / 0</small>' in page
-    assert 'data-stage-accounting="chunk"><dl' in page
+    assert 'data-stage-accounting="chunk"><p class="accounting-provenance">Persisted run accounting' in page
+    assert '<dt>Stored chunks</dt><dd>0</dd>' in page
     assert 'data-stage-accounting="findings">' in page
     assert '<p>Partial persisted accounting</p>' in page
     assert 'data-stage-accounting="facts"><p>Complete accounting unavailable after failed.</p>' in page

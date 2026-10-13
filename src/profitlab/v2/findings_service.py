@@ -84,7 +84,7 @@ class FindingsService:
             'provider_calls': summary.get('calls', 0),
             'assemble': {
                 'accepts': 'Retained visible evidence, validated outline navigation, target definitions, and the current fiscal-reporting year.',
-                'does': 'Builds a bounded request from retained chunks, with a graceful evidence-only fallback when the full context will not fit.',
+                'does': 'Builds a bounded request from retained chunks. If full context does not fit, keeps highest-scored complete chunks; if needed, keeps the best core with its section navigation and drops overlap context. If no evidence fits, publishes an empty limited set without a model call.',
                 'outputs': {'retained_chunks': 'visible core evidence plus bounded context',
                             'validated_outline': 'navigation metadata only'},
                 'guarantee': 'Company Facts and evaluation values are unavailable; outline metadata is navigation, never evidence.',
@@ -108,15 +108,17 @@ class FindingsService:
             },
             'validate': {
                 'accepts': {'findings': [proposal]},
-                'does': 'Mechanically checks the chunk, core-line boundary, verbatim quote, and decimal amount before accepting a proposal.',
+                'does': 'Mechanically checks the chunk, core-line boundary, verbatim quote, and decimal amount. Invalid citations may trigger one bounded extraction repair request; its entire response replaces the initial candidate set and is validated again.',
                 'outputs': {'accepted': 'quote-validated finding candidates',
                             'rejected': 'inspectable citation diagnostics'},
                 'guarantee': 'Context lines may inform interpretation but can never be cited; invalid proposals never become findings.',
+                'policy': {'maximum_extraction_requests': settings.findings_max_requests,
+                           'repair_condition': 'invalid citations and remaining extraction request budget',
+                           'repair_result': 'replacement candidate set, revalidated in full'},
             },
             'classify': {
-                'accepts': {'accepted': 'quote-validated finding candidates',
-                            'rejected': 'citation diagnostics'},
-                'does': 'Uses bounded visible context to identify supported finding types without changing the validated quote or amount.',
+                'accepts': {'unique_findings': 'validated candidates deduplicated by exact quote and amount'},
+                'does': 'After deduplication, reuses cached types when complete or asks the separate Jev type classifier using bounded visible context. An over-budget request leaves the type unresolved without discarding the finding.',
                 'outputs': {'typed_findings': 'validated findings with a supported or unresolved type'},
                 'guarantee': 'Classification is metadata; it never repairs or replaces a citation.',
                 'policy': {
@@ -131,7 +133,7 @@ class FindingsService:
             },
             'publish': {
                 'accepts': {'typed_findings': 'validated findings with a supported or unresolved type'},
-                'does': 'Deduplicates repeated overlap quotes and persists the sealed finding set.',
+                'does': 'Persists the validated finding set and summary after classification. A sealed set can be empty or omit rejected proposals.',
                 'outputs': {'findings': 'published quote-backed findings'},
                 'guarantee': 'Unclear period, unit, scale, or attribution stays unresolved rather than guessed.',
             },

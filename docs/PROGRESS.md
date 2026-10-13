@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T57 — Chunks: show core coverage and repeated context.** (**DONE; manual visual verification pending**).
-- Next work: **T58 — Findings: show validation, bounded repair, and publication.**
+- Current task: **T58 — Findings: show validation, bounded repair, and publication.** (**DONE; manual visual verification pending**).
+- Next work: **T59 — Facts and Evaluate: show the gate, independent data, and optional verification.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,6 +18,33 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: manual browser visual inspection remains pending under the task's no-browser-automation policy. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T58 local acceptance and handoff
+
+- Replaced Findings' repeated SVG boxes with a readable evidence and navigation
+  input pair, bounded extraction request, exact validation gate, conditional
+  repair and rejection branch, deduplication before Jev type classification,
+  and sealed Finding output. The repair branch states the runtime's replacement
+  semantics: repaired proposals replace the initial candidate set and all must
+  pass validation again. The view also distinguishes an empty limited set from
+  a model proposal and leaves unresolved metadata visible.
+- Updated service-owned inspection text and policy to describe request fallback,
+  repair limits, replacement, cache reuse, and classification after deduplication.
+  Extraction and Jev request builders remain the source for illustrative requests;
+  runtime provider behavior did not change.
+- Added a route gate for branch order, service settings, both model roles, and
+  selectable inspectors, plus a service gate for repair replacement and
+  deduplication. Updated one stale Chunks accounting markup assertion to check
+  the persisted zero it was meant to protect. Final checks: `.venv/bin/pytest -q`
+  — 43 passed; shared Node gates — 2 passed; `.venv/bin/ruff check .` and
+  `git diff --check` passed. Tests used isolated storage and no provider calls.
+- Manual visual verification remains pending under the no-browser-automation
+  policy. In the running UI, inspect `/v2/runs/<run_id>/pipeline` at wide,
+  phone, and 200% zoom widths. Follow the replacement arrow back to validation,
+  confirm rejection does not join publication, and check the deduplication order.
+  Select all five stations by pointer and keyboard; inspect both provider
+  requests, the Finding object, long payload wrapping, and reduced-motion behavior.
+- Next: **T59 — Facts and Evaluate: show the gate, independent data, and optional verification.**
 
 ## T57 local acceptance and handoff
 

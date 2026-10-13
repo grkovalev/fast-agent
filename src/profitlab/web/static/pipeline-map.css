@@ -274,16 +274,35 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 .evidence-loop [data-evidence-connector].is-highlighted { stroke: #126478; stroke-width: 4; }
 .evidence-loop [data-evidence-station] rect { x: 130px; width: 460px; }
 
-/* Findings extends the same explorable treatment to its real five-stage gate. */
+/* Findings follows the actual validation, replacement, and classification branches. */
 .findings-stage-explainer { border-left-color: #438897; background: linear-gradient(135deg, #fbfdfd, #eff7f7); color: #203c43; }
-.findings-loop.is-inspecting [data-findings-station]:not(.is-highlighted) { opacity: .42; }
-.findings-loop [data-findings-connector].is-highlighted { stroke: #126478; stroke-width: 4; }
-.findings-loop [data-findings-connector].is-flowing { stroke-dasharray: 8 10; animation: findings-flow 850ms ease-out 1; }
-@keyframes findings-flow { from { stroke-dashoffset: 36; } to { stroke-dashoffset: 0; } }
+.findings-intro { max-width: 68ch; color: #465f64; font-size: .8rem; line-height: 1.5; }
+.findings-composition { display: flex; flex-direction: column; align-items: stretch; gap: .25rem; max-width: 44rem; }
+.findings-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+.findings-input, .findings-station, .findings-dedup, .findings-repair-path, .findings-rejection { display: flex; flex-direction: column; gap: .25rem; min-width: 0; padding: .7rem .8rem; color: #294e57; line-height: 1.4; overflow-wrap: anywhere; }
+.findings-input span, .findings-station > span:first-child { color: #387b89; font-size: .65rem; font-weight: 800; letter-spacing: .065em; }
+.findings-input strong, .findings-station strong, .findings-dedup strong { font-size: .88rem; }
+.findings-input small, .findings-station small, .findings-dedup span, .findings-repair span { color: #48646b; font-size: .73rem; }
+.findings-input--navigation { background: #f6f8fa; border-color: #9eb2bc; }
+.findings-station { width: 100%; text-align: left; cursor: pointer; font: inherit; }
+.findings-station:hover, .findings-station:focus-visible, .findings-station.is-selected { border-color: #126478; background: #e5f3f4; outline-offset: 2px; }
+.findings-loop.is-inspecting [data-findings-station]:not(.is-highlighted) { opacity: .65; }
+.findings-down { align-self: center; color: #387b89; font-size: .78rem; font-weight: 800; text-align: center; }
+.findings-down.is-highlighted { color: #0d5668; }
+.findings-down.is-flowing { animation: findings-flow 850ms ease-out 1; }
+.findings-validation { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .82fr); gap: .55rem; align-items: stretch; }
+.findings-repair { display: flex; flex-direction: column; gap: .4rem; }
+.findings-repair-path { border: 2px dashed #a68153; border-radius: .35rem; background: #fff9ef; }
+.findings-repair-path strong, .findings-repair-arrow { color: #74552c; }
+.findings-rejection { border-left: 3px solid #a8675a; background: #fff4f1; }
+.findings-rejection strong { color: #8a4e42; font-size: .76rem; }
+.findings-dedup { border-left: 3px solid #5792a0; background: #eff7f8; }
+.findings-output { background: #e9f4f4; }
+@keyframes findings-flow { from { opacity: .35; transform: translateY(-.2rem); } to { opacity: 1; transform: translateY(0); } }
 .findings-loop-card { border-top-color: #438897; background: #f4fafa; }
 .findings-stage-accounting { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@media (max-width: 600px) { .findings-loop svg { min-height: 55rem; }.findings-stage-accounting { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { .findings-loop [data-findings-connector].is-flowing { animation: none; } }
+@media (max-width: 600px) { .findings-inputs, .findings-validation { grid-template-columns: 1fr; }.findings-stage-accounting { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .findings-down.is-flowing { animation: none; } }
 
 /* Evaluate makes the post-seal merge legible without turning it into a workflow editor. */
 .facts-stage-explainer { border-left-color: #438897; background: linear-gradient(135deg, #fbfdfd, #eff7f7); color: #203c43; }
