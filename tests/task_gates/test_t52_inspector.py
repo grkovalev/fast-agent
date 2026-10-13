@@ -21,7 +21,7 @@ class Markup(HTMLParser):
         values = dict(attrs)
         if 'id' in values:
             self.ids.append(values['id'])
-        if values.get('role') == 'button' and any(
+        if (values.get('role') == 'button' or tag == 'button') and any(
                 key.endswith('-station') for key in values):
             self.stations.append(values)
         if tag == 'template' and 'data-station-template' in values:
@@ -48,7 +48,8 @@ def test_overview_renders_shared_inspection_from_service_without_javascript(tmp_
     markup.feed(response.text)
     assert len(markup.ids) == len(set(markup.ids))
     assert len(markup.stations) == 29
-    assert all(station.get('tabindex') == '0' and station.get('aria-controls')
+    assert all((station.get('tabindex') == '0' or station.get('type') == 'button')
+               and station.get('aria-controls')
                and station.get('aria-label') for station in markup.stations)
     assert len(markup.templates) == 21
     assert 'New Runtime Field' in response.text

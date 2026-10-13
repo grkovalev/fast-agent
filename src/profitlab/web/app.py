@@ -285,6 +285,8 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                 'stored': 'Canonical visible lines pending',
             }
         source_content['inspection'] = V2SourceService.inspection_view(**source_content)
+        source_content['document_ref'] = source_ref
+        source_content['filing_id'] = filing.get('filing_id') if filing else None
         outline_stage = next(item for item in state['stages'] if item.stage == 'outline')
         outline_summary = pipeline.repo.outline_summary(run_id)
         outline_content = {

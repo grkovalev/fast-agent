@@ -25,20 +25,22 @@ class V2SourceService:
         return {
             'request': {
                 'accepts': 'Selected ticker and annual filing identity.',
-                'does': 'Locates and requests the SEC primary annual filing for the report.',
+                'does': ('V2SourceService.acquire uses DiscoveryService and SECClient to locate '
+                         'and request the primary annual filing.'),
                 'outputs': received,
                 'guarantee': 'The document identity is retained before downstream transformation.',
             },
             'convert': {
                 'accepts': received,
-                'does': ('Converts filing HTML to canonical visible text, removing hidden and '
-                         'Inline XBRL-only content and metadata.'),
+                'does': ('canonicalize_html converts filing HTML to CanonicalDocument lines, '
+                         'removing hidden and Inline XBRL-only content and metadata.'),
                 'outputs': 'Sanitized visible lines.',
                 'guarantee': 'No source text is invented or supplied by hidden metadata.',
             },
             'store': {
                 'accepts': 'Sanitized visible lines and source HTML anchors.',
-                'does': 'Persists stable line numbers and sanitized HTML anchors.',
+                'does': ('V2Repository.save_canonical_document persists CanonicalDocumentRef, '
+                         'stable CanonicalLine numbers, source hash, and sanitized HTML anchors.'),
                 'outputs': stored,
                 'guarantee': 'Later source links resolve to the retained line-addressable record.',
             },

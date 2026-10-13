@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T53 — Establish page hierarchy and semantic connections.** (**DONE; manual visual verification pending**).
-- Next work: **T54 — Source: show the document becoming addressable source.**
+- Current task: **T54 — Source: show the document becoming addressable source.** (**DONE; manual visual verification pending**).
+- Next work: **T55 — Outline window iteration and final reconciliation.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,6 +18,41 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T54 local acceptance and handoff
+
+- Replaced Source's three repeated SVG process boxes with an acquisition document,
+  a visible-text conversion operation, and a numbered canonical-line artifact. The
+  same three keyboard-selectable stations still open the shared inspector. The
+  initial render states that later stages use saved visible lines, while hidden
+  XBRL content and metadata are excluded. Pending runs show an awaiting artifact
+  instead of illustrative stored lines.
+- The overview exposes the persisted filing/document identity, source hash, line
+  count, and a numbered-source link when a canonical document exists. The source
+  viewer retains its exact sanitized-HTML anchor links. Inspector operation text
+  identifies `V2SourceService.acquire`, `canonicalize_html`, and the repository
+  persistence method; no runtime acquisition behavior changed.
+- Inspected and timed the Source route, shared inspector, and hierarchy gates
+  before editing: 8 passed in 1.54s. Updated the obsolete SVG assertions and
+  shared station parser for native buttons; no tests were removed. Added a pending
+  source case and verified the overview link reaches a numbered line whose anchor
+  exists in the sanitized HTML. Final focused command:
+  `time .venv/bin/pytest -q tests/task_gates/test_pipeline_ui_session1.py
+  tests/task_gates/test_t52_inspector.py
+  tests/task_gates/test_t53_pipeline_hierarchy.py` — 9 passed in 1.60s
+  (1.86s wall time). `uv run ruff check .` and `git diff --check` passed;
+  uv required outside-sandbox access to its existing cache. No SEC or provider
+  request was made; all route data came from isolated test fixtures.
+- Manual visual verification remains pending under the no-browser-automation
+  policy. In the already-running UI, open `/v2/runs/<run_id>/pipeline` for a
+  completed Source run and a pending run. At wide and phone widths, confirm the
+  document, conversion, and numbered-line shapes read in order, the pending
+  artifact is clearly awaiting data, and selection works by pointer and keyboard.
+  Follow **Open numbered source**, then a line number, and confirm the sanitized
+  filing opens at that exact anchor. Refresh and confirm persisted identity and
+  hash remain visible. The local server prerequisite, if needed, is
+  `uv run profitlab serve`.
+- Next: **T55 — Outline window iteration and final reconciliation.**
 
 ## T53 local acceptance and handoff
 

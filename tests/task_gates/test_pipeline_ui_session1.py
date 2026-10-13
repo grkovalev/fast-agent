@@ -97,18 +97,27 @@ def test_source_card_uses_persisted_sec_filing_and_canonical_line_result(tmp_pat
 
     with TestClient(create_app(settings)) as client:
         overview = client.get('/v2/runs/source-map-run/pipeline')
+        source_page = client.get(f'/v2/runs/source-map-run/source?document={document.ref.document_id}')
+        anchor_page = client.get(
+            f'/v2/runs/source-map-run/source/{document.ref.document_id}/html')
 
     assert 'data-source-card' in overview.text
     assert 'data-source-loop' in overview.text
-    assert 'aria-label="Source flow: Request, Convert, Store"' in overview.text
+    assert 'class="source-composition"' in overview.text
     assert 'How the SEC filing becomes canonical source' in overview.text
-    assert '>Request</text>' in overview.text
+    assert '01 · ACQUIRE' in overview.text
     assert '>Primary filing HTML · 10-K · report date 2025-12-31</dd>' in overview.text
-    assert '>Convert</text>' in overview.text
-    assert 'Keep reader-visible filing content; remove metadata.' in overview.text
-    assert '>Store</text>' in overview.text
-    assert f'>{document.ref.line_count:,} canonical visible lines</dd>' in overview.text
-    assert 'Persist stable numbered lines and HTML anchors.' in overview.text
+    assert '02 · CONVERT' in overview.text
+    assert 'Remove hidden content and XBRL-only metadata' in overview.text
+    assert '03 · STORE' in overview.text
+    assert f'{document.ref.line_count:,} canonical visible lines' in overview.text
+    assert 'Illustrative line types and anchor links' in overview.text
+    assert f'Document {document.ref.document_id} · SHA-256 <code>{document.ref.source_hash}</code>' in overview.text
+    assert f'/v2/runs/source-map-run/source?document={document.ref.document_id}#line-1' in overview.text
+    assert source_page.status_code == anchor_page.status_code == 200
+    assert 'id="line-1"' in source_page.text
+    assert f'/html#{document.lines[0].html_anchor}' in source_page.text
+    assert f'id="{document.lines[0].html_anchor}"' in anchor_page.text
     source_start = overview.text.index('data-source-card')
     outline_start = overview.text.index('data-stage-card="outline"')
     source_card = overview.text[source_start:outline_start]
@@ -124,6 +133,24 @@ def test_source_card_uses_persisted_sec_filing_and_canonical_line_result(tmp_pat
     assert 'data-station-template' in script
     assert 'Inline XBRL-only content' in overview.text
     assert "prefers-reduced-motion: reduce" in script
+
+
+def test_pending_source_does_not_claim_a_saved_document(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
+    repo = V2Repository(tmp_path)
+    now = datetime.now(UTC)
+    repo.create_run(V2Run(run_id='source-pending-run', ticker='MAP', created_at=now, updated_at=now))
+
+    with TestClient(create_app(settings)) as client:
+        overview = client.get('/v2/runs/source-pending-run/pipeline')
+
+    source = overview.text.split('data-source-card', 1)[1].split('data-stage-container="outline"', 1)[0]
+    assert 'Document pending' in source
+    assert 'Awaiting canonical lines and anchors' in source
+    assert 'Illustrative line types and anchor links' not in source
+    assert 'Canonical visible lines pending' in source
+    assert 'Document identity, source hash, and exact line anchors will appear after acquisition.' in source
+    assert 'Open numbered source' not in source
 
 
 def test_outline_card_uses_request_prompt_template_and_persisted_outcome(tmp_path):

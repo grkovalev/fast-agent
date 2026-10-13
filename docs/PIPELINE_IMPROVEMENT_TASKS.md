@@ -1,7 +1,7 @@
 # Pipeline explanation follow-up tasks
 
 Created 2026-10-01 from [PIPELINE_IMPLEMENTATION_REVIEW.md](PIPELINE_IMPLEMENTATION_REVIEW.md).
-T48–T53 are **DONE**; T54–T60 remain **TODO**. This document creates implementation work; no task below
+T48–T54 are **DONE**; T55–T60 remain **TODO**. This document creates implementation work; no task below
 was implemented as part of the review.
 
 These tasks continue after T47. Use [TASKS.md](TASKS.md)'s execution policy, preserve
