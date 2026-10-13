@@ -299,7 +299,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             'window_lines': settings.outline_window_lines,
             'overlap_lines': settings.outline_overlap_lines,
             'window_step_lines': max(1, settings.outline_window_lines - settings.outline_overlap_lines),
-            'prior_context_limit': 8,
+            'prior_context_limit': OutlineService.continuation_limit,
             'accounting': outline_summary.model_dump() if outline_summary else None,
             # The stage summary remains useful for an in-flight or failed pass, but
             # detailed accounting is only rendered after its durable save.

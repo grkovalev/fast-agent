@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T54 — Source: show the document becoming addressable source.** (**DONE; manual visual verification pending**).
-- Next work: **T55 — Outline window iteration and final reconciliation.**
+- Current task: **T55 — Outline window iteration and final reconciliation.** (**DONE; manual visual verification pending**).
+- Next work: **T56 — Sections and Evidence: show scoring, policy, and distinct outcomes.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,6 +18,47 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T55 local acceptance and handoff
+
+- Replaced the Outline's repeated process boxes with a canonical-line strip, visibly
+  overlapping windows, a model proposal, exact validation, and accepted continuation.
+  The complete return arrow points to the next window. A separate exit after the
+  last window leads to deduplication and a whole-document partition; missing starts
+  show warned unlabeled coverage. The four stations still open the shared inspector,
+  and Propose directly exposes the illustrative request from the runtime builder.
+- Kept the Outline SVG at its intended 27rem cap after a shared 52rem rule had
+  enlarged its text, and aligned its main colors with the neighboring stages.
+- Corrected the Reconcile inspector: it now describes per-window continuation and
+  post-loop finalization separately. Its final section is labeled as an illustrative
+  example. Window size, overlap, step, and continuation limit come from the settings
+  and `OutlineService`; the service's continuation limit is shared with the page.
+  No runtime outline decision or provider request changed.
+- Inspected and timed the existing pipeline, request, and shared-inspector gates
+  before editing: 10 passed in 1.40s. Updated one obsolete rectangle-wording test;
+  no tests were removed. Added a two-window service gate with overlapping proposals,
+  an invalid quote, continuation, and warned unlabeled first coverage. Final focused
+  command: `time .venv/bin/pytest -q tests/task_gates/test_t55_outline.py
+  tests/task_gates/test_pipeline_ui_session1.py
+  tests/task_gates/test_t51_request_inspection.py
+  tests/task_gates/test_t52_inspector.py
+  tests/task_gates/test_t53_pipeline_hierarchy.py` — 12 passed in 1.60s
+  (1.85s wall time). `node --test tests/task_gates/test_t52_inspector.cjs
+  tests/task_gates/test_t49_progress.cjs` — 2 passed. `uv run ruff check .`,
+  `node --check src/profitlab/web/static/pipeline-inspector.js`, and
+  `git diff --check` passed; uv needed outside-sandbox access to its existing
+  cache. Only isolated test storage was used; no SEC or provider
+  request was made.
+- Manual visual verification remains pending under the no-browser-automation policy.
+  In the already-running UI, open `/v2/runs/<run_id>/pipeline` and inspect Outline at
+  wide and phone widths and at 200% zoom. Confirm the overlapping source bands,
+  complete next-window return, and separate final exit fit and read in order. Tab
+  through all four stations, select Propose to inspect the long prompt, and confirm
+  pointer/keyboard selection agree. With JavaScript disabled, the main explanation
+  should still read; with reduced motion, selecting a station should not animate
+  its connector. The local server prerequisite, if needed, is
+  `uv run profitlab serve`.
+- Next: **T56 — Sections and Evidence: show scoring, policy, and distinct outcomes.**
 
 ## T54 local acceptance and handoff
 

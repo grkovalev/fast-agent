@@ -1,7 +1,7 @@
 (() => {
   const links = {
     source: ['request-convert', 'convert-store'],
-    outline: ['window-propose', 'propose-validate', 'validate-reconcile', 'reconcile-window'],
+    outline: ['window-propose', 'propose-validate', 'validate-reconcile', 'reconcile-window', 'reconcile-final'],
     sections: ['describe-score', 'score-select'],
     chunks: ['split-context', 'context-store'],
     evidence: ['describe-score', 'score-retain'],
@@ -30,7 +30,9 @@
       stations.forEach((node) => node.classList.toggle('is-highlighted', node.dataset[`${prefix}Station`] === key));
       connectors.forEach((node) => node.classList.toggle('is-highlighted',
         order.includes(node.dataset[`${prefix}Connector`]) &&
-        (order[index - 1] === node.dataset[`${prefix}Connector`] || order[index] === node.dataset[`${prefix}Connector`])));
+        (order[index - 1] === node.dataset[`${prefix}Connector`] ||
+         order[index] === node.dataset[`${prefix}Connector`] ||
+         (prefix === 'outline' && key === 'reconcile' && node.dataset.outlineConnector === 'reconcile-final'))));
     };
     const clear = () => {
       loop.classList.remove('is-inspecting');

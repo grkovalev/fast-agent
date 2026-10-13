@@ -175,12 +175,18 @@ def test_outline_card_uses_request_prompt_template_and_persisted_outcome(tmp_pat
         overview = client.get('/v2/runs/outline-map-run/pipeline')
 
     assert 'data-outline-card' in overview.text
-    assert 'Select a bounded canonical-line slice.' in overview.text
-    assert 'Suggest navigation; never alter source.' in overview.text
-    assert 'Resolve overlap into one navigable map.' in overview.text
-    assert 'Match ranges, titles, and quotes to source.' in overview.text
-    assert 'How one filing window becomes trusted navigation' in overview.text
+    assert 'Overlapping windows, then one final partition' in overview.text
+    assert 'Visible lines + prior context' in overview.text
+    assert 'Topic + proposed source span' in overview.text
+    assert 'Accept or reject exact matches' in overview.text
+    assert 'Deduplicate overlap proposals.' in overview.text
+    assert 'Missing starts → warned unlabeled range.' in overview.text
+    assert 'after last window' in overview.text
+    assert 'data-outline-connector="reconcile-window"' in overview.text
+    assert 'data-outline-connector="reconcile-final"' in overview.text
+    assert '900 lines' in overview.text and '60 lines of repeated context' in overview.text
     assert 'data-outline-loop' in overview.text
+    assert overview.text.index('data-outline-connector="reconcile-window"') < overview.text.index('FINAL · WHOLE DOCUMENT')
     assert 'Accepted input' in overview.text
     assert '1970 canonical lines · 3 windows' in overview.text
     assert '2 requests · 1 cached batch reused' in overview.text

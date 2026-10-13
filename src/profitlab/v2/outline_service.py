@@ -27,6 +27,7 @@ class OutlineService:
     """Keep generated navigation metadata separate from canonical source text."""
     prompt_version = 'outline-v1'
     system_prompt = 'You produce constrained filing navigation JSON.'
+    continuation_limit = 8
 
     def __init__(self, settings, repository):
         self.settings, self.repo = settings, repository
@@ -126,14 +127,14 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
         """
         proposal = cls._example_proposal()
         continuation = OutlineContinuation(
-            generated_topic='Revenue', exact_source_title='Revenue', end_line=840,
-            parent_topic_hint='Results',
+            generated_topic='Illustrative prior topic', exact_source_title=None,
+            end_line=1, parent_topic_hint='Illustrative parent',
         )
         section = OutlineSection(
-            section_id='outline-000912', generated_topic=proposal.generated_topic,
+            section_id='outline-000001', generated_topic=proposal.generated_topic,
             exact_source_title=proposal.exact_source_title,
             exact_representative_quote=proposal.exact_representative_quote,
-            primary_range=SourceRange(document_id='filing-document', source_hash='0' * 64,
+            primary_range=SourceRange(document_id='illustrative-document', source_hash='0' * 64,
                                       start_line=proposal.start_line, end_line=proposal.end_line),
             parent_topic_hint=proposal.parent_topic_hint, section_type=proposal.section_type,
         )
@@ -154,12 +155,13 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
                         element_type='paragraph', html_anchor='line-1',
                         dom_reference='/html/body/p[1]').model_dump()],
                 },
-                'does': ('Advances by the configured window step while retaining overlap, so a '
-                         'section that crosses a boundary remains legible in the next request.'),
+                'does': ('Advances by window size minus overlap while retaining prior validated '
+                         'navigation metadata. The next request re-reads overlapping source lines.'),
                 'outputs': {
                     'window_start_line': 1, 'window_end_line': window_end,
                     'overlap_lines': settings.outline_overlap_lines,
                     'window_step_lines': max(1, window_end - settings.outline_overlap_lines),
+                    'continuation_context_limit': cls.continuation_limit,
                     'continuation_context': [continuation.model_dump()],
                 },
                 'guarantee': ('Only sanitized, visible filing lines enter the loop. The window is '
@@ -181,14 +183,17 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
                     'accepted_ranges': [proposal.model_dump()],
                     'rejected_proposals': [{'reason': 'quote mismatch'}],
                 },
-                'does': ('Merges adjacent windows, removes overlap duplicates, and resolves a single '
-                         'ordered owner for each accepted canonical range before preparing the next window.'),
+                'does': ('During each window, append validated proposals and carry the most recent '
+                         'accepted proposals into the next request as navigation metadata. After the '
+                         'last window, deduplicate matching range/title proposals, use non-continuing '
+                         'starts as boundaries, then partition every canonical line exactly once.'),
                 'outputs': {
-                    'outline_sections': [section.model_dump(mode='json')],
+                    'final_outline_section_example': section.model_dump(mode='json'),
                     'continuation_context': [continuation.model_dump()],
                 },
-                'guarantee': ('Overlapping windows do not create duplicate navigation. Uncertain gaps '
-                              'remain visible instead of being silently assigned.'),
+                'guarantee': ('Continuation is not a persisted section. Missing first boundaries '
+                              'produce warned unlabeled coverage; rejected proposals keep diagnostics '
+                              'without creating a boundary.'),
             },
         }
 
@@ -268,7 +273,7 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
                     generated_topic=item['generated_topic'],
                     exact_source_title=item['exact_source_title'], end_line=item['end_line'],
                     parent_topic_hint=item['parent_topic_hint'],
-                ).model_dump() for item in accepted[-8:]]
+                ).model_dump() for item in accepted[-self.continuation_limit:]]
         finally:
             await client_context.aclose()
         # Explicit visible headings take precedence. Duplicate overlap proposals collapse by range/title.
