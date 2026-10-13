@@ -86,6 +86,23 @@ and policy that matter at that station. It is not a second workflow interface.
 Keep long text wrapped and structured payloads full width, with bounded vertical
 scrolling. Do not squeeze JSON into a definition-list cell or narrow card.
 
+Each Findings station opens its saved result for the current run above the
+contract explanation. Record the assembled request, initial and replacement
+proposals, initial and final validation diagnostics with deduplicated candidates,
+classified findings, and sealed output as each step finishes. A request with no
+fitting evidence records skipped extraction, validation, and classification plus
+an empty sealed output. Keep these results separate from illustrative requests
+and current configuration. Older runs may expose their saved request and final
+findings; label missing intermediate results explicitly instead of reconstructing
+them. Preview at most 20 entries per list with bounded text and total payload size,
+and link to saved diagnostics or the paginated published findings. The selected
+Findings stage also exposes the five results as expandable sections.
+Extraction request core evidence uses a CSV string with `line_number,text`
+columns per retained chunk; CSV quoting preserves the visible text exactly.
+Context and classifier input keep their separate structures. Request budgeting
+measures the serialized CSV payload; evidence-character accounting still counts
+the visible text rather than CSV headers or quoting.
+
 The backend owns inspection content:
 
 - Runtime domain classes own fields, types, constraints, and JSON serialization.
@@ -130,6 +147,23 @@ overlap ownership, continuation, and the distinct final partition. Selecting
 Propose opens its provider request directly. Apply the same builder ownership to
 Sections, Evidence, Findings, and Evaluate. Deterministic Source, Chunks, and Facts
 must not imply provider calls.
+
+## Planned fact source inspection
+
+The user requested verified fact source lines in evaluation results for debugging;
+[T61–T64](PIPELINE_IMPROVEMENT_TASKS.md) track this work. This capability is planned,
+not implemented. An evaluation comparator should expose its visible filing row,
+canonical line/range, period and scale context, and an exact sanitized-source link
+beside the existing finding citation details. The selected Facts stage should expose
+the same saved provenance. Keep SEC statement/report/presentation row numbers
+distinct from canonical filing line numbers, and retain multiple occurrences when
+applicable. Ambiguous, hidden-only, and unavailable mappings need explicit reasons.
+
+The planned enrichment runs after Findings is sealed and serves inspection only.
+Company Facts remains the independent comparator-value source; source-location
+metadata must not change discovery inputs, fact selection, comparison outcomes,
+or scale/unit verification requests. Page rendering reads saved provenance and
+does not fetch or infer a historical mapping.
 
 ## Responsive and accessible reading
 

@@ -12,10 +12,15 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next work: await the user's next task. There is no numbered task after T60.
-- Latest automated acceptance: T60 focused gates passed. The user confirmed UI
-  verification; detailed visual observations were not supplied. Reviewed real-case
-  benchmark verification remains separate and pending.
+- Next planned work: **T61**, followed by T62–T64 in the
+  [task register](PIPELINE_IMPROVEMENT_TASKS.md), to expose verified fact source
+  lines in evaluations. All four tasks are TODO; the user requested task planning,
+  and implementation has not started.
+- Latest automated checks: Findings step-results/CSV follow-up passed the full
+  Python suite (50 tests in 3.42s), repository lint, and whitespace checks.
+  Its visual review remains pending. T60's earlier user-confirmed UI verification
+  does not cover this follow-up. Reviewed real-case benchmark verification also
+  remains separate and pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -35,8 +40,79 @@ Start with [AGENTS.md](../AGENTS.md), the active
 [UI task register](PIPELINE_IMPROVEMENT_TASKS.md). T48–T59 are complete and
 archived. T60's focused automated checks passed, and the user confirmed the
 remaining UI verification. The user did not supply itemized observations, so do
-not infer which widths, states, or interactions they inspected. Await the user's
-next task. No later numbered UI task is defined.
+not infer which widths, states, or interactions they inspected. T61–T64 are planned
+in the task register. The user requested committing the completed work before a
+context reset, then plans to ask to proceed with the next task. On that request,
+start **T61**, mark it IN_PROGRESS, and follow TASKS.md's execution policy. Do not
+skip ahead to T62–T64 or claim that fact source lines are already implemented.
+
+The completed Findings follow-up is recorded below. It uses existing exploration
+action storage and requires no schema migration. Preserve its saved-step results,
+CSV extraction request representation, bounded previews, and historical availability
+labels when extending fact provenance. SEC `PRE.line` is presentation row order,
+not a canonical filing line; T62 establishes the exact canonical mapping.
+
+## Findings step results and CSV evidence — completed, 2026-10-13
+
+- The Findings overview card exposes saved results when selecting Assemble,
+  Propose, Validate, Classify, and Publish. The selected Findings stage exposes
+  the same five results in expandable sections.
+- FindingsService persists step diagnostics in existing exploration actions:
+  assembled request; initial and replacement proposals; initial and final citation
+  validation with rejection reasons and deduplicated candidates; classified findings;
+  sealed output. An empty bounded request records skipped intermediate steps and
+  an empty published result. A repair in progress retains the initial diagnostics.
+- The reader shows bounded previews (20 entries per list, shortened strings, and
+  a total content budget) and links to saved diagnostics or paginated published
+  findings. Older runs can show their retained request/final findings; intermediate
+  results that were never saved remain explicitly unavailable.
+- Extraction request `core_evidence_lines` is a CSV string with `line_number,text`
+  columns. The real request builder, illustrative request, saved diagnostic, and
+  request budgeting use that format. CSV quoting preserves commas, quotes, and
+  embedded newlines; evidence-character accounting still counts original visible
+  text. Context and Jev classifier payload structures are unchanged. The changed
+  request hash separates CSV requests from earlier JSON-array extraction caches.
+- UI synchronization: updated Findings copy/inspectors and the durable design brief
+  alongside execution diagnostics and the request representation. Fact source-line
+  provenance is planned separately in T61–T64 and has not been implemented.
+- Verification: focused Findings/request/UI gates passed (16 tests in 1.87s);
+  final `uv run pytest -q` passed (50 tests in 3.42s), with the existing
+  Starlette/AnyIO deprecation warning. `uv run ruff check .` and
+  `git diff --check` passed. No live extraction/provider or SEC check was performed.
+- Visual review remains pending: the attempted computer-use inspection was blocked
+  by missing permissions; no screenshot or width-specific result is claimed. A
+  temporary preview used isolated storage and was stopped. Do not start a second
+  app against user run storage; follow the manual-review policy in TASKS.md.
+- Manual verification: in the existing UI, open a run's pipeline, select each
+  Findings step, and compare the saved result and diagnostics with the selected
+  Findings page. Check a newer run with repair, an empty result, and an older run
+  with unavailable intermediate results. Review wide/phone widths, keyboard
+  selection, and long payload wrapping; confirm saved details/source links work.
+  New extraction requests should show CSV core evidence. Historical saved requests
+  keep their original representation.
+- Next implementation task after the context reset: **T61 — Retain SEC presentation
+  locations for selected facts** in PIPELINE_IMPROVEMENT_TASKS.md. T61–T64 are TODO.
+
+## Fact source lines in evaluations — task planning, 2026-10-13
+
+- User requested implementation tasks so evaluation results can show where SEC
+  comparator facts occur in the filing, making mismatches easier to debug.
+- Added T61–T64, all TODO: acquire SEC presentation provenance; map retained raw
+  Inline XBRL occurrences to verified canonical lines; expose fact source quotes
+  and links in evaluation cards and Facts inspection; verify real-filing acceptance.
+- SEC `PRE.line` identifies presentation row order within a report, not our
+  canonical source line. The final acceptance target requires exact canonical
+  links and explicit ambiguous, hidden-only, and unavailable states. A statement
+  row reference alone is insufficient.
+- Repository review confirmed that Source retains raw filing HTML, while canonical
+  conversion unwraps Inline XBRL and removes its metadata. The mapping task must
+  account for that structural difference and preserve discovery's visible-only inputs.
+- Provenance enrichment is planned only after Findings is sealed; it must preserve
+  normalized Company Facts values, selection policy, comparison outcomes, and
+  provider inputs. No provenance acquisition, mapping, or runtime/UI behavior was
+  implemented in this planning change.
+- Validation: reviewed dependencies and acceptance requirements; `git diff --check`.
+  No runtime tests or live SEC requests are needed for this documentation-only change.
 
 ## T60 contract acceptance — DONE; user-confirmed UI verification
 

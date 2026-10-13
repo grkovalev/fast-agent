@@ -34,6 +34,7 @@ from profitlab.v2.inspection import contract_envelopes
 from profitlab.v2.outline_service import OutlineService
 from profitlab.v2.section_scoring import SectionScoringService
 from profitlab.v2.source_service import V2SourceService
+from profitlab.web.findings_results import findings_step_results
 
 WEB_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
@@ -334,6 +335,14 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                 settings, summary=pipeline.repo.finding_summary(run_id),
                 finding_count=totals['finding_count']),
         }
+        finding_results = findings_step_results(
+            pipeline.repo, run_id, pipeline.repo.finding_summary(run_id),
+            totals['finding_count'])
+        for step, result in finding_results.items():
+            findings_content['inspection'][step]['run_result'] = result
+            findings_content['inspection'][step]['results_url'] = (
+                f'/v2/runs/{run_id}/pipeline?stage=findings' if step == 'publish'
+                else f'/v2/runs/{run_id}/pipeline/findings/trace')
         facts_content = {
             'inspection': CompanyFactsService.inspection_view(
                 summary=pipeline.repo.fact_summary(run_id),

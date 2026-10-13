@@ -6,6 +6,11 @@ closed; its status and evidence are in [PROGRESS.md](PROGRESS.md). The active ar
 starts at T14, is specified in [V2_IMPLEMENTATION_PLAN.md](V2_IMPLEMENTATION_PLAN.md),
 and intentionally does not migrate or read previous run data.
 
+Planned fact-source debugging work is tracked as
+[T61–T64](PIPELINE_IMPROVEMENT_TASKS.md#t61--retain-sec-presentation-locations-for-selected-facts):
+SEC presentation provenance, exact canonical-line mapping, evaluation/Facts UI,
+and real-filing acceptance. All four tasks are TODO; their implementation has not started.
+
 Commands and checks below are acceptance contracts to implement, not claims that they already exist.
 
 Completed pipeline UI scopes T48–T59 are in

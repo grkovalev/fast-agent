@@ -57,6 +57,7 @@ async def test_repair_replaces_initial_candidates_before_dedup_and_classificatio
         def __init__(self):
             self.saved = None
             self.summary = None
+            self.steps = {}
 
         def finding_batch(self, *_args):
             return None
@@ -70,13 +71,13 @@ async def test_repair_replaces_initial_candidates_before_dedup_and_classificatio
         def save_finding_summary(self, _run_id, summary):
             self.summary = summary
 
-        def save_exploration_action(self, *_args):
-            pass
+        def save_exploration_action(self, _run_id, action_id, _stage, _sequence, payload):
+            self.steps[action_id] = payload
 
     repo = Repo()
     service = FindingsService(settings, repo)
-    state = {'retained_chunks': [{'chunk_id': 'chunk-1', 'core_evidence_lines': [
-        {'line_number': 1, 'text': document.lines[0].text}]}],
+    state = {'retained_chunks': [{'chunk_id': 'chunk-1', 'core_evidence_lines':
+        service._evidence_csv([{'line_number': 1, 'text': document.lines[0].text}])}],
         'validated_outline': [], 'context_fallback': False,
         'filing_metadata': {'current_report_year': '2025'}}
     monkeypatch.setattr(service, '_request_data', lambda *_args: state)
@@ -104,3 +105,103 @@ async def test_repair_replaces_initial_candidates_before_dedup_and_classificatio
     assert len(repo.saved) == 1
     assert repo.saved[0].repair_attempted is True
     assert repo.saved[0].exact_quote == '$2.50'
+    assert repo.summary['retained_evidence_characters'] == len(document.lines[0].text)
+    proposal_result = repo.steps['findings-step-propose']['result']
+    assert proposal_result['initial_proposals'] == [valid, invalid]
+    assert proposal_result['replacement_proposals'] == [repair, repair]
+    validation = repo.steps['findings-step-validate']['result']
+    assert len(validation['initial']['rejected']) == 1
+    assert validation['repair_attempted'] is True
+    assert validation['final_rejected'] == []
+    assert validation['deduplicated_count'] == 1
+    assert validation['final_accepted'][0]['exact_quote'] == '$2.50'
+    assert repo.steps['findings-step-classify']['result']['count'] == 1
+    assert repo.steps['findings-step-publish']['result']['findings'][0]['exact_quote'] == '$2.50'
+
+
+def test_findings_step_results_render_saved_data_and_legacy_availability(tmp_path):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
+    repo = V2Repository(tmp_path)
+    repo.create_run(V2Run(run_id='step-results', ticker='MAP',
+                          created_at=datetime.now(UTC), updated_at=datetime.now(UTC)))
+    repo.save_exploration_action('step-results', 'findings-request', 'findings', 1,
+                                 {'request': {'retained_chunks': [{'chunk_id': 'saved-core'}]}})
+    with TestClient(create_app(settings)) as client:
+        legacy = client.get('/v2/runs/step-results/pipeline').text
+        assert 'saved-core' in legacy
+        assert 'No saved result for this step' in legacy
+        for sequence, step in enumerate(('assemble', 'propose', 'validate', 'classify', 'publish')):
+            repo.save_exploration_action('step-results', f'findings-step-{step}',
+                                         'findings', sequence + 10,
+                                         {'result': {'count': 25, 'findings': [
+                                             {'exact_quote': f'{step}-result-{i}'} for i in range(25)]}})
+        overview = client.get('/v2/runs/step-results/pipeline').text
+        selected = client.get('/v2/runs/step-results/pipeline?stage=findings').text
+    for page in (overview, selected):
+        assert page.count('data-findings-run-result') == 5
+        for step in ('assemble', 'propose', 'validate', 'classify', 'publish'):
+            assert f'{step}-result-19' in page
+            assert f'{step}-result-20' not in page
+        assert 'Bounded preview' in page
+
+
+@pytest.mark.asyncio
+async def test_findings_empty_budget_records_skipped_steps(tmp_path, monkeypatch):
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
+    repo = V2Repository(tmp_path)
+    repo.create_run(V2Run(run_id='empty-results', ticker='MAP',
+                          created_at=datetime.now(UTC), updated_at=datetime.now(UTC)))
+    service = FindingsService(settings, repo)
+    monkeypatch.setattr(service, '_request_data', lambda *_args: {
+        'retained_chunks': [], 'validated_outline': [], 'context_fallback': True,
+        'filing_metadata': {'current_report_year': '2025'}})
+    result = await service.build('empty-results', None, [], [])
+    assert result.calls == 0
+    actions = {item['action_id']: item for item in
+               repo.exploration_actions('empty-results', 'findings')}
+    for step in ('propose', 'validate', 'classify'):
+        assert 'skipped' in actions[f'findings-step-{step}']['result']
+    assert actions['findings-step-publish']['result'] == {'count': 0, 'findings': []}
+
+
+def test_extraction_core_csv_preserves_source_text_and_measures_serialized_budget(tmp_path):
+    import csv
+    import io
+    import json
+    from types import SimpleNamespace
+
+    from profitlab.v2.contracts import ScoredItem
+
+    text = 'Net income, "current year": $1,234.50.\nSecond visible line.'
+    ref = CanonicalDocumentRef(document_id='csv-doc', filing_id='filing',
+                               source_hash='0' * 64, line_count=1)
+    document = CanonicalDocument(ref=ref, lines=[CanonicalLine(
+        line_number=1, text=text, element_type='paragraph',
+        html_anchor='line-1', dom_reference='/html/body/p[1]')])
+    chunk = TextChunk(chunk_id='csv-chunk', section_id='section',
+                      core_range=SourceRange(document_id='csv-doc', source_hash='0' * 64,
+                                             start_line=1, end_line=1), request_size_estimate=80)
+    repo = SimpleNamespace(filing=lambda _: {'report_date': '2025-12-31'},
+                           get_run=lambda _: SimpleNamespace(ticker='CSV'),
+                           outline_sections=lambda _: [])
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
+    service = FindingsService(settings, repo)
+    score = ScoredItem(item_id='csv-chunk', model='test', call_id='test',
+                       target_scores={'annual_profit': 1.0}, policy_decision='selected',
+                       policy_reason='Relevant core evidence')
+    state = service._request_data('csv-run', document, [chunk], [score])
+    evidence = state['retained_chunks'][0]['core_evidence_lines']
+    assert isinstance(evidence, str)
+    assert evidence.startswith('line_number,text\n')
+    assert list(csv.DictReader(io.StringIO(evidence, newline=''))) == [
+        {'line_number': '1', 'text': text}]
+    assert json.loads(json.dumps(state))['retained_chunks'][0]['core_evidence_lines'] == evidence
+    assert 'a CSV string with line_number,text columns' in service._prompt(state)
+    settings.findings_request_char_budget = len(json.dumps(state, ensure_ascii=False))
+    assert service._request_data('csv-run', document, [chunk], [score])['retained_chunks']
+    settings.findings_request_char_budget -= 1
+    fallback = service._request_data('csv-run', document, [chunk], [score])
+    assert fallback['context_fallback'] is True
+    assert len(json.dumps(fallback, ensure_ascii=False)) == settings.findings_request_char_budget
+    settings.findings_request_char_budget -= 1
+    assert service._request_data('csv-run', document, [chunk], [score])['retained_chunks'] == []

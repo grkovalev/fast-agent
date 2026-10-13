@@ -14,13 +14,25 @@
 {% set inspection = item.inspection[key] %}
 <{% if hidden %}template data-station-template="{{ key }}"{% else %}section class="{{ classes }} pipeline-inspector" id="{{ card_id }}" data-station-card aria-live="polite" tabindex="-1"{% endif %}>
 <p class="eyebrow">{{ number }} · {{ title }}</p><h3>{{ title }} · {{ item.label }}</h3>
+{% if inspection.run_result is defined %}{{ run_result(inspection.run_result, inspection.results_url) }}{% endif %}
 <dl>{% for field, label in [('accepts', 'Accepts'), ('does', 'Does'), ('outputs', 'Outputs'), ('guarantee', 'Guarantee')] %}
 {% if field in inspection %}<div class="{% if inspection[field] is not string %}is-json{% endif %}"><dt>{{ label }}</dt><dd>{{ value(inspection[field]) }}</dd></div>{% endif %}
 {% endfor %}</dl>
-{% for field, content in inspection.items() if field not in ('accepts', 'does', 'outputs', 'guarantee') %}
+{% for field, content in inspection.items() if field not in ('accepts', 'does', 'outputs', 'guarantee', 'run_result', 'results_url') %}
 <section class="pipeline-inspector-extra"><h4>{{ field | replace('_', ' ') | title }}</h4>{{ value(content) }}</section>
 {% endfor %}
 </{% if hidden %}template{% else %}section{% endif %}>
+{%- endmacro %}
+
+{% macro run_result(result, url) -%}
+<section class="pipeline-inspector-extra" data-findings-run-result>
+<h4>Results from this run</h4><p>{{ result.provenance }}</p>
+{% if result.available %}
+{% if result.truncated %}<p class="muted">Bounded preview: up to 20 items per list and shortened long text. Open the saved details for the full result.</p>{% endif %}
+{{ value(result.data) }}
+{% endif %}
+<p><a href="{{ url }}">Open saved details</a></p>
+</section>
 {%- endmacro %}
 
 {% macro contract(contract) -%}

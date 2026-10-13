@@ -1,5 +1,7 @@
 """Quote-validated findings from the small retained visible-evidence set."""
+import csv
 import hashlib
+import io
 import json
 import re
 from dataclasses import dataclass
@@ -70,8 +72,9 @@ class FindingsService:
             'validated_outline': [], 'target_definitions': TARGETS,
             'retained_chunks': [{'chunk_id': 'illustrative-chunk',
                                  'outline_section_id': 'illustrative-section',
-                                 'core_evidence_lines': [{'line_number': 1,
-                                                          'text': 'Illustrative net income was 100.'}],
+                                 'core_evidence_lines': cls._evidence_csv([
+                                     {'line_number': 1,
+                                      'text': 'Illustrative net income was 100.'}]),
                                  'context_lines': [], 'targets': ['annual_profit']}],
             'source_rule': cls.source_rule,
             'context_fallback': False,
@@ -85,12 +88,12 @@ class FindingsService:
             'assemble': {
                 'accepts': 'Retained visible evidence, validated outline navigation, target definitions, and the current fiscal-reporting year.',
                 'does': 'Builds a bounded request from retained chunks. If full context does not fit, keeps highest-scored complete chunks; if needed, keeps the best core with its section navigation and drops overlap context. If no evidence fits, publishes an empty limited set without a model call.',
-                'outputs': {'retained_chunks': 'visible core evidence plus bounded context',
+                'outputs': {'retained_chunks': 'visible core evidence as line_number,text CSV plus bounded context',
                             'validated_outline': 'navigation metadata only'},
                 'guarantee': 'Company Facts and evaluation values are unavailable; outline metadata is navigation, never evidence.',
             },
             'propose': {
-                'accepts': {'retained_chunks': 'visible core evidence plus bounded context',
+                'accepts': {'retained_chunks': 'visible core evidence as line_number,text CSV plus bounded context',
                             'validated_outline': 'navigation metadata only'},
                 'does': 'Sends only bounded retained evidence to the configured findings model and asks for quote-backed proposals.',
                 'outputs': {'findings': [proposal]},
@@ -155,6 +158,14 @@ class FindingsService:
         return [{'line_number': line.line_number, 'text': line.text}
                 for line in document.lines[source_range.start_line - 1:source_range.end_line]]
 
+    @staticmethod
+    def _evidence_csv(lines):
+        output = io.StringIO(newline='')
+        writer = csv.DictWriter(output, fieldnames=('line_number', 'text'), lineterminator='\n')
+        writer.writeheader()
+        writer.writerows(lines)
+        return output.getvalue()
+
     def _request_data(self, run_id, document, chunks, scores):
         score_by_id = {item.item_id: item for item in scores if item.policy_decision == 'selected'}
         retained = []
@@ -164,7 +175,8 @@ class FindingsService:
                 continue
             retained.append({'chunk_id': chunk.chunk_id,
                              'outline_section_id': chunk.section_id,
-                             'core_evidence_lines': self._lines(document, chunk.core_range),
+                             'core_evidence_lines': self._evidence_csv(
+                                 self._lines(document, chunk.core_range)),
                              'context_lines': [line for source_range in chunk.context_ranges
                                                for line in self._lines(document, source_range)],
                              'targets': [target for target, value in score.target_scores.items()
@@ -231,7 +243,9 @@ exact_quote, source_chunk_id, source_line, amount, unit, period, attribution,
 limitations. amount is required: provide it as a plain decimal string without currency,
 commas, units, or scale. It must equal a visible numeric value in exact_quote. period is
 optional. source_line must be a line_number
-from the selected chunk's core_evidence_lines. exact_quote must be copied verbatim from that
+from the selected chunk's core_evidence_lines, a CSV string with line_number,text columns.
+Read CSV quoting to preserve commas, quotes, and newlines in visible text.
+exact_quote must be copied verbatim from that
 one source_line only; context_lines may never be cited. limitations must be a JSON array of
 strings. Do not infer a period, scale, unit, or attribution: use null and add a limitation
 when unclear. The requested value period is the filing_metadata.current_report_year: seek
@@ -426,8 +440,23 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             typed.append(finding.model_copy(update={'finding_type': finding_type}))
         return typed, calls, budget_limited
 
+    @staticmethod
+    def _public_proposals(proposals):
+        return [{key: value for key, value in item.items()
+                 if key in FindingProposal.model_fields} for item in proposals]
+
+    @classmethod
+    def _public_rejections(cls, rejected):
+        return [{'proposal': cls._public_proposals([item['proposal']])[0],
+                 'reason': item['reason']} for item in rejected]
+
+    def _save_step(self, run_id, step, sequence, result):
+        self.repo.save_exploration_action(run_id, f'findings-step-{step}',
+                                         'findings', sequence, {'result': result})
+
     async def build(self, run_id, document, chunks, scores):
         state = self._request_data(run_id, document, chunks, scores)
+        self._save_step(run_id, "assemble", 10, {"request": state})
         if not state['retained_chunks']:
             self.repo.save_findings(run_id, [])
             self.repo.save_finding_summary(run_id, {
@@ -439,6 +468,10 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
                 'retained_evidence_characters': 0,
                 'current_report_year': state['filing_metadata']['current_report_year'],
             })
+            for sequence, step in enumerate(('propose', 'validate', 'classify'), 11):
+                self._save_step(run_id, step, sequence, {
+                    'skipped': 'No retained evidence fits the request budget.'})
+            self._save_step(run_id, 'publish', 14, {'findings': [], 'count': 0})
             return FindingsResult([], 0, False, 0, state['context_fallback'], 0)
         model = self.settings.llm_model
         config = hashlib.sha256(json.dumps({'base_url': self.settings.llm_base_url,
@@ -457,6 +490,9 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             calls = 1
             self.repo.save_finding_batch(request_hash, self.prompt_version, config, model,
                                          {'findings': proposals, 'model': actual_model})
+        self._save_step(run_id, 'propose', 11, {
+            'initial_proposals': self._public_proposals(proposals),
+            'count': len(proposals), 'model': actual_model, 'cached': cached})
         findings, rejected = [], []
         for proposal in proposals:
             finding, error = self._validate(document, chunks, proposal, actual_model)
@@ -464,10 +500,26 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
                 findings.append(finding)
             else:
                 rejected.append({'proposal': proposal, 'reason': error})
+        initial_validation = {
+            'accepted': [item.model_dump(mode='json') for item in findings],
+            'rejected': self._public_rejections(rejected),
+        }
+        self._save_step(run_id, 'validate', 12, {'initial': initial_validation,
+                                                'repair_attempted': False})
+        repair_attempted = False
         # One bounded repair call is allowed only for invalid citations.
         if rejected and calls < self.settings.findings_max_requests:
+            repair_attempted = True
+            self._save_step(run_id, 'validate', 12, {
+                'initial': initial_validation, 'repair_attempted': True,
+                'repair_status': 'Requested; no validated replacement saved yet.'})
             repaired, repair_model = await self._live(state, rejected)
             calls += 1
+            self._save_step(run_id, 'propose', 11, {
+                'initial_proposals': self._public_proposals(proposals),
+                'count': len(proposals), 'model': actual_model, 'cached': cached,
+                'replacement_proposals': self._public_proposals(repaired),
+                'replacement_count': len(repaired), 'repair_model': repair_model})
             findings, rejected = [], []
             for proposal in repaired:
                 finding, error = self._validate(document, chunks, proposal, repair_model,
@@ -482,6 +534,11 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
         for finding in findings:
             unique.setdefault((finding.exact_quote, finding.amount), finding)
         findings = list(unique.values())
+        self._save_step(run_id, 'validate', 12, {
+            'initial': initial_validation, 'repair_attempted': repair_attempted,
+            'final_accepted': [item.model_dump(mode='json') for item in findings],
+            'final_rejected': self._public_rejections(rejected),
+            'deduplicated_count': len(findings)})
         cached_types = cached_payload.get('finding_types', {}) if cached_payload else {}
         if cached_types and all(item.finding_id in cached_types for item in findings):
             findings = [item.model_copy(update={'finding_type': cached_types[item.finding_id]})
@@ -494,6 +551,11 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
                                          {'findings': proposals, 'model': actual_model,
                                           'finding_types': {item.finding_id: item.finding_type
                                                             for item in findings}})
+        self._save_step(run_id, 'classify', 13, {
+            'findings': [item.model_dump(mode='json') for item in findings],
+            'count': len(findings), 'calls': classification_calls,
+            'budget_limited': classification_budget_limited,
+            'cached': bool(cached_types) and classification_calls == 0})
         self.repo.save_findings(run_id, findings)
         self.repo.save_finding_summary(run_id, {
             'calls': calls, 'classification_calls': classification_calls,
@@ -503,10 +565,14 @@ clear. Create no finding without an exact quote and amount.\n\nInputs:\n'''
             'retained_chunks_after_budget': len(state['retained_chunks']),
             'outline_context_characters': len(json.dumps(state['validated_outline'], ensure_ascii=False)),
             'retained_evidence_characters': sum(
-                sum(len(line['text']) for line in item['core_evidence_lines'])
+                sum(len(line['text']) for line in csv.DictReader(
+                    io.StringIO(item['core_evidence_lines'], newline='')))
                 for item in state['retained_chunks']),
             'current_report_year': state['filing_metadata']['current_report_year'],
         })
+        self._save_step(run_id, 'publish', 14, {
+            'findings': [item.model_dump(mode='json') for item in findings],
+            'count': len(findings)})
         self.repo.save_exploration_action(run_id, 'findings-request', 'findings', 1,
             {'request': state, 'model': actual_model, 'validated': len(findings),
              'rejected': [{'reason': item['reason']} for item in rejected]})
