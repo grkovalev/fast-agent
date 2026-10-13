@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T52 — Share rendering and interaction without imposing one diagram.** (**DONE; manual visual verification pending**).
-- Next work: **T53 — Establish page hierarchy and semantic connections.**
+- Current task: **T53 — Establish page hierarchy and semantic connections.** (**DONE; manual visual verification pending**).
+- Next work: **T54 — Source: show the document becoming addressable source.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,6 +18,39 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T53 local acceptance and handoff
+
+- Added a compact eight-stage route locator above the open explanations. Findings
+  now shows two separately labeled relationships: sealed findings flow downward to
+  Evaluate, while completion schedules Facts using filing identity. Facts remains
+  below Evaluate with an upward, labeled independent data input. Shared artifact,
+  operation, gate, and output styles are defined; the new relationships use the
+  artifact, gate, and output treatments with explicit labels. Existing
+  selected-stage URLs and inspector placement remain functional.
+- Removed the T53 rule that forced every diagram and inspector into one column on
+  wide screens. Existing stage layouts place inspection beside diagrams when space
+  allows and stack them at narrower widths. The page retains the 88rem main-width
+  limit and the route locator reflows at tablet and phone widths.
+- Inspected the existing pipeline UI gate and the new T53 route/relationship gate.
+  The new gate checks all eight links, a selected-stage route, the one comparison
+  merge, the separate completion and data paths, and the Facts-below-Evaluate
+  reading order. Replaced CSS source-string assertions with rendered behavior
+  assertions; no existing tests were removed. Focused command: `time uv run pytest
+  tests/task_gates/test_t53_pipeline_hierarchy.py
+  tests/task_gates/test_pipeline_ui_session1.py -q` — 7 passed in 1.34s
+  (1.63s wall time). `uv run ruff check .` and `git diff --check` passed.
+  uv needed outside-sandbox access to its existing cache. No SEC or provider call
+  was made.
+- Manual visual verification remains pending under the no-browser-automation
+  policy. In the already-running UI, open `/v2/runs/<run_id>/pipeline`. At wide
+  desktop, roughly 768px, 390px, and 200% zoom, check that the locator stays
+  readable and each open stage retains a usable diagram and inspector. Without
+  selecting anything, follow Findings down to Evaluate, then read the separate
+  completion gate to Facts and the upward Facts data input. Confirm there is only
+  one comparison merge and no visual suggestion that Facts feeds discovery or
+  runs alongside Findings. Open Facts from the locator and return to the overview.
+- Next: **T54 — Source: show the document becoming addressable source.**
 
 ## T52 local acceptance and handoff
 

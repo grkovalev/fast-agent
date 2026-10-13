@@ -258,3 +258,28 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 .pipeline-inspector-extra h4 { margin: 0 0 .35rem; text-transform: capitalize; }
 [data-source-station].is-selected rect, [data-outline-station].is-selected rect, [data-sections-station].is-selected rect, [data-chunks-station].is-selected rect, [data-evidence-station].is-selected rect, [data-findings-station].is-selected rect, [data-facts-station].is-selected rect, [data-evaluate-station].is-selected rect { stroke-width: 3; }
 @media (prefers-reduced-motion: reduce) { .pipeline-map [class*="loop"] [class*="is-flowing"] { animation: none !important; } }
+
+/* T53: a compact route index and two different kinds of handoff. */
+.pipeline-route-locator { position: sticky; top: 0; z-index: 5; margin: .8rem 0; padding: .45rem; border: 1px solid #cfe0e2; border-radius: .5rem; background: #f8fbfb; box-shadow: 0 2px 9px #17384a18; }
+.pipeline-route-locator ol { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: .25rem; margin: 0; padding: 0; list-style: none; }
+.pipeline-route-locator li { min-width: 0; }
+.pipeline-route-locator a { display: flex; align-items: center; gap: .35rem; min-height: 2.4rem; padding: .3rem .45rem; border-radius: .3rem; color: #284c59; font-size: .76rem; font-weight: 700; text-decoration: none; overflow-wrap: anywhere; }
+.pipeline-route-locator a:hover, .pipeline-route-locator a:focus-visible { background: #e5f3f4; outline: 2px solid #347d8d; }
+.pipeline-route-locator a span { color: #5d7580; font-size: .64rem; }
+.pipeline-route-locator__facts a { border: 1px dashed #6a9d9a; }
+.pipeline-route-locator__evaluate a { border: 1px solid #8db59b; }
+.pipeline-route-summary { max-width: 72rem; margin: .7rem 0 1.2rem; color: #365a66; line-height: 1.5; }
+.pipeline-card-list--vertical > .pipeline-relationship { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: -.2rem 0; }
+.pipeline-card-list--vertical > .pipeline-relationship::after { display: none; }
+.pipeline-relationship > div { display: grid; gap: .22rem; min-width: 0; padding: .8rem 1rem; background: #fff; color: #284c59; font-size: .82rem; line-height: 1.4; }
+.pipeline-semantic--output { border-left: 4px solid #438897; border-bottom: 2px solid #438897; }
+.pipeline-semantic--gate { border: 2px dashed #6a9d9a; border-left-width: 4px; }
+.pipeline-semantic--artifact { border: 2px solid #438897; border-radius: .35rem; background: #eff8f8; }
+.pipeline-semantic--operation { border: 1px solid #9bc3ca; border-radius: .35rem; background: #fff; }
+.pipeline-relationship__kind { color: #596a74; font-size: .67rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.pipeline-relationship strong { font-size: .94rem; }
+.pipeline-facts-input { padding: .5rem; }
+.pipeline-facts-input span:last-child { text-align: center; overflow-wrap: anywhere; }
+.pipeline-map--vertical figure[class*="-loop"] svg { max-width: 52rem; }
+@media (max-width: 900px) { .pipeline-route-locator ol { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .pipeline-route-locator ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }.pipeline-card-list--vertical > .pipeline-relationship { grid-template-columns: 1fr; }.pipeline-route-locator a { min-height: 2rem; } }
