@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T58 — Findings: show validation, bounded repair, and publication.** (**DONE; manual visual verification pending**).
-- Next work: **T59 — Facts and Evaluate: show the gate, independent data, and optional verification.**
+- Current task: **T59 — Facts and Evaluate: show the gate, independent data, and optional verification.** (**DONE; manual visual verification pending**).
+- Next work: **T60 — Verify the page's semantic and contract promises.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,6 +18,33 @@
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
 - Current external blockers: manual browser visual inspection remains pending under the task's no-browser-automation policy. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T59 local acceptance and handoff
+
+- Facts now presents Findings completion as a scheduling gate alongside separate
+  filing identity. The SEC dataset, configured concept mapping, normalized
+  `StructuredFact` rows, alternatives, and provenance occupy an independent data
+  lane below Evaluate. The upward Facts data connection and downward sealed
+  Findings input remain explicit.
+- Evaluate now shows the two inputs meeting at pairing, a deterministic baseline,
+  a direct path to recorded outcomes, and a conditional scale/unit Jev branch for
+  bounded eligible mismatches. Current maximum zero pairs is stated explicitly.
+  The selected Evaluate page retains exact Decimal values and persisted
+  `FactComparison` states, provenance, diagnostics, and the builder-owned request.
+  No execution, storage, or provider behavior changed.
+- Service inspection text now distinguishes a completion gate from a value input,
+  names the two eligible deterministic mismatch states, and explains the bypass.
+  The actual `FACT_TARGETS` mapping and shared evaluation request builder still
+  own the inspector content.
+- Focused route, contract, normalization, and comparison checks: 20 passed;
+  shared Node inspector gate: 1 passed; `ruff check .` and `git diff --check`
+  passed. Tests used isolated storage and no provider calls.
+- Manual visual verification remains pending under the no-browser-automation
+  task policy. In the running UI, inspect `/v2/runs/<run_id>/pipeline` at wide,
+  phone, and 200% zoom widths. Follow the Facts gate and upward data arrow,
+  trace Evaluate's direct and optional paths, select all stations by pointer
+  and keyboard, and inspect a run with alternatives and mixed comparison states.
+- Next: **T60 — Verify the page's semantic and contract promises.**
 
 ## T58 local acceptance and handoff
 

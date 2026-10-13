@@ -304,28 +304,17 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 @media (max-width: 600px) { .findings-inputs, .findings-validation { grid-template-columns: 1fr; }.findings-stage-accounting { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .findings-down.is-flowing { animation: none; } }
 
-/* Evaluate makes the post-seal merge legible without turning it into a workflow editor. */
+/* Facts is a gated independent data lane. */
 .facts-stage-explainer { border-left-color: #438897; background: linear-gradient(135deg, #fbfdfd, #eff7f7); color: #203c43; }
 .facts-stage-explainer .chunks-stage-header { border-bottom-color: #cfe0e2; }.facts-stage-explainer .stage-icon { color: #126478; }
-.facts-loop.is-inspecting [data-facts-station]:not(.is-highlighted) { opacity: .42; }.facts-loop [data-facts-station].is-highlighted rect, .facts-loop [data-facts-station]:hover rect, .facts-loop [data-facts-station]:focus rect { fill: #edf8f8; stroke: #126478; }
-.facts-loop [data-facts-connector].is-highlighted { stroke: #126478; stroke-width: 4; }.facts-loop [data-facts-connector].is-flowing { stroke-dasharray: 8 10; animation: facts-flow 850ms ease-out 1; }
-@keyframes facts-flow { from { stroke-dashoffset: 36; } to { stroke-dashoffset: 0; } }
 .facts-loop-card { border-top-color: #438897; background: #f4fafa; }.facts-loop-card .eyebrow { color: #47717a; }.facts-loop-card h3, .facts-loop-card h4 { color: #234b54; }.facts-loop-card dd, .facts-stage-accounting dd { color: #314f55; }.facts-stage-accounting div { border-left-color: #9bc3ca; }
-@media (max-width: 600px) { .facts-loop svg { min-height: 45rem; }.facts-stage-accounting { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { .facts-loop [data-facts-connector].is-flowing { animation: none; } }
+@media (max-width: 600px) { .facts-stage-accounting { grid-template-columns: 1fr; } }
 
 /* Evaluate makes the post-seal merge legible without turning it into a workflow editor. */
 .evaluate-stage-explainer { border-left-color: #5d8e79; background: linear-gradient(135deg, #fbfdfb, #eef6f1); color: #254537; }
 .evaluate-stage-explainer .chunks-stage-header { border-bottom-color: #d2e3d8; }.evaluate-stage-explainer .stage-icon { color: #34735a; }
-.evaluate-loop .chunks-loop-connectors path { stroke: #6b9d7e; }.evaluate-loop .chunks-loop-connectors marker path { fill: #6b9d7e; }
-.evaluate-input-cards rect { fill: #fff; stroke: #a8c9b2; stroke-width: 1.5; }.evaluate-input-cards text:nth-of-type(3n + 1) { fill: #4d8865; font-size: 11px; font-weight: 800; letter-spacing: .07em; }.evaluate-input-cards text:nth-of-type(3n + 2) { fill: #28503d; font-size: 19px; font-weight: 800; }.evaluate-input-cards text:nth-of-type(3n) { fill: #466557; font-size: 12px; }.evaluate-loop-inputs path { stroke: #6b9d7e; stroke-width: 2.5; }.evaluate-loop-inputs marker path { fill: #6b9d7e; }
-.evaluate-loop .chunks-loop-station rect { stroke: #a8c9b2; }.evaluate-loop .chunks-loop-number { fill: #4d8865; }.evaluate-loop .chunks-loop-title { fill: #28503d; }.evaluate-loop .chunks-loop-purpose { fill: #466557; }
-.evaluate-loop.is-inspecting [data-evaluate-station]:not(.is-highlighted) { opacity: .42; }.evaluate-loop [data-evaluate-station].is-highlighted rect, .evaluate-loop [data-evaluate-station]:hover rect, .evaluate-loop [data-evaluate-station]:focus rect { fill: #eff8f1; stroke: #34735a; }
-.evaluate-loop [data-evaluate-connector].is-highlighted { stroke: #34735a; stroke-width: 4; }.evaluate-loop [data-evaluate-connector].is-flowing { stroke-dasharray: 8 10; animation: evaluate-flow 850ms ease-out 1; }
-@keyframes evaluate-flow { from { stroke-dashoffset: 36; } to { stroke-dashoffset: 0; } }
 .evaluate-loop-card { border-top-color: #5d8e79; background: #f4faf5; }.evaluate-loop-card .eyebrow { color: #47715a; }.evaluate-loop-card h3, .evaluate-loop-card h4 { color: #28503d; }.evaluate-loop-card dd, .evaluate-stage-accounting dd { color: #315742; }.evaluate-stage-accounting div { border-left-color: #9fc6af; }
-@media (max-width: 600px) { .evaluate-loop svg { min-height: 58rem; }.evaluate-stage-accounting { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { .evaluate-loop [data-evaluate-connector].is-flowing { animation: none; } }
+@media (max-width: 600px) { .evaluate-stage-accounting { grid-template-columns: 1fr; } }
 .pipeline-map [data-stage-accounting] { grid-column: 1 / -1; min-width: 0; }
 .pipeline-map [data-stage-accounting] > dl { margin-block: .85rem; }
 .pipeline-map .accounting-provenance { margin: .75rem 0 0; color: #596a74; font-size: .76rem; }
@@ -420,6 +409,29 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 .pipeline-relationship strong { font-size: .94rem; }
 .pipeline-facts-input { padding: .5rem; }
 .pipeline-facts-input span:last-child { text-align: center; overflow-wrap: anywhere; }
+.facts-composition, .evaluate-composition { display: grid; justify-items: center; gap: .35rem; max-width: 64rem; margin: 0 auto 1rem; }
+.facts-composition figcaption, .evaluate-composition figcaption { justify-self: stretch; }
+.facts-origins, .evaluate-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; width: 100%; }
+.facts-origin, .evaluate-input { display: grid; align-content: start; gap: .35rem; min-width: 0; padding: 1rem; line-height: 1.4; }
+.facts-origin span, .evaluate-input span, .facts-station > span:first-child, .evaluate-station > span:first-child { font-size: .69rem; font-weight: 800; letter-spacing: .05em; }
+.facts-origin strong, .evaluate-input strong, .facts-station strong, .evaluate-station strong { font-size: 1.04rem; }
+.facts-origin small, .evaluate-input small, .facts-station small, .evaluate-station small { font-size: .85rem; line-height: 1.45; }
+.facts-down, .evaluate-down { color: #416b70; text-align: center; font-size: .8rem; font-weight: 750; }
+.facts-down.is-highlighted, .evaluate-down.is-highlighted { color: #126478; text-decoration: underline; }
+.facts-down.is-flowing, .evaluate-down.is-flowing { animation: pipeline-flow-pulse 850ms ease-out 1; }
+@keyframes pipeline-flow-pulse { 50% { color: #126478; transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) { .facts-down.is-flowing, .evaluate-down.is-flowing { animation: none; } }
+.facts-station, .evaluate-station { display: grid; gap: .35rem; width: min(100%, 42rem); padding: .9rem 1rem; color: #234b54; text-align: left; cursor: pointer; }
+.facts-station:hover, .facts-station:focus-visible, .facts-station.is-highlighted, .evaluate-station:hover, .evaluate-station:focus-visible, .evaluate-station.is-highlighted { outline: 2px solid #28798a; outline-offset: 2px; background: #e8f5f4; }
+.facts-composition.is-inspecting [data-facts-station]:not(.is-highlighted), .evaluate-composition.is-inspecting [data-evaluate-station]:not(.is-highlighted) { opacity: .58; }
+.facts-station.is-selected, .evaluate-station.is-selected { border-width: 3px; }
+.facts-output { background: #eaf7f3; }
+.evaluate-branches { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 1rem; align-items: stretch; width: 100%; }
+.evaluate-bypass { display: grid; align-content: center; gap: .55rem; border: 2px solid #7ba891; border-radius: .4rem; padding: 1rem; background: #f1faf2; color: #28503d; }
+.evaluate-optional { display: grid; justify-items: center; gap: .35rem; border: 1px dashed #7ba891; border-radius: .4rem; padding: .5rem; }
+.evaluate-optional .evaluate-station { width: 100%; }
+.evaluate-output { background: #eaf6ee; }
+@media (max-width: 600px) { .facts-origins, .evaluate-inputs, .evaluate-branches { grid-template-columns: 1fr; }.facts-station, .evaluate-station { width: 100%; } }
 .pipeline-map--vertical figure[class*="-loop"]:not(.outline-loop) svg { max-width: 52rem; }
 @media (max-width: 900px) { .pipeline-route-locator ol { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .pipeline-route-locator ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }.pipeline-card-list--vertical > .pipeline-relationship { grid-template-columns: 1fr; }.pipeline-route-locator a { min-height: 2rem; } }

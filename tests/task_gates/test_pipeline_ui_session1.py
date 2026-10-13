@@ -26,7 +26,7 @@ def test_pipeline_default_is_map_only_and_each_stage_enters_its_existing_page(tm
     assert overview.status_code == 200
     assert 'Pipeline overview' in overview.text
     assert 'data-facts-card' in overview.text
-    assert 'Facts flow: Checkpoint, Retrieve, Normalize, Store' in overview.text
+    assert 'A completion gate starts an independent data lane' in overview.text
     assert 'Process summary placeholder' not in overview.text
     assert 'Inspect sanitized provider trace' not in overview.text
     assert 'Canonical documents' not in overview.text

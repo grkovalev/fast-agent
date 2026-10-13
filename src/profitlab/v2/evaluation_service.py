@@ -217,7 +217,7 @@ class EvaluationService:
             'pair': {
                 'accepts': {'findings': 'sealed quote-backed visible claims',
                             'structured_facts': 'independently loaded SEC Company Facts'},
-                'does': 'Groups findings by their sealed type and pairs them only with configured metric and annual-period candidates.',
+                'does': 'Deduplicates repeated quote/amount findings, groups by sealed type, and pairs only configured metric and annual-period candidates.',
                 'outputs': {'comparison_candidates': 'finding/fact pairs plus unpaired records'},
                 'guarantee': 'Facts load only after findings seal; neither input can rewrite the other.',
             },
@@ -228,9 +228,10 @@ class EvaluationService:
                 'guarantee': 'A mismatch remains a recorded result; evaluation never repairs discovery.',
             },
             'verify': {
-                'accepts': {'deterministic_state': 'period or unit mismatch candidates',
+                'accepts': {'deterministic_state': 'period_match_value_mismatch or period_match_unit_mismatch only',
                             'visible_context': 'cited core line and retained source context'},
-                'does': 'For bounded eligible pairs, asks Jev whether an explicitly visible scale or unit proves equivalence.',
+                'does': ('If maximum pairs is above zero, asks Jev for at most that many eligible mismatches '
+                         'whether explicitly visible scale or unit proves equivalence. Exact and ineligible outcomes bypass Jev.'),
                 'outputs': {'scale_aware_verdict': 'confirmed equivalence or rejected'},
                 'guarantee': 'No conversion, attribution, or scale is inferred; the bounded verdict does not alter either value.',
                 'request': {
