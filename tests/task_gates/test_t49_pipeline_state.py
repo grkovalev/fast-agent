@@ -36,6 +36,6 @@ def test_pending_zero_and_incomplete_accounting_have_distinct_rendering(tmp_path
     assert 'data-stage-accounting="findings">' in page
     assert '<p>Partial persisted accounting</p>' in page
     assert 'data-stage-accounting="facts"><p>Complete accounting unavailable after failed.</p>' in page
-    assert 'Current configuration · historical provider request unavailable' in page
+    assert 'Current configuration and illustrative request; persisted decisions appear only after this stage saves output.' in page
     assert 'data-selected-work></span>' in selected
     assert 'Work total unavailable · failed · recorded active 0.00s' in selected

@@ -6,8 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T55 — Outline window iteration and final reconciliation.** (**DONE; manual visual verification pending**).
-- Next work: **T56 — Sections and Evidence: show scoring, policy, and distinct outcomes.**
+- Current task: **T56 — Sections and Evidence: show scoring, policy, and distinct outcomes.** (**DONE; manual visual verification pending**).
+- Next work: **T57 — Chunks: show core coverage and repeated context.**
 - Latest verified task: T31 local acceptance; manual browser inspection and reviewed
   real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -17,7 +17,39 @@
 - Data-retention decision: the user authorizes discarding the current local V2 data when
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
-- Current external blockers: browser visual inspection lacks Computer Use permissions. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+- Current external blockers: manual browser visual inspection remains pending under the task's no-browser-automation policy. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+
+## T56 local acceptance and handoff
+
+- Replaced the Sections and Evidence vertical process boxes with related scoring
+  compositions. Sections shows a visible descriptor stack with generated navigation
+  topic separated from the exact source heading. Evidence shows chunk and target
+  tiles reconstructed from saved ranges. Both show service-owned retrieval targets,
+  a deterministic policy gate, and distinct selected, uncertain, and skipped
+  destinations. Only Selected has a downstream continuation arrow.
+- The gate renders actual thresholds and limits from each service's inspection
+  policy. Evidence also exposes its overlap ratio and retained-text budget. The
+  service views now expose their target names and all three decision descriptions;
+  the overview uses persisted SQL decision counts only when output exists. Current
+  configuration, illustrative request, and persisted accounting are labeled
+  separately. Provider requests and scoring behavior did not change.
+- Added a focused gate covering all three policy decisions for both services and
+  rendered target/policy propagation. Updated one older accounting-label assertion;
+  no tests were removed. Final checks: `.venv/bin/pytest -q` — 39 passed;
+  `node --test tests/task_gates/test_t52_inspector.cjs
+  tests/task_gates/test_t49_progress.cjs` — 2 passed;
+  `.venv/bin/ruff check .` and `git diff --check` passed. Tests used isolated
+  storage and made no SEC or provider requests.
+- Manual visual verification remains pending under the no-browser-automation
+  policy. In an already-running UI, inspect `/v2/runs/<run_id>/pipeline` at wide,
+  phone, and 200% zoom widths. Confirm each three-part route and outcome group
+  reads in order, only Selected visibly continues, and generated versus exact
+  section labels are distinct. Select Describe, Score, and the policy gate in
+  each stage by pointer and keyboard; inspect the actual questions and long
+  request payload at narrow widths. Confirm pending/failed accounting labels and
+  reduced-motion connector behavior. The local server prerequisite is
+  `uv run profitlab serve` if needed.
+- Next: **T57 — Chunks: show core coverage and repeated context.**
 
 ## T55 local acceptance and handoff
 

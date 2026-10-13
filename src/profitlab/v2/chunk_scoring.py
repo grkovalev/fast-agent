@@ -64,6 +64,7 @@ class ChunkScoringService:
         )
         request = cls(settings, None)._request([example.model_dump()])
         return {
+            'decisions': decisions,
             'input_chunks': totals['count'] if totals is not None else len(chunks),
             'selected': decisions.get('selected', 0),
             'uncertain': decisions.get('uncertain', 0),
@@ -75,6 +76,7 @@ class ChunkScoringService:
                 'guarantee': 'No XBRL, Company Facts, evaluation values, or generated source text enter scoring.',
             },
             'score': {
+                'targets': list(TARGETS),
                 'accepts': descriptor,
                 'does': 'Sends one configured Jev question for every target against the exact visible chunk.',
                 'outputs': {'chunk_id__target': 'noul score for each requested target'},
@@ -86,7 +88,9 @@ class ChunkScoringService:
             'retain': {
                 'accepts': {'chunk_id': {'target': 'noul score'}},
                 'does': 'Selects diverse high-signal chunks, preserves a bounded uncertain band, and records every other decision.',
-                'outputs': {'selected': 'retained evidence chunk ids', 'uncertain': 'bounded inspectable candidates'},
+                'outputs': {'selected': 'retained evidence chunk ids',
+                            'uncertain': 'bounded inspectable candidate chunk ids',
+                            'skipped': 'chunk ids excluded by score, overlap, or retention bounds'},
                 'guarantee': 'Source ranges and raw score vectors remain unchanged; overlap never creates a second evidence owner.',
                 'policy': {
                     'keep_threshold': settings.chunk_score_keep_threshold,

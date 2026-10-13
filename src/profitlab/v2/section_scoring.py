@@ -81,7 +81,7 @@ class SectionScoringService:
         self.settings, self.repo = settings, repository
 
     @classmethod
-    def inspection_view(cls, settings):
+    def inspection_view(cls, settings, *, decisions: dict | None = None):
         """Return the same visible-only contract and policy used by this stage."""
         descriptor = JevVisibleContext.model_json_schema()
         example = JevVisibleContext(
@@ -92,6 +92,7 @@ class SectionScoringService:
         ).model_dump()
         request = cls(settings, None)._request([JevVisibleContext.model_validate(example)])
         return {
+            'decisions': decisions or {name: 0 for name in ('selected', 'uncertain', 'skipped')},
             'describe': {
                 'accepts': descriptor,
                 'does': ('Builds one JevVisibleContext from each validated outline section and '
@@ -101,6 +102,7 @@ class SectionScoringService:
                               'and evaluation fields before a request is sent.'),
             },
             'score': {
+                'targets': list(TARGETS),
                 'accepts': {'sections': [descriptor]},
                 'does': 'Sends the configured Jev request with one question for every target score.',
                 'outputs': {'section_id__target': 'noul score for each requested target'},
@@ -113,7 +115,8 @@ class SectionScoringService:
                 'accepts': {'section_id': {'target': 'noul score'}},
                 'does': 'Applies the deterministic coverage and uncertainty retention policy in source order.',
                 'outputs': {'selected': 'section ids retained for chunking',
-                            'uncertain': 'bounded candidate section ids'},
+                            'uncertain': 'bounded inspectable candidate section ids',
+                            'skipped': 'section ids excluded by score or selection bounds'},
                 'guarantee': 'The policy preserves source text and raw score vectors unchanged.',
                 'policy': {
                     'keep_threshold': settings.section_score_keep_threshold,

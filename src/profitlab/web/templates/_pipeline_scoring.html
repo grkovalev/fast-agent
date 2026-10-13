@@ -1,0 +1,58 @@
+{% macro vector(targets) %}
+<div class="scoring-vector" aria-label="Target score vector">
+  {% for target in targets %}<span>{{ target | replace('_', ' ') }} <i aria-hidden="true"></i></span>{% endfor %}
+</div>
+{% endmacro %}
+
+{% set evidence = item.stage == 'chunk_score' %}
+{% set prefix = 'evidence' if evidence else 'sections' %}
+{% set decision = 'retain' if evidence else 'select' %}
+{% set policy = item.inspection[decision].policy %}
+<li class="scoring-stage-slot">
+<article class="scoring-stage scoring-stage--{{ prefix }}{% if item.status == 'running' %} is-active{% endif %}" data-{{ prefix }}-card data-stage-container="{{ item.stage }}">
+{{ stage_header(item, 'scoring-stage-header', 'Score exact visible chunks and retain a diverse bounded set' if evidence else 'Rank the validated outline before expanding source text') }}
+<figure class="scoring-composition" data-{{ prefix }}-loop aria-labelledby="{{ prefix }}-composition-title" aria-describedby="{{ prefix }}-composition-description">
+  <figcaption id="{{ prefix }}-composition-title">{{ 'Chunk scores become bounded retained evidence' if evidence else 'Visible section descriptors become a bounded retrieval set' }}</figcaption>
+  <p id="{{ prefix }}-composition-description" class="scoring-intro">{{ 'Jev ranks exact visible chunk text against retrieval targets. A deterministic policy checks target coverage, section and year diversity, overlap, and a retained-text budget.' if evidence else 'Jev ranks visible outline descriptors against retrieval targets. A deterministic policy favors target coverage and limits selected and uncertain sections.' }} Scores are retrieval signals, not probabilities of financial correctness.</p>
+  <div class="scoring-route">
+    <button type="button" class="scoring-station scoring-input pipeline-semantic--artifact" data-{{ prefix }}-station="describe" aria-controls="{{ prefix }}-loop-card" aria-label="1 Describe. {{ 'Reconstruct exact visible chunk text from canonical source ranges.' if evidence else 'Build a visible outline section descriptor.' }}">
+      <span class="scoring-step">01 · {{ 'CHUNKS' if evidence else 'SECTIONS' }}</span>
+      {% if evidence %}
+      <strong>Chunk and target tiles</strong><span class="scoring-tile">Core lines + preceding context</span><span class="scoring-tile">Visible heading path</span><span class="scoring-tile">Filing identity</span>
+      <small>Exact visible text is reconstructed from saved ranges. Context does not own new source coverage.</small>
+      {% else %}
+      <strong>Visible descriptor stack</strong><span class="scoring-tile">Generated topic <em>navigation label</em></span><span class="scoring-tile">Exact visible heading <em>source text, when present</em></span><span class="scoring-tile">Short exact preview · source size · filing identity</span>
+      <small>Generated headings remain separate from exact visible titles.</small>
+      {% endif %}
+    </button>
+    <span class="scoring-arrow" data-{{ prefix }}-connector="describe-score" aria-hidden="true">→</span>
+    <button type="button" class="scoring-station scoring-score pipeline-semantic--operation" data-{{ prefix }}-station="score" aria-controls="{{ prefix }}-loop-card" aria-label="2 Score. Inspect the current Jev retrieval questions and illustrative request.">
+      <span class="scoring-step">02 · JEV SCORE</span><strong>Target score vector</strong>
+      {{ vector(item.inspection.score.targets) }}
+      <small>One retrieval relevance score per target; inspect the actual questions.</small>
+    </button>
+    <span class="scoring-arrow" data-{{ prefix }}-connector="score-{{ decision }}" aria-hidden="true">→</span>
+    <button type="button" class="scoring-station scoring-policy pipeline-semantic--gate" data-{{ prefix }}-station="{{ decision }}" aria-controls="{{ prefix }}-loop-card" aria-label="3 {{ decision | title }}. Inspect deterministic thresholds, bounds, and policy outcomes.">
+      <span class="scoring-step">03 · POLICY GATE</span><strong>{{ 'Retain diverse evidence' if evidence else 'Select section coverage' }}</strong>
+      <span>Keep ≥ {{ '%.2f' | format(policy.keep_threshold) }} · uncertain ≥ {{ '%.2f' | format(policy.uncertain_threshold) }}</span>
+      <span>{{ 'At most ' ~ policy.max_retained ~ ' retained' if evidence else 'At most ' ~ policy.max_selected ~ ' selected' }} · {{ policy.max_uncertain }} uncertain</span>
+      {% if evidence %}<span>Overlap &lt; {{ '%.2f' | format(policy.overlap_dedupe_ratio) }} · text ≤ {{ policy.retained_text_character_budget }} characters</span>{% endif %}
+    </button>
+  </div>
+  <div class="scoring-outcomes" aria-label="Distinct scoring outcomes">
+    <div class="scoring-outcome scoring-outcome--selected pipeline-semantic--output"><span aria-hidden="true">↓</span><strong>Selected</strong><span>{{ 'Retained chunk evidence' if evidence else 'Sections sent to chunking' }}</span><small>Only this set continues downstream.</small></div>
+    <div class="scoring-outcome scoring-outcome--uncertain"><strong>Uncertain</strong><span>Bounded, inspectable candidates</span><small>No downstream continuation.</small></div>
+    <div class="scoring-outcome scoring-outcome--skipped"><strong>Skipped</strong><span>Below threshold or excluded by policy bounds</span><small>Decision and reason remain recorded.</small></div>
+  </div>
+</figure>
+{{ panel(item, 'describe', '01', 'Describe', prefix ~ '-loop-card', 'sections-loop-card scoring-inspector', false) }}
+{{ panel(item, 'score', '02', 'Score', prefix ~ '-loop-card', 'sections-loop-card scoring-inspector', true) }}
+{{ panel(item, decision, '03', decision | title, prefix ~ '-loop-card', 'sections-loop-card scoring-inspector', true) }}
+<section class="scoring-accounting" data-stage-accounting="{{ item.stage }}"><p class="accounting-provenance">Current configuration and illustrative request; persisted decisions appear only after this stage saves output.</p>
+{% if item.status in ['queued', 'running'] %}<p>Persisted decision accounting pending.</p>
+{% elif item.status in ['failed', 'cancelled', 'interrupted'] and not item.output_hash %}<p>Complete decision accounting unavailable after {{ item.status }}.</p>
+{% else %}{% if item.status == 'partial' %}<p>Partial persisted decision accounting</p>{% endif %}
+<dl class="scoring-counts"><div><dt>Selected</dt><dd>{{ item.inspection.decisions.selected }}</dd></div><div><dt>Uncertain</dt><dd>{{ item.inspection.decisions.uncertain }}</dd></div><div><dt>Skipped</dt><dd>{{ item.inspection.decisions.skipped }}</dd></div>{% if evidence %}<div><dt>Retained text</dt><dd>{{ item.inspection.retained_characters }} characters</dd></div>{% endif %}</dl>{% endif %}
+</section>
+{{ stage_footer(item) }}
+</article></li>

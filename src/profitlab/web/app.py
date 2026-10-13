@@ -305,6 +305,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             # detailed accounting is only rendered after its durable save.
             'outcome': outline_stage.summary if outline_summary is None else None,
         }
+        totals = pipeline.repo.inspection_totals(run_id)
         section_content = {
             'model': settings.typesafe_model,
             'preview_limit': 600,
@@ -313,9 +314,9 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             'uncertain_threshold': settings.section_score_uncertain_threshold,
             'max_selected': settings.section_score_max_selected,
             'max_uncertain': settings.section_score_max_uncertain,
-            'inspection': SectionScoringService.inspection_view(settings),
+            'inspection': SectionScoringService.inspection_view(
+                settings, decisions=totals['decisions']['section_score']),
         }
-        totals = pipeline.repo.inspection_totals(run_id)
         chunk_content = {
             'inspection': SourceRangeChunker.inspection_view(
                 settings, selected_sections=totals['decisions']['section_score'].get('selected', 0),
