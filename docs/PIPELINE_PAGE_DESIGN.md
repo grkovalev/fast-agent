@@ -105,6 +105,23 @@ The backend owns inspection content:
   changes can propagate through schemas and renderers, but changed business logic
   or a new branch still needs an editorial update.
 
+## Keeping the explanation in sync
+
+When pipeline logic changes, review the initial page and the affected selected-stage
+inspector against the actual service and orchestration paths. Check the stage's
+inputs and outputs, operation order, loops, conditional branches, rejection and
+fallback paths, selection rules and budgets, scheduling gates versus data movement,
+and persisted state/accounting. Also check whether prompts, effective settings,
+contracts, examples, source/provenance links, and comparison outcomes remain accurate.
+Update visible explanatory copy and geometry when behavior changes; schema and
+request-builder propagation alone cannot explain a new branch or changed policy.
+
+Keep the explanation anchored to runtime contracts and request builders. Label
+illustrative examples, current configuration, and historical run data distinctly.
+For a logic change that needs no UI edit, record the reason in the task handoff so
+the review is explicit. Run focused checks for affected routes and contracts and
+inspect the changed composition at wide and narrow widths when UI markup changes.
+
 For Outline specifically, the Window inspector shows prior continuation and
 effective window/overlap behavior; Propose shows the shared system instruction,
 safe user prompt, and returned proposal contract; Validate shows exact source-match
@@ -138,7 +155,9 @@ adjacent inspector rail, and literal four-station `Window → Propose → Valida
 Reconcile → Window` interpretation in the earlier
 [reorganization plan](UI_PIPELINE_REORGANIZATION_PLAN.md) and this brief's previous
 version. Those rules document the T39–T47 implementation history, not the target
-composition for T48–T60. Preserve their useful shared colors, stage navigation,
+composition introduced in T48–T60. Preserve their useful shared colors, stage navigation,
 status/accessibility behavior, selected-stage routes, and the Facts-below-Evaluate
 spatial contract. The [review](PIPELINE_IMPLEMENTATION_REVIEW.md) explains the
-observed gaps; [follow-up tasks](PIPELINE_IMPROVEMENT_TASKS.md) bound implementation.
+observed gaps; the [UI task register](PIPELINE_IMPROVEMENT_TASKS.md) records T60's
+closure and verification gap, while
+[completed scopes](PIPELINE_UI_COMPLETED_TASKS.md) retain history.

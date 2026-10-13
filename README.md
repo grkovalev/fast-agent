@@ -39,7 +39,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-See [PROGRESS.md](docs/PROGRESS.md), [TASKS.md](docs/TASKS.md), the
-[V2 implementation specification](docs/V2_IMPLEMENTATION_PLAN.md), and the
-[pipeline UI reorganization plan](docs/UI_PIPELINE_REORGANIZATION_PLAN.md). The next
-work is Session 1 of the UI plan.
+See [PROGRESS.md](docs/PROGRESS.md) for current status,
+[PIPELINE_PAGE_DESIGN.md](docs/PIPELINE_PAGE_DESIGN.md) for the UI brief,
+[PIPELINE_IMPROVEMENT_TASKS.md](docs/PIPELINE_IMPROVEMENT_TASKS.md) for the UI task
+register, and [TASKS.md](docs/TASKS.md) for implementation history and task policy.

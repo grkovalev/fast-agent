@@ -6,9 +6,14 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: **T60 — Verify the page's semantic and contract promises.** (**IN_PROGRESS**).
-- Next work: finish T60's manual visual and comprehension review, then record the
-  result. There is no numbered task after T60 in the current plan.
+- Current task: none. **T60 was closed at the user's request** after automated
+  checks passed; manual visual and comprehension review remains unperformed.
+- UI documentation: the durable decisions and logic-change review rule are in
+  [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
+  T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
+  T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
+- Next work: await the user's next task. If visual acceptance is requested later,
+  perform and record the review below. There is no numbered task after T60.
 - Latest automated acceptance: T60 focused gates passed. Manual browser inspection
   and reviewed real-case benchmark verification remain pending.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -18,9 +23,21 @@
 - Data-retention decision: the user authorizes discarding the current local V2 data when
   the fresh-only schema/storage cleanup is performed; no compatibility or preservation
   work is required for existing local runs.
-- Current external blockers: manual browser visual inspection remains pending under the task's no-browser-automation policy. Live Jev and LLM compatibility probes passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
+- Verification gap: manual browser visual inspection remains unperformed under
+  the task's no-browser-automation policy. Live Jev and LLM compatibility probes
+  passed after the follow-up fixes; SEC discovery/download checks remain recorded below.
 
-## T60 contract acceptance — IN_PROGRESS, visual review pending
+## Resume after context reset
+
+Start with [AGENTS.md](../AGENTS.md), the active
+[pipeline page brief](PIPELINE_PAGE_DESIGN.md), and the
+[UI task register](PIPELINE_IMPROVEMENT_TASKS.md). T48–T59 are complete and
+archived. T60 was closed at the user's request after its focused automated checks
+passed. Manual visual and comprehension review of the existing pipeline page and
+selected-stage routes was not performed; do not infer visual acceptance from the
+DONE status. Await the user's next task. No later numbered UI task is defined.
+
+## T60 contract acceptance — DONE at user's request; visual review unperformed
 
 - The assembled route still renders eight stage explanations with a keyboard-reachable
   inspector, distinct Findings-to-Facts completion gate, independent Facts data
@@ -50,8 +67,8 @@
   terminal updates. Ask a reviewer to explain each stage's inputs, outputs,
   rejection and repeat paths, and where independent facts first meet findings.
   Record any visual or comprehension issue before marking T60 done.
-- No replay behavior or storage was added. The next action is the manual visual and
-  reviewer pass for T60; replay requirements remain open.
+- No replay behavior or storage was added. T60 was closed at the user's request
+  before manual visual review; replay requirements remain open.
 
 ## T59 local acceptance and handoff
 

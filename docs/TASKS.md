@@ -1,15 +1,22 @@
-# Active implementation tasks
+# Implementation task history and execution policy
 
-Execute one task per session, in order. Completed implementation history is recorded in [PROGRESS.md](PROGRESS.md). The active architecture starts at T14, is specified in [V2_IMPLEMENTATION_PLAN.md](V2_IMPLEMENTATION_PLAN.md), and intentionally does not migrate or read previous run data.
+This file retains the completed implementation scopes and the task execution policy.
+The final pipeline UI acceptance task, [T60](PIPELINE_IMPROVEMENT_TASKS.md), is
+closed; its status and evidence are in [PROGRESS.md](PROGRESS.md). The active architecture
+starts at T14, is specified in [V2_IMPLEMENTATION_PLAN.md](V2_IMPLEMENTATION_PLAN.md),
+and intentionally does not migrate or read previous run data.
 
 Commands and checks below are acceptance contracts to implement, not claims that they already exist.
 
-Pipeline review follow-ups: [T48–T60](PIPELINE_IMPROVEMENT_TASKS.md), with findings
-and rationale in [PIPELINE_IMPLEMENTATION_REVIEW.md](PIPELINE_IMPLEMENTATION_REVIEW.md).
-T48 updates the active [pipeline page design brief](PIPELINE_PAGE_DESIGN.md);
-the T39–T47 card layout rules below are historical for the follow-up work.
+Completed pipeline UI scopes T48–T59 are in
+[PIPELINE_UI_COMPLETED_TASKS.md](PIPELINE_UI_COMPLETED_TASKS.md). The current
+[pipeline page design brief](PIPELINE_PAGE_DESIGN.md) owns UI decisions; the
+[review](PIPELINE_IMPLEMENTATION_REVIEW.md) records the original findings. The
+T39–T47 card layout rules below are historical.
 
 ## Execution policy for every task
+
+Apply this policy to an active task; completed scopes below are historical.
 
 1. Read repository instructions, `PROGRESS.md`, the relevant specification sections, and the selected task. Resume an `IN_PROGRESS` task before starting a later task.
 2. Mark the task `IN_PROGRESS` and state the concrete result the user will be able to inspect.

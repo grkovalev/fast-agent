@@ -1,12 +1,13 @@
 # Pipeline UI reorganization plan
 
-> Historical T39–T47 implementation plan. For T48–T60, the
+> Historical T39–T47 implementation plan. For later UI work, the
 > [pipeline page design brief](PIPELINE_PAGE_DESIGN.md) is the active visual and
 > interaction contract. Its stage-specific compositions supersede the shared
 > desktop card size, identical card anatomy, and fixed inspector placement below.
 > The stage order, selected-stage links, accessible status, and Facts-below-Evaluate
 > spatial relationship remain applicable. See the
-> [follow-up tasks](PIPELINE_IMPROVEMENT_TASKS.md).
+> [UI task register](PIPELINE_IMPROVEMENT_TASKS.md) and
+> [completed scopes](PIPELINE_UI_COMPLETED_TASKS.md).
 
 ## Goal
 

@@ -11,7 +11,9 @@ partitioning, selection, validation, and comparison. It should also finish the m
 from hand-authored descriptions of contracts to representations of actual runtime
 contracts.
 
-Implementation-ready follow-ups are in [PIPELINE_IMPROVEMENT_TASKS.md](PIPELINE_IMPROVEMENT_TASKS.md).
+The completed implementation scopes are archived in
+[PIPELINE_UI_COMPLETED_TASKS.md](PIPELINE_UI_COMPLETED_TASKS.md); T60's closure and
+verification gap are in [PIPELINE_IMPROVEMENT_TASKS.md](PIPELINE_IMPROVEMENT_TASKS.md).
 
 ## Evidence and limits
 
