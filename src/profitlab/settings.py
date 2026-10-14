@@ -4,9 +4,15 @@ from typing import Literal
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from profitlab.v2.findings_policy import FindingsPolicy
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    # Prepared replacement only; active Findings settings remain in use until T76.
+    # FINDINGS_POLICY accepts JSON overrides, validated by the single policy model.
+    findings_policy: FindingsPolicy = Field(default_factory=FindingsPolicy)
 
     data_dir: Path = Field(Path("data"), validation_alias="PROFITLAB_DATA_DIR")
     # This is the packaged executable release; deployments may override it with an

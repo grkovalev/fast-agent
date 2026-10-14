@@ -1,6 +1,6 @@
 # JEV-led Findings implementation plan
 
-Status: PLANNED, 2026-10-14. Planning does not start implementation or erase data.
+Status: T69 DONE; T70–T77 PLANNED, 2026-10-14. No data reset performed.
 This replaces the Findings internals in the existing eight-stage pipeline. Keep
 the `v2` package, repository, database filename and URLs; do not create a v3,
 migration, compatibility mode or permanent old/new execution switch.
@@ -289,7 +289,7 @@ design brief and README at activation, removing obsolete Findings explanations.
 
 | Task | Deliverable | Depends on | Status |
 | --- | --- | --- | --- |
-| T69 | Baseline evidence and shared replacement contracts/policy | Planning complete | PLANNED |
+| T69 | Baseline evidence and shared replacement contracts/policy | Planning complete | DONE |
 | T70 | Typed mixed Noul/Score adapter and bounded batch execution | T69 | PLANNED |
 | T71 | Fresh storage/checkpoints and concept-to-chunk/line enumeration | T70 | PLANNED |
 | T72 | JEV multi-concept source-line assignments | T71 | PLANNED |
@@ -323,6 +323,69 @@ numeric parser/sign expectations, policy boundaries and absence of forbidden inp
 fields. UI handoff: current pipeline unchanged; replacement schemas/builders are
 prepared but not advertised as live behavior. Record baseline availability and
 the exact next task. Gate file: `tests/task_gates/test_t69_findings_contracts.py`.
+
+### T69 finalized contract decisions — 2026-10-14
+
+- `finding_concepts.py` owns the stable three-value enum, definitions and scope.
+  Earnings-change/comparability remain context retrieval targets. Existing active
+  constants/consumers stay unchanged until T76; new services import this vocabulary.
+- `findings_contracts.py` owns prepared artifacts and minimal request states;
+  `findings_builders.py` and `findings_examples.py` own pure validated builders and
+  explicitly illustrative instances. They are not registered in active inspection.
+  Mixed Score transport/questions remain T70; `RankState` already binds the actual
+  four-level rubric and required-condition definitions for that integration.
+- Phase values are `candidates`, `assign_lines`, `attach_context`, `rank_select`,
+  `convert`, `validate`, `seal`. Step status distinguishes pending/running,
+  completed/partial, failed/cancelled/interrupted and skipped; availability is
+  unavailable/checkpointed/final. Summary separates JEV assign/attach/rank from
+  LLM conversion/repair, and live dispatched/completed/failed work from cache hits
+  and omissions. Unknown native usage is null, never a fabricated zero.
+- Stable line occurrence IDs hash concept, raw canonical source hash and line
+  number, excluding run-local document/chunk IDs. Document/hash must still match
+  in every range/owner/context relationship. Bundles identify that same occurrence.
+  Reusable batch identities also require exact remapped input hash, phase, concept,
+  model identity, question version and the complete effective policy hash.
+  T71 owns occurrence remapping/storage; T75 owns final span/amount finding IDs.
+- Every concept requires separate requested-year, annual-duration, reported-basis
+  and concept-scope judgments. Profit requires consolidated shareholder income/loss;
+  EPS requires diluted common-share earnings; shares requires diluted weighted-average
+  common shares. Basic, period-end, segment and adjusted substitutes fail the
+  corresponding scope/basis condition. Any probability below .20 is rejected;
+  [.20, .65) is uncertain; .65 and above is supported. Rejection dominates
+  uncertainty, and only all-supported required conditions are eligible. High Score
+  never overrules this gate. Threshold decisions remain application policy.
+- Optional unit/scale/entity/qualification context roles remain explicitly unresolved
+  if selected role support is missing. This differs from the required scope/basis
+  gate: missing optional qualification alone need not veto an eligible bundle.
+  General context support and the four role answers remain independent, never
+  multiplied. Selected context belongs to the same canonical source/owning section;
+  builders require an explicit allowed pool and preserve whole lines/source order.
+- Numeric spans use half-open canonical-line character offsets, raw displayed text
+  and finite Decimal. Commas are removed for amount, parentheses denote loss
+  (including a redundant inner minus), minus and Unicode minus preserve sign.
+  Years/percentages/zero/repeated amounts remain candidates, not semantic assignments.
+  Amount stays equal to the displayed number; scale is separate cited metadata.
+  T71 further hardens enumeration/parser edge cases; T75 checks exact quote/span and
+  metadata against supplied selected-bundle references and fixes concept at publication.
+- `FindingsPolicy` is configurable through `FINDINGS_POLICY` JSON in Settings; one
+  builder validates it and excludes secrets. Independent assign/attach/rank budgets
+  include whole serialized request and instruction/criteria overhead, question cap,
+  estimated token cap/margin (defaults 8,000/512, conservative 3 chars/token).
+  These are application estimates, not provider-limit guarantees; T70 verifies the
+  live model limits. Additional defaults are 1,000 candidate lines, eight structural
+  candidate reservations within the 40-line context cap and 48,000 selected text
+  characters. Other agreed defaults above remain unchanged. Every policy field
+  participates in identity. Oversized atomic inputs are omitted/error, never truncated.
+- Count/size omissions cut coverage and require partial results; relevance/ranking
+  selection is intentional exclusion. Empty successful results may seal with zero
+  conversion calls. Seal requires all seven successful terminal phases and only
+  completed/partial status; failed/interrupted/cancelled subsets cannot publish.
+  Terminal conversion rejections can retain accepted findings with diagnostics;
+  repair preserves accepted results and uses a separate one-request cap.
+- Baseline provenance/results are in [the retained manifest](../tests/fixtures/benchmarks/t69/manifest.json)
+  and [fixture README](../tests/fixtures/benchmarks/t69/README.md). Three saved runs
+  plus one isolated live AZZ replay are retained. No database reset was performed.
+  Old LLM token usage remains unavailable; no quality/speed acceptance is claimed.
 
 ### T70 — Mixed typed JEV evaluation and batching
 

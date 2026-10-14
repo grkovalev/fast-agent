@@ -1,0 +1,172 @@
+{
+  "captured_at": "2026-10-14T21:31:36.427848+00:00",
+  "source_database": "/Users/grkovalev/repos/src/fast-agent/data/v2/profitlab-v2.sqlite3",
+  "kind": "observational saved runs, not comparable cold latency measurements",
+  "reset_performed": false,
+  "bounds": {
+    "runs": 3,
+    "compressed_bytes_per_run": 8000000,
+    "rows_per_table": 5000
+  },
+  "runs": [
+    {
+      "run_id": "v2-6eca22455a84",
+      "ticker": "AZZ",
+      "artifact": "v2-6eca22455a84.json.gz",
+      "sha256": "7596a538bf783e5d52fea1616806b6ac51fc69a3c41888118d37a96f1d770a27",
+      "uncompressed_sha256": "1cc87160102733995358509119d1a07eff7b497e5eaa9ca58adae8a71f0e452c",
+      "compressed_bytes": 75127,
+      "source_hashes": [
+        "94bb9ef6fab4696939fe2bd5e509b8bb0d2dee3bc9326920536467603f749eb2"
+      ],
+      "findings": 4,
+      "findings_stage": [
+        {
+          "run_id": "v2-6eca22455a84",
+          "stage": "findings",
+          "position": 6,
+          "status": "completed",
+          "completed_work": 4,
+          "total_work": 4,
+          "started_at": "2026-10-14T19:47:01.386948Z",
+          "finished_at": "2026-10-14T19:47:34.631646Z",
+          "elapsed_seconds": 33.24472404201515,
+          "queued_seconds": 0.0,
+          "active_seconds": 33.24472404201515,
+          "retry_backoff_seconds": 0.0,
+          "active_started_monotonic": 599257.184512708,
+          "summary": "Published 4 exact quote-validated findings; 0 invalid citation(s) rejected.",
+          "limitation": null,
+          "error": null,
+          "input_hash": "94bb9ef6fab4696939fe2bd5e509b8bb0d2dee3bc9326920536467603f749eb2",
+          "output_hash": "24fb2623f20cce76b571ed8e6b0964ea7ab94000011306c0ee70a09c0e414756"
+        }
+      ]
+    },
+    {
+      "run_id": "v2-14f354b9349e",
+      "ticker": "ET",
+      "artifact": "v2-14f354b9349e.json.gz",
+      "sha256": "fd4438fd9914e3900461fad17ef66c4347b857efab18e0d1e7d8bed2772429ea",
+      "uncompressed_sha256": "ee04a59c073efe23f072109d5840a7b45475f2d1ce239f6694b9e5f7cdd4e3af",
+      "compressed_bytes": 99830,
+      "source_hashes": [
+        "b66f0cfcd8fdf8d5ac1bf56ebf9c933f6d5af19fe94973d4e95dd3d03ecffe87"
+      ],
+      "findings": 4,
+      "findings_stage": [
+        {
+          "run_id": "v2-14f354b9349e",
+          "stage": "findings",
+          "position": 6,
+          "status": "completed",
+          "completed_work": 4,
+          "total_work": 4,
+          "started_at": "2026-09-29T22:08:30.700853Z",
+          "finished_at": "2026-09-29T22:08:39.956849Z",
+          "elapsed_seconds": 9.255908584222198,
+          "queued_seconds": 0.0,
+          "active_seconds": 9.255908584222198,
+          "retry_backoff_seconds": 0.0,
+          "active_started_monotonic": 5884327.306561291,
+          "summary": "Published 4 exact quote-validated findings; 0 invalid citation(s) rejected.",
+          "limitation": null,
+          "error": null,
+          "input_hash": "b66f0cfcd8fdf8d5ac1bf56ebf9c933f6d5af19fe94973d4e95dd3d03ecffe87",
+          "output_hash": "64e0119bf821dcbff529cc28c5371a815311a06766d3721052360b277d3e449d"
+        }
+      ]
+    },
+    {
+      "run_id": "v2-5a51d865d5e9",
+      "ticker": "JPM-PK",
+      "artifact": "v2-5a51d865d5e9.json.gz",
+      "sha256": "c9d8fbf80bf2906ddd0b1736be45a626f5f2c3a5d186537c29982f0f0f1b9136",
+      "uncompressed_sha256": "f98c97c7a8db3bb3b0f44d4f3c94aefa9c8ac58d29fcf0d2f46d2b8ea6ec869a",
+      "compressed_bytes": 226821,
+      "source_hashes": [
+        "680745944ff77239e6c080a7a8cc88401542bab4a0a1f09d12e7f2ac4a8fa478"
+      ],
+      "findings": 3,
+      "findings_stage": [
+        {
+          "run_id": "v2-5a51d865d5e9",
+          "stage": "findings",
+          "position": 6,
+          "status": "completed",
+          "completed_work": 3,
+          "total_work": 3,
+          "started_at": "2026-10-14T19:33:57.106685Z",
+          "finished_at": "2026-10-14T19:34:19.645236Z",
+          "elapsed_seconds": 22.53855554200709,
+          "queued_seconds": 0.0,
+          "active_seconds": 22.53855554200709,
+          "retry_backoff_seconds": 0.0,
+          "active_started_monotonic": 598472.901544416,
+          "summary": "Published 3 exact quote-validated findings; 1 invalid citation(s) rejected. Request budget fallback retained only highest-scored evidence.",
+          "limitation": null,
+          "error": null,
+          "input_hash": "680745944ff77239e6c080a7a8cc88401542bab4a0a1f09d12e7f2ac4a8fa478",
+          "output_hash": "aa2873be1985f2a8c396f396bb1dbd325aad16186fb85882ad901c6edcc3557f"
+        }
+      ]
+    }
+  ],
+  "gaps": [
+    "No saved Apple or Microsoft V2 run exists in this database; their real filing fixtures remain separate.",
+    "Historical LLM conversion responses do not record token usage; unavailable is not zero.",
+    "Historical durations mix cold/cache/upstream policy versions."
+  ],
+  "configuration": {
+    "typesafe_model": "jev-1.13.0",
+    "llm_model": "openai/gpt-5.6-luna",
+    "outline_model": "openai/gpt-5.6-luna",
+    "outline_window_lines": 900,
+    "outline_overlap_lines": 60,
+    "outline_prompt_version": "outline-hierarchy-v2",
+    "v2_provider_concurrency": 3,
+    "chunk_score_prompt_version": "chunk-score-v1",
+    "chunk_score_batch_size": 4,
+    "chunk_score_request_char_budget": 22000,
+    "chunk_score_max_requests": 100,
+    "chunk_score_total_timeout": 900.0,
+    "chunk_score_keep_threshold": 0.65,
+    "chunk_score_uncertain_threshold": 0.2,
+    "chunk_score_max_retained": 12,
+    "chunk_score_max_uncertain": 4,
+    "chunk_score_retained_text_char_budget": 48000,
+    "chunk_score_overlap_dedupe_ratio": 0.65,
+    "findings_prompt_version": "findings-v5-jev-types",
+    "findings_max_requests": 2,
+    "findings_total_timeout": 300.0,
+    "findings_request_char_budget": 60000,
+    "finding_type_max_requests": 12,
+    "finding_type_request_char_budget": 30000,
+    "finding_type_prompt_version": "finding-type-v2-outline-context"
+  },
+  "capture_command": ".venv/bin/python /tmp/capture_t69.py (read-only SQLite transaction)",
+  "live_baseline": {
+    "artifact": "live-old-azz.json.gz",
+    "sha256": "9f7c4bdaa5577bc73522d017a72339e09f84c191e02327cc0510222d829b075d",
+    "uncompressed_sha256": "4dd553d81cbafae8e102eb9252f17e1225b876310595d337dff61ebbbb9286fd",
+    "compressed_bytes": 38728,
+    "command": ".venv/bin/python /tmp/live_t69.py",
+    "captured_at": "2026-10-14T21:32:26.619312+00:00",
+    "status": "completed",
+    "source_run_id": "v2-6eca22455a84",
+    "elapsed_seconds": 26.553494874970056,
+    "actual_llm_model": "gpt-5.6-luna",
+    "actual_jev_model": "jev-1.13.0",
+    "llm_conversion_and_repair_calls": 2,
+    "jev_classification_calls": 4,
+    "jev_input_tokens": 23069,
+    "jev_output_tokens": 240,
+    "llm_tokens": null,
+    "findings": 4,
+    "cache_state": "isolated empty caches; old full-response repair occurred",
+    "measurement_limit": "One observed cold Findings sample, not p95 or a quality/latency improvement claim."
+  },
+  "live_attempts": [
+    "Initial sandbox attempt failed with APIConnectionError in 0.271s; required network escalation was used for the successful attempt."
+  ]
+}

@@ -6,9 +6,10 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current implementation task: none. **T69–T77 PLANNED**, JEV-led Findings;
+- Current implementation task: none. **T69 DONE**; T70–T77 PLANNED, JEV-led Findings;
   see [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
-  Planning is complete; implementation has not started. **T68 DONE**, Findings extraction/publication explanation.
+  T69 retained baseline evidence and prepared isolated contracts/policy;
+  the active runtime stays unchanged. **T68 DONE**, Findings extraction/publication explanation.
   **T67 DONE**, Chunks/Evidence explanation.
   **T66 DONE**, Source/Outline/Sections explanation.
   **T65 DONE**, shared discovery purpose and vocabulary.
@@ -25,11 +26,12 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next when implementation is requested: T69 baseline and replacement contracts,
-  followed by T70–T77 sequentially in different fresh-context agents. No automatic
-  implementation starts from this planning change. T61–T62 broader visual reviews
-  remain open; T64's source-detail visibility is user-confirmed.
-- Latest automated checks: T68 final focused discovery/Findings checks passed
+- Next when implementation is requested: **T70**, typed mixed Noul/Score adapter
+  and bounded batch execution, in a different fresh-context agent. T69 is complete;
+  no task starts automatically. T61–T62 broader visual reviews remain open.
+- Latest automated checks: T69 gate plus existing Findings/schema/request inspection
+  checks passed (18 tests in 1.28s); repository lint and diff checks passed.
+  T68 final focused discovery/Findings checks passed
   (22 tests in 2.01s); repository lint and diff checks passed.
   T67 focused chunk/range/scoring, inspection, render,
   hierarchy and Findings checks passed (20 tests in 2.13s); repository lint and diff checks passed.
@@ -53,39 +55,106 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and the [task register](PIPELINE_IMPROVEMENT_TASKS.md).
-**T65–T68 are DONE; T69–T77 are PLANNED. No automatic implementation.** Read the
-[Findings plan](FINDINGS_JEV_IMPLEMENTATION_PLAN.md) and selected task before
-starting T69. T68 completed the Findings
-cardinality, request fallback, validation, replacement repair, deduplication and
-classification explanation in a separate fresh-context agent. Runtime, requests,
-policies, budgets, contracts, storage and Facts/Evaluate are unchanged. Detailed
-limits and manual review steps are below. T61–T62 broader visual reviews and the
-Apple caption-preview limitation remain pending/recorded; historical “Next task”
-entries below are not active instructions. The new plan supersedes the former
-statement that no T69 scope exists.
+**T65–T69 are DONE; T70–T77 are PLANNED. No automatic implementation.**
+Read the [Findings plan](FINDINGS_JEV_IMPLEMENTATION_PLAN.md) and T70 before starting.
+Working branch is `findings-jev-discovery`. T69 prepares replacement components
+without changing the current Findings runtime/inspection or Facts/Evaluate behavior.
+Its baseline fixtures are preserved outside application data in
+`tests/fixtures/benchmarks/t69`; verify manifest hashes before reuse. Three saved
+runs and one genuine live old-stage replay are available. No database reset occurred.
+T71 must stop the server and reset only the resolved application V2 namespace after
+these retained inputs; this authorization does not cover other application data.
+Historical “next task” entries below are not current instructions. T61–T62 broader
+visual reviews and the Apple canonical-caption limitation remain separately open.
 
-Context-cleaning handoff prepared after JEV-led Findings planning. Working branch:
-`findings-jev-discovery`, created from `pipeline-discovery-ui-clarity`. This branch
-contains the T69–T77 plan and linked execution/UI documentation; runtime remains
-unchanged. Documentation links and diff checks passed; runtime tests were not
-needed for the planning-only changes. No database reset or provider calls have
-been performed. Preserve the documented backend gaps and pending earlier visual
-reviews as separate work.
-On a later request to proceed, read the current task register and T69–T77 plan
-first; start only the requested task and hand it off before another agent starts
-the next dependency. The database reset is authorized for implementation, after
-bounded baseline capture. No database data has been erased. Start implementation
-only on a subsequent request, with T69 in a fresh agent; do not launch all tasks
-concurrently or rely on the previous conversation for requirements.
+Context-cleaning checkpoint: T69 implementation, baseline fixtures, focused gate
+and this handoff are committed together on `findings-jev-discovery`. Use the latest
+T69 commit as the starting point and inspect the worktree before editing. T70 has
+not started. Its shared-provider change requires the full suite in addition to its
+focused gate and lint. Recheck the official JEV API/model limits before any live
+probe; default tests must not make paid calls. Do not reset data in T70 or activate
+the prepared Findings components; runtime/UI activation remains T76.
 
 Suggested next-session instruction:
 
-> On branch `findings-jev-discovery`, implement only T69 from
-> `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md`. Read AGENTS.md, the execution policy
-> in docs/TASKS.md, docs/PIPELINE_PAGE_DESIGN.md and docs/PROGRESS.md first. Capture
-> available baseline evidence before any later database reset. Record actual
-> checks, limitations and the next-task handoff, then stop. T70 starts in a
-> different fresh-context agent after T69 is complete.
+> On branch `findings-jev-discovery`, implement only T70 from
+> `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md` in a different fresh-context agent.
+> Read AGENTS.md, docs/TASKS.md execution policy, docs/PIPELINE_PAGE_DESIGN.md,
+> the Findings plan and recent docs/PROGRESS.md first. Preserve T69 baseline
+> fixtures. Prepare mixed typed JEV batching without activating new runtime/UI
+> phases or resetting data. Record checks and the T71 handoff, then stop.
+
+## T69 — Baseline and replacement contracts — completed, 2026-10-14
+
+- Captured three bounded, redacted saved-run snapshots in
+  `tests/fixtures/benchmarks/t69` outside the resolved application namespace
+  `/Users/grkovalev/repos/src/fast-agent/data/v2`. AZZ `v2-6eca22455a84`
+  (four findings), ET `v2-14f354b9349e` (four) and JPM-PK `v2-5a51d865d5e9`
+  (three) retain canonical documents, filing URLs/accessions/source hashes,
+  outline, persisted scores/chunks, findings, stage/usage/timing summaries and
+  recorded Findings request/phase diagnostics. Manifest records exact SHA-256,
+  configuration and provenance. Bounds: three runs, 5,000 rows/table, 8 MB
+  compressed/run; total saved-run archives 401,778 bytes. Saved timings are
+  observational and not controlled cold/cached comparisons. No Apple/Microsoft
+  V2 run was available; real filing fixtures remain in `t64`/`t62`.
+- Configured credentials allowed one bounded **real live** old-Findings AZZ replay
+  on identical retained inputs in isolated temporary storage with empty caches.
+  Actual command `.venv/bin/python /tmp/live_t69.py`; 120-second bound;
+  26.5535s measured Findings wall time. Actual models `gpt-5.6-luna` and
+  `jev-1.13.0`; two LLM requests (initial plus repair), four JEV classification
+  requests, 23,069 JEV input / 240 output tokens, four final findings, zero final
+  rejections. Sanitized diagnostics/results are retained in `live-old-azz.json.gz`.
+  Initial sandbox connection failed (0.271s); network escalation was used for the
+  successful replay. Old service does not record native LLM token usage; that
+  measurement is unavailable. One sample is not p95, quality acceptance or a
+  speed improvement. Provider API/models docs were rechecked at
+  https://docs.typesafe.ai/api and https://docs.typesafe.ai/models before the probe.
+- Added shared three-concept definitions and meaningful validated models for
+  candidate maps/owners/numeric spans, independent assignments, context links/roles,
+  evidence bundles, rank/required conditions, conversion/metadata proposals,
+  publication provenance, phase accounting/results/summary and cache identity.
+  Numeric offsets/sign/finite Decimal, source ownership, occurrence identities,
+  required eligibility and seal states have explicit constraints. Shared source
+  rows may belong independently to several concepts. Scale remains separately
+  cited metadata; displayed amounts are not scaled. T75 binds publication provenance
+  to active Finding consumers; those existing contracts stay intact now.
+- Added one versioned `FindingsPolicy`, validated `FINDINGS_POLICY` JSON settings
+  builder, deterministic threshold/required-condition builders, full-request
+  bounds and safe source/context/conversion builders. Actual validated examples
+  exercise the builders without credentials or I/O. Rank state/rubric is prepared;
+  T70 supplies mixed Score transport integration. Prepared components are not
+  registered as active runtime stations or inspection results.
+- Traced active Findings assembly/repair/classification, pipeline scheduling,
+  storage/inspection, canonicalization/upstream scoring and Evaluate's independent
+  scale-verification path. No UI change is needed: none of these active paths,
+  decisions, accounting, provenance or selected-stage contracts changed. The existing
+  pipeline page still explains the executed old Findings path accurately; T76
+  activates its replacement and matching UI atomically. Durable page design stays
+  current; finalized replacement semantics/defaults are recorded in the Findings plan.
+- Tests inspected: existing T58 Findings, T50 schemas and T51 request inspection;
+  they remain relevant, fast active-path checks, so none were removed. Initial
+  `uv run pytest tests/task_gates/test_t58_findings.py`: six passed in 1.00s.
+  Added five T69 tests: validated schema/JSON/example round trips, source/eligibility/
+  seal/accounting constraints, numeric spans/signs, policy/settings/payload guards,
+  and one saved-real-data integration path/checksums across the three snapshots.
+  No paid calls belong in tests and no browser/UI automation ran.
+- Focused command: `uv run pytest tests/task_gates/test_t69_findings_contracts.py
+  tests/task_gates/test_t58_findings.py tests/task_gates/test_t50_contract_inspection.py
+  tests/task_gates/test_t51_request_inspection.py`: **18 passed in 1.28s** (initial combined run: 1.39s); existing
+  Starlette/AnyIO deprecation warning. `uv run ruff check .` and
+  `git diff --check`: passed.
+  Full suite is unnecessary for unconnected components: no shared storage/provider/
+  orchestration implementation changed. Live old baseline is retained, but new-flow
+  quality/performance acceptance remains T77. No database reset, runtime activation,
+  commit or next-task execution performed.
+- Manual verification remains **pending**: use the already-running UI at
+  `http://127.0.0.1:8000/v2/runs/v2-6eca22455a84/pipeline`; select Findings and inspect
+  Assemble, Propose, Validate, Classify and Publish, then open a saved finding's
+  source/trace link. Expected: existing saved extraction/whole-response repair/type
+  classification behavior; no unconnected replacement phases. Review at wide/phone
+  widths, by keyboard, with JS disabled and at 200% zoom. If the local server is not
+  running, `uv run profitlab serve` is the one-time prerequisite. No CLI stage/demo
+  command is needed. Next: **T70**, in another fresh-context agent.
 
 ## T69–T77 — JEV-led Findings planning — 2026-10-14
 
