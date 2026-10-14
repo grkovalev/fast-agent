@@ -21,6 +21,247 @@ were not supplied. T61–T62 broader manual visual reviews remain pending.
 | T62 | Verified mapping from fact occurrences to canonical filing lines | T61 | DONE |
 | T63 | Fact source lines, quotes, and links in evaluation cards and Facts inspection | T62 | DONE |
 | T64 | Real-filing acceptance of fact source debugging | T63 | DONE |
+| T65 | Shared discovery purpose, target vocabulary, and README explanation | Existing discovery stages | TODO |
+| T66 | Clear Source, Outline, and section-selection explanations | T65 | TODO |
+| T67 | Clear chunk overlap and evidence-retention explanations | T66 | TODO |
+| T68 | Clear extraction cardinality, validation, and finding classification | T67 | TODO |
+
+## T65–T68 execution contract — separate fresh-context agents
+
+These four tasks implement the discovery explanation adjustment agreed on
+2026-10-14. Execute each task with a **different agent started with fresh context**;
+do not rely on this conversation or another agent's memory. Execute sequentially
+in dependency order because templates, inspection builders, and documentation are
+shared. Creating this register does not start implementation.
+
+Every agent must read `AGENTS.md`, the execution policy in [TASKS.md](TASKS.md),
+[PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md), this execution contract, its
+selected task below, and relevant recent [PROGRESS.md](PROGRESS.md) entries. Inspect
+the worktree and preserve unrelated changes. Validate every behavior statement
+against current runtime code; the checkpoints below describe the planning baseline,
+not a replacement for reading code.
+
+The objective is to explain **current behavior**, using copy and small bounded
+examples first. Preserve the eight-stage route and existing card compositions;
+only T68 anticipates a localized composition addition. Keep Facts, Evaluate,
+evaluation results, and benchmark work outside scope. Do not fix runtime discovery
+behavior, alter provider prompts/questions, selection policies, budgets, contracts,
+storage, or canonical numbering as part of these tasks. Report discovered backend
+gaps separately. Presentation wording may change in backend-owned inspection
+builders, but the requests they describe must remain unchanged.
+
+Overview and selected-stage inspection must agree. Reuse runtime-owned contracts,
+request builders, question sets, and effective settings; do not introduce another
+policy implementation or frontend contract model. Distinguish illustrative examples,
+current configuration, and saved run data. Important explanations must be visible
+without clicking, hovering, or enabling JavaScript.
+
+For each task, mark progress accurately, run directly affected checks and the
+repository-required lint/diff checks, and record commands, durations, limitations,
+manual verification instructions, and the next task in PROGRESS.md. Follow the
+existing no-browser-automation policy and use isolated test storage. Provide wide
+and narrow layout, keyboard, no-JS, and 200% zoom review steps where markup changes.
+Do not claim manual verification that was not performed. End with a self-contained
+handoff and stop; the next task starts in a new agent context. No provider or SEC
+calls are needed for this explanatory update.
+
+## T65 — Establish discovery purpose and shared vocabulary
+
+**Status:** TODO. **Dependency:** existing discovery stages.
+
+**Visible result:** the reader understands what discovery seeks before following
+its mechanics, and the README uses the same language as the pipeline page.
+
+**Read code:** `v2/section_scoring.py` (`TARGETS`), `v2/chunk_scoring.py`,
+`v2/findings_service.py` (type definitions and prompt), `v2/contracts.py` under
+`src/profitlab/`. Read `README.md`, `web/templates/v2_workspace.html`, and the
+scoring/Findings partials to choose terminology consistent with existing UI.
+
+**Implement:**
+
+1. Add a compact discovery-purpose introduction near the pipeline route. Explain
+   three numeric output types: annual profit/net income or loss, diluted EPS, and
+   annual diluted weighted-average shares. Explain the five retrieval targets,
+   including earnings-change explanations and restatement/comparability passages.
+2. Give a short practical reason for each target. Diluted shares is the EPS
+   denominator context, not year-end shares outstanding. Earnings change and
+   comparability help locate context but have no dedicated published output type.
+   Do not describe the rationale as documented historical intent or imply the
+   pipeline computes EPS from the other two values.
+3. State that findings can retain an unresolved type. Distinguish retrieval
+   relevance from financial correctness and from published evidence.
+4. Update the README with a concise Source-through-Findings explanation using the
+   same vocabulary. Preserve setup and existing Facts/Evaluate documentation.
+5. Record this durable terminology in the design brief. Prefer existing styles
+   and a compact text/table treatment; do not rebuild stage cards.
+
+**Acceptance:** without opening inspection, a reader can name the three numeric
+types, explain why there are five retrieval targets, and understand that explanatory
+passages are not separate structured output categories. The README agrees. Labels
+are derived from or checked against runtime owners rather than a new policy model.
+
+**Checks:** focused page-render/inspection checks for the target/type distinction,
+bounded content, and no provider I/O. Reuse existing gates where possible. Manual:
+read the introduction and README, then locate the five targets in Sections/Evidence
+and the three types in Findings. Record any stage wording deferred to T66–T68.
+
+**Next:** T66 in a separate fresh-context agent.
+
+## T66 — Clarify Source, Outline, and section selection
+
+**Status:** TODO. **Dependency:** T65.
+
+**Visible result:** the reader can follow primary HTML into a line-addressed topic
+map and understand exactly what Jev sees during the single section-selection pass.
+
+**Read code:** `v2/source_service.py`, `sec/service.py`, `v2/canonical.py`,
+`v2/outline_service.py`, `v2/section_scoring.py`, and the corresponding path in
+`v2/pipeline.py` under `src/profitlab/`. Inspect `web/templates/v2_workspace.html`,
+`_pipeline_outline.html`, `_pipeline_scoring.html`, and their inspection builders.
+
+**Implement:**
+
+1. Describe acquisition as the primary supported annual filing HTML through SEC
+   discovery. Explain removal of hidden/XBRL metadata while retaining visible text
+   inside Inline XBRL wrappers. Show the five canonical element types. Explain
+   concisely that selected HTML elements supply numbered lines; sanitized HTML
+   may retain additional visible text outside that numbered representation.
+2. Preserve the Outline window/validation/continuation/final-partition diagram.
+   Add a bounded example of parent topic → child topic → source line range.
+   Parent topics are navigation hints on flat stored ranges, not independently
+   selected parent objects or an enforced nested hierarchy. Label sample provenance.
+3. Explain that validated starts determine the final partition: each final range
+   ends before the next boundary, covering every canonical line once. Preserve
+   exact-title/quote checks, continuation, and warned unlabeled coverage explanations.
+4. Make Sections input explicit: generated topic, exact heading when present,
+   first 600 characters, source line count, and filing identity. This is descriptor
+   scoring, not full-section scoring or concatenation with a neighboring section.
+5. Explain one Jev scoring pass over stored ranges, followed by deterministic
+   threshold/target-coverage/count policy. Only selected sections reach Chunks;
+   uncertain sections remain inspectable. Preserve the existing scoring composition.
+6. Align overview, relevant station inspectors, and selected-stage copy. Update
+   the design brief with the descriptor and navigation distinctions where needed.
+
+**Acceptance:** a reader can distinguish overlapping outline windows from the
+final non-overlapping section partition, understand parent/child navigation, and
+identify the section-scoring payload and policy owner. No two-pass hierarchical
+selection, full-section scoring, or complete visible-text coverage is implied.
+
+**Checks:** affected canonical/outline/section inspection and page-render gates;
+verify shared scoring markup still explains Evidence correctly. Manual: trace a
+bounded outline example, inspect the section request, check source links and the
+selected/uncertain/skipped branches at wide and narrow widths.
+
+**Next:** T67 in a separate fresh-context agent.
+
+## T67 — Clarify preceding overlap and evidence retention
+
+**Status:** TODO. **Dependency:** T66.
+
+**Visible result:** the reader understands chunk core ownership, preceding context,
+and why only some full-text-scored chunks enter extraction.
+
+**Read code:** `v2/chunking.py`, `v2/chunk_scoring.py`, `v2/section_scoring.py`,
+`v2/findings_service.py` (`_request_data`), and chunk orchestration in
+`v2/pipeline.py` under `src/profitlab/`. Inspect `_pipeline_chunks.html`,
+`_pipeline_scoring.html`, selected-stage copy, and associated inspection builders.
+
+**Implement:**
+
+1. Preserve the current core/context range composition. Emphasize deterministic
+   splitting into adjacent core ranges and bounded preceding-line context within
+   the same selected section. Avoid following-section or cross-section overlap.
+2. Explain ownership and citation separately: repeated context owns no additional
+   source coverage and cannot itself supply a finding citation for this chunk.
+3. Contrast Evidence with Sections: Jev now reads full exact core plus context,
+   with a visible heading path and filing identity, against the same five targets.
+   Scores are relevance signals, not calibrated probabilities that a value exists.
+4. Explain retention in plain language: thresholds, target coverage, section and
+   visible-year diversity, overlap suppression, and count/text limits. Separate
+   Jev scores from application decisions. Do not imply year diversity validates
+   fiscal periods or that all high-scoring chunks necessarily continue.
+5. Keep selected, uncertain, and skipped outcomes clear. Only selected chunks
+   enter request assembly; uncertain candidates remain inspectable. Explain that
+   Findings has an additional request-size limit, addressed in T68.
+6. Align overview and station/selected-stage inspection. Keep actual limits owned
+   by settings/builders. Update the design brief if durable clarification is needed.
+
+**Acceptance:** the reader can point to new core versus repeated context, identify
+which text is scored and citable, and explain why a high relevance score does not
+guarantee downstream retention. Existing range/source/neighbor links still work.
+
+**Checks:** affected chunk/range/policy inspection and rendering gates, including
+all three decision outcomes and shared Sections markup. Manual: follow the example
+from Chunk 1 to Chunk 2, inspect full scoring input and retention policy, and check
+wide/narrow core/context readability without opening an inspector.
+
+**Next:** T68 in a separate fresh-context agent.
+
+## T68 — Explain extraction cardinality and publication guarantees
+
+**Status:** TODO. **Dependency:** T67.
+
+**Visible result:** the reader can follow multiple retained chunks into one bounded
+extraction request, then distinguish candidate validation, repair, deduplication,
+type classification, and publication.
+
+**Read code:** `v2/findings_service.py` in full, `v2/contracts.py`,
+`v2/section_scoring.py`, and Findings orchestration in `v2/pipeline.py` under
+`src/profitlab/`. Inspect `_pipeline_findings.html`, `_pipeline_inspector.html`,
+selected Findings rendering, relevant CSS/JS, and existing Findings/UI gates.
+
+**Implement:**
+
+1. Add a small bounded composition within the existing Findings card showing
+   several retained chunks entering one initial extraction request and zero or
+   more candidates per chunk leaving it. Label illustrations; do not fabricate
+   historical requests or infer candidate-to-chunk counts absent saved data.
+   Preserve the remaining card, station controls, saved results, and route.
+2. Correct assembly fallback order: try the full retained set with full outline;
+   if too large, pack complete chunks by descending score with full outline;
+   if none fits, try the highest-scored chunk with its navigation entry and no
+   preceding context; otherwise publish an explicitly limited empty set. Do not
+   claim context is reduced before dropping chunks. Explain core CSV evidence
+   and separate context without putting serialization mechanics into primary copy.
+3. State that the extraction prompt seeks the current fiscal-reporting year,
+   while deterministic validation checks chunk reference, core line membership,
+   exact single-line quote, finite Decimal, and numeric presence in that quote.
+   Do not claim deterministic validation proves year, unit, scale, attribution,
+   or consolidated-versus-segment meaning. Unknown metadata can remain unresolved.
+4. Keep conditional one-call repair and its replacement semantics explicit:
+   the replacement response replaces the whole initial candidate set, including
+   initially accepted candidates. Invalid proposals are diagnosed and excluded.
+5. Explain deduplication as retaining the first candidate per identical quote
+   and amount, not one finding per chunk or a Jev extraction-ranking step.
+6. Show Jev's three allowed numeric types. Exactly one type crossing the runtime
+   threshold assigns that type; zero or multiple supported types remain unresolved.
+   Per-request classification size overflow also retains an unresolved finding.
+   Preserve cached-type behavior; do not imply every provider/budget failure is
+   gracefully unresolved. Unresolved type alone does not reject a validated finding.
+7. Align saved-results labels, selected-stage copy, and inspectors with the above.
+   Explain existing validation gaps without changing runtime: references are checked
+   against stored chunks rather than strictly the extraction request's retained set;
+   period/metadata support and hierarchy are not stronger guarantees than implemented.
+   Put detailed limitations in inspection; keep the primary explanation readable.
+8. Update the design brief, and finish with a focused Source-through-Findings
+   terminology/relationship review across T65–T68. Make only necessary consistency
+   fixes within discovery. Do not alter Facts/Evaluate or add a fifth implementation task.
+
+**Acceptance:** without interaction, a reader understands batch extraction,
+multiple findings per chunk, deterministic rejection, replacement repair,
+quote/amount deduplication, three-type classification, and retained unresolved output.
+Inspectors expose the actual guarantees and limits. Saved source/trace/result links
+and bounded historical previews remain intact.
+
+**Checks:** affected Findings validation/repair/deduplication/classification and
+request-budget/rendering gates; reuse controlled fixtures and existing acceptance
+paths without new live runs. Final focused discovery UI checks and lint/diff checks.
+Manual: read the combined flow, inspect initial/replacement results where saved,
+verify unresolved/empty outcomes and wide/narrow layout, keyboard, no JS, and zoom.
+Record unperformed visual checks and any backend follow-ups separately; do not
+mark those backend gaps fixed or claim evaluation acceptance.
+
+**Next:** hand off the completed discovery explanation update; no automatic task.
 
 ## Shared constraints
 

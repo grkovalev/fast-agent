@@ -14,6 +14,12 @@ acceptance passed and the user confirmed cell, year and scale visibility.
 T63 UI review is user-confirmed; manual visual reviews for T61–T62 remain pending.
 Presentation rows are not exact canonical-line mappings.
 
+Planned discovery explanation adjustments are tracked as
+[T65–T68](PIPELINE_IMPROVEMENT_TASKS.md#t65t68-execution-contract--separate-fresh-context-agents).
+Each task is assigned to a separate fresh-context agent, executed sequentially:
+shared purpose/README, Source/Outline/Sections, Chunks/Evidence, then Findings.
+They explain current behavior without changing runtime or Facts/Evaluate.
+
 Commands and checks below are acceptance contracts to implement, not claims that they already exist.
 
 Completed pipeline UI scopes T48–T59 are in
