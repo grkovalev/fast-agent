@@ -24,7 +24,7 @@ were not supplied. T61–T62 broader manual visual reviews remain pending.
 | T65 | Shared discovery purpose, target vocabulary, and README explanation | Existing discovery stages | DONE |
 | T66 | Clear Source, Outline, and section-selection explanations | T65 | DONE |
 | T67 | Clear chunk overlap and evidence-retention explanations | T66 | DONE |
-| T68 | Clear extraction cardinality, validation, and finding classification | T67 | TODO |
+| T68 | Clear extraction cardinality, validation, and finding classification | T67 | DONE |
 
 ## T65–T68 execution contract — separate fresh-context agents
 
@@ -199,7 +199,7 @@ wide/narrow core/context readability without opening an inspector.
 
 ## T68 — Explain extraction cardinality and publication guarantees
 
-**Status:** TODO. **Dependency:** T67.
+**Status:** DONE. **Dependency:** T67.
 
 **Visible result:** the reader can follow multiple retained chunks into one bounded
 extraction request, then distinguish candidate validation, repair, deduplication,

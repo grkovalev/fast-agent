@@ -6,7 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: none. **T67 DONE**, Chunks/Evidence explanation.
+- Current task: none. **T68 DONE**, Findings extraction/publication explanation.
+  **T67 DONE**, Chunks/Evidence explanation.
   **T66 DONE**, Source/Outline/Sections explanation.
   **T65 DONE**, shared discovery purpose and vocabulary.
   The task register defines T65–T68 as sequential explanation-only tasks.
@@ -22,9 +23,11 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next numbered task after T67: **T68**, in a separate fresh-context agent. T61–T62 broader visual reviews
+- Next: completed T65–T68 discovery explanation handoff; no automatic task. T61–T62 broader visual reviews
   remain open; T64's source-detail visibility is user-confirmed.
-- Latest automated checks: T67 focused chunk/range/scoring, inspection, render,
+- Latest automated checks: T68 final focused discovery/Findings checks passed
+  (22 tests in 2.01s); repository lint and diff checks passed.
+  T67 focused chunk/range/scoring, inspection, render,
   hierarchy and Findings checks passed (20 tests in 2.13s); repository lint and diff checks passed.
   T66 focused checks passed (17 tests in 1.67s).
   Earlier T64 plus T61–T63 gates passed (11 tests in 12.02s);
@@ -46,28 +49,109 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and the [task register](PIPELINE_IMPROVEMENT_TASKS.md).
-**T67 is DONE. T68 is the next numbered task**, assigned to a different fresh-context
-agent when requested. Read the T65–T68 execution contract and T68 in the task register;
-do not automatically start it. T65 added shared discovery purpose and **What Findings
-delivers**; T66 clarified Source/Outline/Sections; T67 clarified adjacent core ownership,
-non-citable preceding context, full Evidence scoring and bounded retention. Findings
-extraction/cardinality/validation/classification remains T68. Keep discovery runtime,
-provider requests/questions, selection, budgets, contracts, Facts and Evaluate unchanged.
+**T65–T68 are DONE. No automatic next task.** T68 completed the Findings
+cardinality, request fallback, validation, replacement repair, deduplication and
+classification explanation in a separate fresh-context agent. Runtime, requests,
+policies, budgets, contracts, storage and Facts/Evaluate are unchanged. Detailed
+limits and manual review steps are below. T61–T62 broader visual reviews and the
+Apple caption-preview limitation remain pending/recorded; historical “Next task”
+entries below are not active instructions.
 
-T64's two-company acceptance and user-confirmed cell/year/scale visibility remain
-valid. T61–T62 broader manual review remains pending; preserve the Apple caption-preview
-limitation below. Keep presentation and exact source mapping as separate saved
-diagnostics, never discovery inputs. No user data was changed. Older historical
-“Next task” entries below are not active instructions.
+Context-cleaning handoff prepared at the user's request after T68. This change
+contains the Findings explanatory composition, selected-stage/inspector copy,
+focused checks and design/task documentation. Validation: 22 focused tests passed
+in 2.01s; Ruff and diff checks passed. Manual visual/accessibility review remains
+pending with steps below. Preserve the documented backend gaps as separate work.
+On a later request to proceed, read the current task register first. No T69 or
+other next implementation scope is currently defined; establish the next bounded
+task with the user rather than treating historical next-task entries or recorded
+limitations as authorization to change runtime behavior.
 
-Context-cleaning handoff prepared at the user's request after T67. This commit
-contains the Chunks/Evidence explanatory copy, focused checks, and design/task
-documentation. Validation: 20 focused tests passed in 2.13s; Ruff and diff checks
-passed. Manual visual/accessibility review remains pending with steps below.
-On the next request, implement **T68 only** in a separate fresh-context agent,
-following the task register's execution contract. Preserve T65–T67 explanations;
-do not change discovery runtime or Facts/Evaluate. Keep the existing skipped-reason
-diagnostic gap recorded below separate from this explanation task.
+## T68 — Findings publication explanation — completed, 2026-10-14
+
+- Added a bounded, always-visible illustration: chunks A/B/C enter one initial
+  extraction request and yield an illustrative 2/0/1 candidates, labeled as an
+  example rather than saved run counts. Existing station controls, saved results,
+  source/trace/detail links, route, keyboard hooks and reduced-motion behavior stay
+  intact. At narrow widths the illustration stacks in the same reading order.
+- Corrected assembly order: full retained set/full outline; descending-score packing
+  of complete chunks/full outline; only if none fits, highest-scored core with its
+  navigation entry and no preceding context; otherwise explicitly limited empty
+  publication without extraction/classification calls. CSV core evidence and separate
+  context stay in inspection rather than primary serialization copy.
+- Primary and selected Findings copy now distinguishes requested fiscal year from
+  deterministic checks: stored chunk, core membership, one exact canonical-line
+  quote, finite Decimal and numeric presence. Conditional one-call repair replaces
+  the entire initial candidate set, including accepted candidates; final rejection
+  diagnostics remain. Dedup keeps the first identical quote/amount pair, permits
+  multiple findings per chunk and is not Jev extraction ranking.
+- Classify names the three allowed numeric types, the current code-owned support
+  threshold, exactly-one versus zero/multiple support, cached types and per-request
+  size overflow. Unresolved type alone does not reject a validated finding. Inspection
+  explicitly distinguishes total-call-budget and provider failure from size fallback.
+  Selected saved-result labels and final rejected-proposal/extraction-call accounting
+  now match what is actually persisted.
+- Runtime audit: read Findings service in full, shared contracts, Sections questions,
+  Findings orchestration, templates/results projection and relevant CSS/JS. Only
+  `FindingsService.inspection_view` prose/presentation policy fields changed in service
+  code. The request builders, provider prompts/questions, selection, validation,
+  budgets, cache/storage and outputs remain unchanged. Facts/Evaluate need no edits:
+  their independent values, post-seal scheduling and sole comparison merge are intact.
+- Reviewed Source-through-Findings terminology across README, shared purpose, all
+  discovery compositions and selected-stage copy: five retrieval targets versus
+  three output types, visible source/navigation, short Section descriptors versus
+  full Evidence text, non-citable context, selected retention and additional Findings
+  request budget agree. No further discovery consistency edits were needed.
+- Existing backend gaps are explained, not fixed: validation accepts references to
+  all stored chunks supplied by orchestration rather than strictly the extraction
+  retained subset; period/unit/attribution are shape-checked rather than independently
+  source-verified, with no deterministic fiscal-year/scale/consolidation guarantee.
+  Outline hierarchy is navigation only. Repair instruction asks for invalid-item
+  repair while service replaces all candidates; initially accepted candidates can
+  disappear. Total classification-call budget overflow raises and provider failures
+  can fail Findings before sealing. T67’s skipped-reason diagnostic gap remains.
+- Inspected T50 validation/contract, T51 builder provenance, T52 inspector, T53
+  hierarchy, T55 Outline, T56 scoring, T57 chunk, T58 Findings and T60 assembled
+  discovery gates. Extended existing fixtures for ordered complete-chunk fallback,
+  compact-core/empty outcomes, replacement repair, first quote/amount dedup, complete
+  cached unresolved types, finite amounts and unsupported metadata, and added one
+  controlled classification invariant for threshold/zero/multiple support and size
+  versus total-budget/provider failures. No obsolete tests removed or redundant
+  task gate added. Synthetic fixtures exercise controlled bounds/failures; existing
+  real SEC acceptance provenance is unchanged. T60 blocks external HTTP sends.
+- Baseline: `uv run pytest -q tests/task_gates/test_t58_findings.py
+  tests/task_gates/test_t50_contract_inspection.py tests/task_gates/test_t51_request_inspection.py
+  tests/task_gates/test_t60_pipeline_acceptance.py` — 14 passed in 1.41s.
+  Final: `uv run pytest -q tests/task_gates/test_t55_outline.py
+  tests/task_gates/test_t56_scoring_compositions.py tests/task_gates/test_t57_chunks.py
+  tests/task_gates/test_t58_findings.py tests/task_gates/test_t50_contract_inspection.py
+  tests/task_gates/test_t51_request_inspection.py tests/task_gates/test_t52_inspector.py
+  tests/task_gates/test_t53_pipeline_hierarchy.py tests/task_gates/test_t60_pipeline_acceptance.py`
+  — 22 passed in 2.01s. Required `uv run ruff check .` initially found a verbose
+  test Decimal constructor; corrected it and the final lint/diff checks passed.
+  Existing uv-cache access required escalation after a sandbox rejection; existing
+  Starlette/AnyIO warning remains. Isolated temporary test storage only, no dependencies
+  changed and no full suite needed for this explanation-only change. Results are
+  included in the user-requested context-cleaning commit.
+- Live/manual status: no SEC/provider calls or new live runs, no browser automation,
+  and no performed visual/accessibility review. HTTP render checks are not visual
+  acceptance. No evaluation acceptance is claimed.
+- Manual verification in the already-running UI: open
+  `http://127.0.0.1:8000/v2/runs/<run_id>/pipeline`. Read Source through Findings without
+  opening inspectors. Confirm the labeled example shows several chunks/one request,
+  variable candidates, full-outline packing before context removal, rejection,
+  whole-set replacement, first quote/amount dedup and three-type/unresolved publication.
+  Select Assemble, Propose, Validate, Classify and Publish: saved results should remain
+  above contracts and examples/current settings separate from history. Where saved,
+  compare initial accepted candidates and replacement/final results; missing older
+  intermediates should remain unavailable. Inspect reference/metadata and classifier
+  failure limits. Open Findings selected-stage results and source/trace links; verify
+  unresolved types and empty sealed outcomes where available. Repeat at wide/narrow
+  widths, keyboard-only, JavaScript disabled and 200% zoom: the example and essential
+  explanations remain readable, stage/source links usable, and no overlapping boxes.
+  If a local server is needed once, use `uv run profitlab serve`; no CLI stage exercise.
+- Next: completed discovery explanation handoff, no automatic task. Manual T65–T68
+  visual/accessibility review remains pending; backend follow-ups are separate work.
 
 ## T67 — Chunks and Evidence explanation — completed, 2026-10-14
 

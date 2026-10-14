@@ -119,6 +119,16 @@ def test_findings_proposal_model_matches_validator_without_changing_rejections(t
     assert error is None
     assert accepted.amount == Decimal('12.50')
     assert accepted.source_range.start_character == 15
+    # Existing validation proves quote/amount, not metadata support or fiscal year.
+    metadata, error = service._validate(document, [chunk], {
+        **proposal, 'period': '1999', 'unit': 'unsupported unit',
+        'attribution': 'unsupported segment'}, 'configured-model')
+    assert error is None
+    assert metadata.period == '1999'
+    for amount in ('NaN', 'Infinity', '13'):
+        rejected, error = service._validate(document, [chunk], {**proposal, 'amount': amount},
+                                             'configured-model')
+        assert rejected is None and error
     rejected, error = service._validate(document, [chunk], {**proposal, 'source_line': True},
                                          'configured-model')
     assert rejected is None

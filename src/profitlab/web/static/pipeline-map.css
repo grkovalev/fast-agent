@@ -443,3 +443,14 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 .pipeline-map--vertical figure[class*="-loop"]:not(.outline-loop) svg { max-width: 52rem; }
 @media (max-width: 900px) { .pipeline-route-locator ol { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .pipeline-route-locator ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }.pipeline-card-list--vertical > .pipeline-relationship { grid-template-columns: 1fr; }.pipeline-route-locator a { min-height: 2rem; } }
+
+/* Bounded illustrative batch extraction; reading order survives without scripts. */
+.findings-cardinality { padding: .7rem; border: 1px dashed #8ba6ad; border-radius: .35rem; background: #fff; font-size: .76rem; }
+.findings-cardinality > p { margin-top: 0; color: #48646b; }
+.findings-cardinality-flow { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: .4rem; align-items: center; }
+.findings-cardinality-flow > div { display: flex; flex-direction: column; gap: .25rem; min-width: 0; padding: .6rem; overflow-wrap: anywhere; }
+.findings-cardinality-arrow { color: #387b89; text-align: center; font-weight: 800; }
+@media (max-width: 600px) {
+  .findings-cardinality-flow { grid-template-columns: 1fr; }
+  .findings-cardinality-arrow { transform: rotate(90deg); }
+}

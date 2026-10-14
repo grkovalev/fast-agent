@@ -24,12 +24,29 @@ def test_findings_overview_explains_branches_and_uses_service_limits(tmp_path):
     assert 'within 12345 characters' in region
     assert 'maximum 3 requests' in region
     assert region.index('Retained chunk cores') < region.index('Bound the request')
-    assert region.index('The initial candidates are discarded') < region.index('Deduplicate overlap')
-    assert region.index('Deduplicate overlap') < region.index('JEV TYPE CLASSIFIER')
+    assert region.index('The initial candidates are discarded') < region.index('Deduplicate quote and amount')
+    assert region.index('Deduplicate quote and amount') < region.index('JEV TYPE CLASSIFIER')
     assert region.index('JEV TYPE CLASSIFIER') < region.index('Seal Finding records')
     assert 'only core lines can be cited' in region
     assert 'SEC Company Facts and evaluation values do not enter this request' in region
     assert 'The set may be empty' in region
+    from lxml import html
+    card = html.fromstring(page).xpath('//*[@data-findings-card]')[0]
+    example, = card.xpath('.//*[@data-findings-cardinality]')
+    assert 'Not saved run data' in example.text_content()
+    assert 'A: 2 · B: 0 · C: 1' in example.text_content()
+    assert not example.xpath('.//details | .//template | .//*[@hidden]')
+    visible = card.xpath('.//*[@data-findings-station="assemble"]')[0].text_content()
+    assert visible.index('full outline') < visible.index('pack complete chunks') < visible.index('no preceding context')
+    assert 'reduce context, then' not in visible
+    for phrase in ('current fiscal-reporting year', 'finite Decimal',
+                   'including initially accepted ones', 'Keep the first candidate',
+                   'zero or multiple types', 'Per-request size overflow',
+                   'Unresolved type alone does not reject'):
+        assert phrase in card.text_content()
+    classify = card.xpath('.//*[@data-findings-station="classify"]')[0].text_content()
+    for name in ('shareholder', 'diluted EPS', 'weighted-average shares'):
+        assert name in classify
     for station in ('assemble', 'propose', 'validate', 'classify', 'publish'):
         assert f'data-findings-station="{station}"' in region
     assert 'data-station-card' in region
@@ -39,6 +56,11 @@ def test_findings_overview_explains_branches_and_uses_service_limits(tmp_path):
     assert view['validate']['policy']['repair_result'].startswith('replacement')
     assert view['classify']['request']['model'] == settings.typesafe_model
     assert view['propose']['request']['model'] == settings.llm_model
+    assert view['classify']['policy']['type_support_threshold'] == settings.chunk_score_keep_threshold
+    assert tuple(view['classify']['policy']['allowed_types']) == FindingsService.FINDING_TYPES
+    assert 'not strictly' in view['validate']['limitations']
+    assert 'not independently source-verified' in view['validate']['limitations']
+    assert 'total classification-call budget' in view['classify']['limitations']
 
 
 @pytest.mark.asyncio
@@ -117,6 +139,20 @@ async def test_repair_replaces_initial_candidates_before_dedup_and_classificatio
     assert validation['final_accepted'][0]['exact_quote'] == '$2.50'
     assert repo.steps['findings-step-classify']['result']['count'] == 1
     assert repo.steps['findings-step-publish']['result']['findings'][0]['exact_quote'] == '$2.50'
+
+    # Complete cached types bypass Jev without changing a validated unresolved result.
+    monkeypatch.setattr(repo, 'finding_batch', lambda *_a: {
+        'findings': [repair, repair], 'model': 'model',
+        'finding_types': {repo.saved[0].finding_id: 'unresolved'}})
+
+    async def no_provider(*_a):
+        raise AssertionError('Complete extraction/type cache must avoid provider calls')
+
+    monkeypatch.setattr(service, '_live', no_provider)
+    monkeypatch.setattr(service, '_classify', no_provider)
+    cached_result = await service.build('run', document, [chunk], [])
+    assert cached_result.cached is True and cached_result.calls == 0
+    assert len(repo.saved) == 1 and repo.saved[0].finding_type == 'unresolved'
 
 
 def test_findings_step_results_render_saved_data_and_legacy_availability(tmp_path):
@@ -205,3 +241,80 @@ def test_extraction_core_csv_preserves_source_text_and_measures_serialized_budge
     assert len(json.dumps(fallback, ensure_ascii=False)) == settings.findings_request_char_budget
     settings.findings_request_char_budget -= 1
     assert service._request_data('csv-run', document, [chunk], [score])['retained_chunks'] == []
+
+    # Dropping whole chunks precedes removal of preceding context/full navigation.
+    settings.findings_request_char_budget = 100000
+    chunk = chunk.model_copy(update={'context_ranges': [chunk.core_range]})
+    second = chunk.model_copy(update={'chunk_id': 'lower-score'})
+    scores = [score, score.model_copy(update={'item_id': second.chunk_id,
+                                            'target_scores': {'annual_profit': .9}})]
+    from profitlab.v2.contracts import OutlineSection
+    outline = OutlineSection(section_id='section', generated_topic='Navigation ' * 100,
+                             primary_range=chunk.core_range)
+    repo.outline_sections = lambda _: [outline]
+    full = service._request_data('csv-run', document, [second, chunk], scores)
+    assert len(full['retained_chunks']) == 2 and full['context_fallback'] is False
+    single = {**full, 'retained_chunks': [full['retained_chunks'][1]], 'context_fallback': True}
+    settings.findings_request_char_budget = len(json.dumps(single, ensure_ascii=False))
+    packed = service._request_data('csv-run', document, [second, chunk], scores)
+    assert [item['chunk_id'] for item in packed['retained_chunks']] == [chunk.chunk_id]
+    assert packed['validated_outline'] == full['validated_outline']
+    assert packed['retained_chunks'][0]['context_lines']
+    # Extra navigation crowds out even a single complete chunk, but compact core fits.
+    extra = outline.model_copy(update={'section_id': 'unrelated', 'generated_topic': 'Other ' * 500})
+    repo.outline_sections = lambda _: [outline, extra]
+    compact = service._request_data('csv-run', document, [second, chunk], scores)
+    assert [item['chunk_id'] for item in compact['retained_chunks']] == [chunk.chunk_id]
+    assert compact['retained_chunks'][0]['context_lines'] == []
+    assert compact['validated_outline'] == [service._outline_entry(outline)]
+    settings.findings_request_char_budget = len(json.dumps(compact, ensure_ascii=False)) - 1
+    assert service._request_data('csv-run', document, [second, chunk], scores)['retained_chunks'] == []
+
+
+@pytest.mark.asyncio
+async def test_type_classification_threshold_and_failure_limits(tmp_path, monkeypatch):
+    from decimal import Decimal
+    from types import SimpleNamespace
+
+    from profitlab.v2.contracts import Finding
+    from profitlab.v2.section_scoring import SectionScoringService
+
+    settings = Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None)
+    service = FindingsService(settings, None)
+    finding = Finding(finding_id='type-example', exact_quote='100', amount=Decimal(100),
+                      source_range=SourceRange(document_id='doc', source_hash='0' * 64,
+                                               start_line=1, end_line=1),
+                      validation_state='validated')
+    threshold = settings.chunk_score_keep_threshold
+    vectors = iter([(threshold, 0, 0), (0, 0, 0), (threshold, threshold, 0)])
+
+    async def evaluate(_request):
+        return SimpleNamespace(answers={name: SimpleNamespace(noul=score)
+                               for name, score in zip(service.FINDING_TYPES, next(vectors))})
+
+    monkeypatch.setattr(SectionScoringService, '_client', lambda *_a, **_k:
+                        SimpleNamespace(evaluate=evaluate))
+    monkeypatch.setattr(service, '_classification_request', lambda *_a: object())
+    typed, calls, limited = await service._classify('run', None, [], [finding] * 3)
+    assert [item.finding_type for item in typed] == ['annual_profit', 'unresolved', 'unresolved']
+    assert calls == 3 and limited == 0
+
+    def overflow(*_a):
+        raise ValueError('Finding-type request exceeds the configured visible-context budget.')
+
+    monkeypatch.setattr(service, '_classification_request', overflow)
+    typed, calls, limited = await service._classify('run', None, [], [finding])
+    assert typed == [finding] and typed[0].finding_type == 'unresolved'
+    assert calls == 0 and limited == 1
+    settings.finding_type_max_requests = 1
+    with pytest.raises(ValueError, match='provider-call budget'):
+        await service._classify('run', None, [], [finding] * 2)
+
+    async def failed(_request):
+        raise RuntimeError('controlled provider failure')
+
+    monkeypatch.setattr(service, '_classification_request', lambda *_a: object())
+    monkeypatch.setattr(SectionScoringService, '_client', lambda *_a, **_k:
+                        SimpleNamespace(evaluate=failed))
+    with pytest.raises(RuntimeError, match='provider failure'):
+        await service._classify('run', None, [], [finding])

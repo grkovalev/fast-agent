@@ -147,3 +147,18 @@ def test_shared_prompt_questions_and_discovery_vocabulary(tmp_path, monkeypatch)
     assert 'Only selected chunks enter Findings request assembly' in detail.text_content()
     assert 'Comparison uses exact Decimal equality' not in detail.text_content()
     assert 'same selected section' in selected['chunk'].text
+
+    # T68: cardinality and publication guarantees are legible without inspection.
+    findings, = document.xpath('//*[@data-findings-card]')
+    illustration, = findings.xpath('.//*[@data-findings-cardinality]')
+    assert 'Not saved run data' in illustration.text_content()
+    assert not illustration.xpath('.//button | .//details | .//template | .//*[@hidden]')
+    for phrase in ('including initially accepted ones', 'finite Decimal',
+                   'Keep the first candidate', 'zero or multiple types',
+                   'Per-request size overflow', 'Unresolved type alone does not reject'):
+        assert phrase in findings.text_content()
+    detail, = html.fromstring(selected['findings'].text).xpath('//section[@class="stage-detail"]')
+    for phrase in ('zero or more candidates', 'Saved results by step',
+                   'Initial and replacement candidates', 'not deterministic validation guarantees',
+                   'provider and total-call-budget failure limits'):
+        assert phrase in detail.text_content()

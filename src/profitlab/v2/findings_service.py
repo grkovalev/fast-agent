@@ -87,7 +87,7 @@ class FindingsService:
             'provider_calls': summary.get('calls', 0),
             'assemble': {
                 'accepts': 'Retained visible evidence, validated outline navigation, target definitions, and the current fiscal-reporting year.',
-                'does': 'Builds a bounded request from retained chunks. If full context does not fit, keeps highest-scored complete chunks; if needed, keeps the best core with its section navigation and drops overlap context. If no evidence fits, publishes an empty limited set without a model call.',
+                'does': 'Tries all retained chunks with the full outline. If too large, packs complete chunks by descending score with the full outline. Only if none fits, tries the highest-scored chunk with its navigation entry and no preceding context. If that cannot fit, seals an explicitly limited empty set without extraction or classification calls.',
                 'outputs': {'retained_chunks': 'visible core evidence as line_number,text CSV plus bounded context',
                             'validated_outline': 'navigation metadata only'},
                 'guarantee': 'Company Facts and evaluation values are unavailable; outline metadata is navigation, never evidence.',
@@ -95,7 +95,7 @@ class FindingsService:
             'propose': {
                 'accepts': {'retained_chunks': 'visible core evidence as line_number,text CSV plus bounded context',
                             'validated_outline': 'navigation metadata only'},
-                'does': 'Sends only bounded retained evidence to the configured findings model and asks for quote-backed proposals.',
+                'does': 'One initial extraction request can contain several retained chunks. The prompt seeks reported numbers for the current fiscal-reporting year; each chunk can produce zero, one, or several candidates. A matching extraction cache can avoid the initial live call.',
                 'outputs': {'findings': [proposal]},
                 'guarantee': 'The model can propose a claim but cannot make it published evidence.',
                 'request': {
@@ -111,24 +111,34 @@ class FindingsService:
             },
             'validate': {
                 'accepts': {'findings': [proposal]},
-                'does': 'Mechanically checks the chunk, core-line boundary, verbatim quote, and decimal amount. Invalid citations may trigger one bounded extraction repair request; its entire response replaces the initial candidate set and is validated again.',
+                'does': 'Checks a stored chunk reference, core-line membership, an exact quote within one canonical line, a finite Decimal, and that amount’s numeric presence in the quote. Rejected proposals may trigger one repair call if extraction budget remains. Its whole response replaces all initial candidates, including accepted ones, and is validated again. Deduplication retains the first candidate per identical quote and amount.',
                 'outputs': {'accepted': 'quote-validated finding candidates',
                             'rejected': 'inspectable citation diagnostics'},
                 'guarantee': 'Context lines may inform interpretation but can never be cited; invalid proposals never become findings.',
                 'policy': {'maximum_extraction_requests': settings.findings_max_requests,
-                           'repair_condition': 'invalid citations and remaining extraction request budget',
-                           'repair_result': 'replacement candidate set, revalidated in full'},
+                           'repair_condition': 'rejected proposals and remaining extraction request budget',
+                           'repair_result': 'replacement candidate set, including replacement of initially accepted candidates, revalidated in full'},
+                'limitations': ('References are checked against all stored chunks passed to validation, not strictly '
+                                'the retained chunks in the extraction request. Validation does not prove fiscal year, '
+                                'unit, scale, attribution, or consolidated-versus-segment meaning; metadata is '
+                                'shape-checked, not independently source-verified. Outline hierarchy is navigation only.'),
             },
             'classify': {
                 'accepts': {'unique_findings': 'validated candidates deduplicated by exact quote and amount'},
-                'does': 'After deduplication, reuses cached types when complete or asks the separate Jev type classifier using bounded visible context. An over-budget request leaves the type unresolved without discarding the finding.',
+                'does': 'Reuses complete cached types or asks Jev separately for each deduplicated finding. Exactly one allowed type at or above the configured threshold assigns that type; zero or multiple supported types stay unresolved. Per-request size overflow also retains an unresolved finding.',
                 'outputs': {'typed_findings': 'validated findings with a supported or unresolved type'},
                 'guarantee': 'Classification is metadata; it never repairs or replaces a citation.',
                 'policy': {
                     'type_classifier_model': settings.typesafe_model,
                     'maximum_type_requests': settings.finding_type_max_requests,
                     'type_request_character_budget': settings.finding_type_request_char_budget,
+                    'type_support_threshold': settings.chunk_score_keep_threshold,
+                    'allowed_types': cls._type_definitions(),
                 },
+                'limitations': ('Only per-request visible-context size overflow has the unresolved fallback. '
+                                'Exceeding the total classification-call budget raises an error; provider failures '
+                                'can fail Findings before publication. Unresolved type alone never rejects a '
+                                'validated finding. Deduplication is not one finding per chunk or Jev ranking.'),
                 'request': {'kind': 'illustrative request built with current configuration',
                             'prompt_version': settings.finding_type_prompt_version,
                             **cls(settings, None)._classification_request_for_state(
@@ -138,7 +148,7 @@ class FindingsService:
                 'accepts': {'typed_findings': 'validated findings with a supported or unresolved type'},
                 'does': 'Persists the validated finding set and summary after classification. A sealed set can be empty or omit rejected proposals.',
                 'outputs': {'findings': 'published quote-backed findings'},
-                'guarantee': 'Unclear period, unit, scale, or attribution stays unresolved rather than guessed.',
+                'guarantee': 'The prompt instructs the model to leave unclear metadata unresolved; deterministic validation proves the cited quote and amount, not that metadata’s financial meaning.',
             },
         }
 

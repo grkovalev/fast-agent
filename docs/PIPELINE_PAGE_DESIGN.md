@@ -139,6 +139,37 @@ and bounded, and its candidate replacement semantics must match the service.
 Sections and Evidence selection must visibly distinguish selected, uncertain, and
 skipped outcomes. Evaluate must show a direct bypass around optional verification.
 
+Findings uses a bounded, always-visible illustration of several retained chunks entering
+one initial extraction request and zero or more candidates per chunk. Label it as an
+illustration, never historical counts. Assembly tries the full retained set with the
+full outline, then packs complete chunks by descending score with the full outline.
+Only if none fits does it try the highest-scored core, its navigation entry and no
+preceding context; otherwise it seals an explicitly limited empty set without
+extraction or classification calls. Core evidence is serialized as CSV and preceding
+context is separate; reserve serialization details for inspection.
+
+The extraction prompt seeks the current fiscal-reporting year. Deterministic validation
+checks a stored chunk reference, core-line membership, an exact quote within one
+canonical line, a finite Decimal and numeric presence in that quote. It does not
+prove year, unit, scale, attribution or consolidated-versus-segment meaning. The
+Validate inspector must state that references are checked against stored chunks,
+not strictly against the request’s retained subset, and metadata is shape-checked,
+not independently source-verified. Outline hierarchy remains navigation only.
+
+Any rejected proposals may trigger one repair call if extraction budget remains.
+The replacement response replaces the entire initial set, including initially
+accepted candidates, and goes through the same validation. Keep the first candidate
+per identical quote/amount pair; deduplication is neither one finding per chunk nor
+Jev extraction ranking. Complete cached types can be reused. Otherwise Jev classifies
+validated candidates into annual shareholder profit/net income or loss, diluted EPS,
+or annual diluted weighted-average shares. Exactly one type at or above the runtime
+threshold assigns it; zero or multiple supported types remain unresolved. Per-request
+classification size overflow also keeps an unresolved finding. An unresolved type
+alone does not reject it. The Classify inspector distinguishes this fallback from
+total classification-call budget overflow and provider errors, which can fail Findings
+before publication. Preserve saved initial/replacement, final validation/deduplication,
+classification and sealed-output results, with missing history explicitly unavailable.
+
 ## Station content and inspection
 
 An explanation region should state representative **accepts**, **does**, and
