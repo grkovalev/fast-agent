@@ -6,7 +6,9 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: none. **T64 DONE**, two-company real-filing source acceptance;
+- Current task: none. **T65 DONE**, shared discovery purpose and vocabulary.
+  The task register defines T65–T68 as sequential explanation-only tasks.
+  **T64 DONE**, two-company real-filing source acceptance;
   the user confirmed that cell, year and scale are all visible on 2026-10-14.
   **T63 implementation and automated gates are DONE**:
   evaluation cards and Facts inspection expose saved canonical fact-source links,
@@ -18,9 +20,11 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next numbered task: none currently defined. T61–T62 broader visual reviews
+- Next numbered task after T65: **T66**, in a separate fresh-context agent. T61–T62 broader visual reviews
   remain open; T64's source-detail visibility is user-confirmed.
-- Latest automated checks: T64 plus T61–T63 gates passed (11 tests in 12.02s);
+- Latest automated checks: T65 focused render/inspection and hierarchy checks passed
+  (3 tests in 0.95s); repository lint and diff checks passed.
+  Earlier T64 plus T61–T63 gates passed (11 tests in 12.02s);
   final pre-commit full suite passed (61 tests in 15.39s). After adding explicit visible-caption
   checks, T64 passed again (2 tests in 6.81s). Repository lint passed.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
@@ -39,30 +43,104 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and the [task register](PIPELINE_IMPROVEMENT_TASKS.md).
-**T64 is DONE.** Two-company automated acceptance passed and the user confirmed
-that cell, year and scale are visible. No itemized company/device/accessibility
-observations were supplied. Retain the caption-preview limitation below.
-No later numbered task is defined; do not invent or automatically start one.
-Keep `StructuredFact`, comparison states and provider inputs unchanged. Presentation
-and `FactSourceMapping` remain separate saved diagnostics keyed by stable fact IDs;
-rendering never recomputes or retrieves provenance. Evaluation loads linked fact
-mappings across storage pages. The shared preview shows three occurrences; all saved
-locations remain on the 20-per-page mapping route. PRE rows are supporting concept
-presentations, never canonical lines. Preserve Findings saved-step diagnostics and
-CSV requests. No user data was deleted or migrated.
+**T65 is DONE. T66 is the next numbered task**, assigned to a different fresh-context
+agent when requested. Read the T65–T68 execution contract and T66 in the task register;
+do not automatically start it. T65 added shared discovery-purpose vocabulary and
+the user-requested **What Findings delivers** explanation with a labeled example;
+Source/Outline/Sections explanations remain T66, Chunks/Evidence T67, Findings T68.
+Keep discovery runtime, provider requests/questions, selection, budgets, contracts,
+Facts and Evaluate unchanged throughout these explanation tasks.
 
-Context-reset handoff prepared on 2026-10-14 at the user's request. This change
-contains only T64 acceptance fixtures/tests and their documentation; no runtime,
-schema, provider, UI markup or dependency changes. The user asked to commit these
-results before clearing context. The next implementation scope has not been chosen.
-A concrete follow-up candidate is complete visible statement-caption coverage in
-canonical lines/header previews, especially Apple's external `div/span` captions.
-Before scheduling that work, define its canonical numbering/source-link implications
-and a bounded task in the register; the current T64 acceptance must remain intact.
+T64's two-company automated acceptance and user-confirmed cell/year/scale visibility
+remain valid. T61–T62 broader manual review remains pending; preserve the Apple
+caption-preview limitation below. Keep presentation and exact source mapping as
+separate saved diagnostics, never discovery inputs. No user data was changed.
 Do not treat older historical “Next task” entries below as active instructions.
-Final pre-commit verification: `uv run pytest -q` — 61 passed in 15.39s;
-`uv run ruff check .` and `git diff --check` passed. Existing Starlette/AnyIO
-deprecation warning remains. No additional live calls or browser automation.
+
+Context-reset handoff prepared on 2026-10-14 at the user's request. Commit scope:
+T65 introduction, result expectations, README/design brief, focused render checks,
+and task/progress documentation. Focused checks passed (3 tests in 0.82s), Ruff and
+diff checks passed; no runtime, provider, storage or dependency changes. Manual
+visual/accessibility review remains pending with steps below. On the user's next
+request, implement T66 only in a new fresh-context agent; do not redo T65 or expand
+into T67/T68. Preserve the existing Findings result-expectation introduction.
+
+## T65 — Shared discovery purpose and vocabulary — completed, 2026-10-14
+
+User-requested follow-up: added **What Findings delivers** to the shared visible
+introduction and README. It describes the amount, exact quote, source link, type,
+optional supported metadata, current-year aim, and variable result count, with an
+explicitly illustrative EPS example. Missing/unresolved types and empty results
+are possible; context targets do not create narrative findings. Source validation
+and later independent comparison remain distinct. Updated the durable brief and
+existing bounded no-network render check; no runtime or inspector contract changed.
+Baseline focused T60/T53 command below: 3 passed in 0.93s; final: 3 passed in 0.82s.
+Ruff and diff checks passed (Ruff needed existing uv-cache access). No tests removed,
+external calls, browser automation or manual visual review. To review, open an
+existing run’s Pipeline page and read **What Findings delivers**; check the example
+is labeled and the result-count caveat visible at wide/narrow widths, with keyboard
+navigation, JavaScript disabled and 200% zoom. T66 remains next; T68’s detailed
+Findings composition work has not started.
+
+- Added `_pipeline_discovery_purpose.html` before the overview route: three numeric
+  finding types, five retrieval targets, and a practical reason for each. Annual
+  shareholder profit/net income or loss, diluted EPS, and annual diluted
+  weighted-average shares are numeric types; earnings-change explanations and
+  restatement/comparability passages locate context without dedicated published
+  types. Shares explains EPS denominator context rather than year-end shares;
+  reported values are extracted, not used to compute EPS. Unresolved types remain
+  possible; retrieval relevance, financial correctness, and validated publication
+  are distinct. Existing card compositions and route order are preserved.
+- README now explains Source through Findings using the same vocabulary; setup and
+  Facts/Evaluate instructions remain intact. The durable design brief records the
+  shared terminology and always-visible compact treatment. The definition list uses
+  existing colors and typography, two text columns at wide widths and stacked rows
+  below 600px. No content depends on JavaScript or opening an inspector.
+- Runtime audit: checked `section_scoring.TARGETS`, shared chunk-scoring questions,
+  Findings extraction prompt, `_type_definitions`, `FINDING_TYPES`, classification
+  and `contracts.FindingType`. Overview/inspection use those same five targets and
+  three supported types plus unresolved. No discovery behavior, prompts, policies,
+  settings, state, accounting, storage, provenance, or Facts/Evaluate code changed.
+  Existing selected-stage schema/inspection explanations remain compatible; no
+  inspector copy change is required for this shared purpose introduction.
+- Tests inspected: T60 runtime schema/request-builder propagation and T53 route/data
+  versus scheduling hierarchy. Retained both distinct invariants; expanded the
+  existing T60 render integration rather than adding another fixture-heavy gate.
+  No obsolete tests found or removed. New assertions check target/type membership
+  against runtime owners, bounded ungated introduction, selected discovery routes,
+  and page rendering with HTTPX SEC/provider sends blocked. Uses isolated temporary
+  storage and a controlled empty run; it is not real-filing or provider acceptance.
+- Baseline: `uv run pytest -q tests/task_gates/test_t60_pipeline_acceptance.py
+  tests/task_gates/test_t53_pipeline_hierarchy.py` — 3 passed in 1.26s.
+  Final same command — 3 passed in 0.95s. An initial test incorrectly expected the
+  selected scoring pages to render illustrative questions; corrected it to check
+  the actual overview inspectors and runtime inspection builders instead.
+  `uv run ruff check .` passed after escalation for uv cache access;
+  `git diff --check` passed. Existing Starlette/AnyIO deprecation warning remains.
+  Full suite not run: changes are explanatory templates/CSS/docs and focused checks,
+  with no shared runtime/storage/provider/orchestration change.
+- Live/manual status: no SEC or provider calls and no browser automation. Manual
+  layout/accessibility verification was not performed. No backend gap discovered
+  in this bounded audit. Stage-specific wording is deferred: detailed Source,
+  Outline and Sections mechanics to T66; overlap, evidence retention, and the
+  selected Evidence page’s generic comparison note to T67; Findings extraction,
+  validation and classification examples to T68.
+- Manual review on the already-running UI: open
+  `http://127.0.0.1:8000/v2/runs/<run_id>/pipeline` from any saved run. Read **What
+  discovery seeks** before clicking: name the three numeric types and explain why
+  there are five retrieval targets; compare with README. In **Sections** and
+  **Evidence**, read the five target-vector labels and open **Score** for runtime
+  questions. In **Findings**, open **Classify** and inspect its three allowed types;
+  open the selected Findings page to see the runtime schema’s unresolved option.
+  Do not run a stage or create a new external-data run to review this copy.
+  At wide (~1440px) and narrow (~390px) widths, confirm the introduction wraps and
+  narrow target rows stack without clipping. With keyboard only, Tab through route
+  links and use Enter/Space on Score/Classify; confirm visible focus and matching
+  inspection. Disable JavaScript and reload: all purpose text, target reasons,
+  route links and main flow remain readable. At 200% zoom, confirm wrapping,
+  reading order and reachable controls without clipped text. One-time server
+  prerequisite if needed: `uv run profitlab serve`.
+- **Next: T66**, in a separate fresh-context agent; not started. No commit made.
 
 ## T64 — Two-company real-filing acceptance — completed, 2026-10-14
 

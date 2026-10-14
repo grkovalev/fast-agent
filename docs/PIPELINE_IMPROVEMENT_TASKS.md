@@ -21,7 +21,7 @@ were not supplied. T61–T62 broader manual visual reviews remain pending.
 | T62 | Verified mapping from fact occurrences to canonical filing lines | T61 | DONE |
 | T63 | Fact source lines, quotes, and links in evaluation cards and Facts inspection | T62 | DONE |
 | T64 | Real-filing acceptance of fact source debugging | T63 | DONE |
-| T65 | Shared discovery purpose, target vocabulary, and README explanation | Existing discovery stages | TODO |
+| T65 | Shared discovery purpose, target vocabulary, and README explanation | Existing discovery stages | DONE |
 | T66 | Clear Source, Outline, and section-selection explanations | T65 | TODO |
 | T67 | Clear chunk overlap and evidence-retention explanations | T66 | TODO |
 | T68 | Clear extraction cardinality, validation, and finding classification | T67 | TODO |
@@ -67,7 +67,7 @@ calls are needed for this explanatory update.
 
 ## T65 — Establish discovery purpose and shared vocabulary
 
-**Status:** TODO. **Dependency:** existing discovery stages.
+**Status:** DONE. **Dependency:** existing discovery stages.
 
 **Visible result:** the reader understands what discovery seeks before following
 its mechanics, and the README uses the same language as the pipeline page.

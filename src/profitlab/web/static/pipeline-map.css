@@ -398,6 +398,14 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
 .pipeline-route-locator__facts a { border: 1px dashed #6a9d9a; }
 .pipeline-route-locator__evaluate a { border: 1px solid #8db59b; }
 .pipeline-route-summary { max-width: 72rem; margin: .7rem 0 1.2rem; color: #365a66; line-height: 1.5; }
+.pipeline-discovery-purpose { margin: 1rem 0; padding: .85rem 1rem; border-left: 3px solid #75a8b6; background: #f8fbfb; line-height: 1.5; }
+.pipeline-discovery-purpose h3, .pipeline-discovery-purpose p { margin: 0 0 .6rem; }
+.pipeline-discovery-purpose p:last-child { margin-bottom: 0; }
+.discovery-targets { margin: .6rem 0; }
+.discovery-targets > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: .5rem 1rem; padding: .4rem 0; border-top: 1px solid #d8e1e4; overflow-wrap: anywhere; }
+.discovery-targets dt { font-weight: 650; }
+.discovery-targets dd { margin: 0; }
+@media (max-width: 600px) { .discovery-targets > div { grid-template-columns: minmax(0, 1fr); gap: .15rem; } }
 .pipeline-card-list--vertical > .pipeline-relationship { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: -.2rem 0; }
 .pipeline-card-list--vertical > .pipeline-relationship::after { display: none; }
 .pipeline-relationship > div { display: grid; gap: .22rem; min-width: 0; padding: .8rem 1rem; background: #fff; color: #284c59; font-size: .82rem; line-height: 1.4; }

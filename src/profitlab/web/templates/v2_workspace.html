@@ -7,6 +7,7 @@
 <section class="pipeline-map pipeline-map--vertical" aria-labelledby="pipeline-map-title">
 <p class="eyebrow">Pipeline overview</p><h2 id="pipeline-map-title">How this report is assembled</h2>
 <p class="pipeline-overall-progress" id="pipeline-overall-progress" role="status"><strong data-map-progress>{{ map_progress.completed }} of 8 stages complete</strong> · Current: <span data-current-stage>{{ map_progress.current_label }}</span> · Run: <span data-map-run-status>{{ run_status_symbol }} {{ run_status_label }}</span></p>
+{% include '_pipeline_discovery_purpose.html' %}
 <nav class="pipeline-route-locator" aria-label="Pipeline stages"><ol>{% for stage in stage_cards %}<li class="pipeline-route-locator__{{ stage.stage }}"><a href="?stage={{ stage.stage }}" aria-label="Stage {{ stage.position }}: {{ stage.label }} — open details"><span>{{ '%02d' | format(stage.position) }}</span>{{ stage.label }}</a></li>{% endfor %}</ol></nav>
 <p class="pipeline-route-summary">Visible filing source becomes sealed findings. After Findings completes, Facts loads independent SEC data by filing identity. Evaluate compares the two saved outputs.</p>
 <ol class="pipeline-card-list pipeline-card-list--vertical" aria-label="Discovery path">{% for item in stage_cards if item.stage != 'facts' %}

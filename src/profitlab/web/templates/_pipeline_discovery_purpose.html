@@ -1,0 +1,16 @@
+<section class="pipeline-discovery-purpose" aria-labelledby="discovery-purpose-title">
+<h3 id="discovery-purpose-title">What discovery seeks</h3>
+<p>Three numeric finding types, five retrieval targets. Sections and Evidence use the targets below to locate useful visible filing text.</p>
+<dl class="discovery-targets">
+<div data-discovery-target="annual_profit" data-finding-type="annual_profit"><dt>Annual profit/net income or loss</dt><dd>The annual shareholder earnings amount helps describe the company’s earnings level. Numeric finding type: annual profit.</dd></div>
+<div data-discovery-target="diluted_eps" data-finding-type="diluted_eps"><dt>Diluted EPS</dt><dd>Annual diluted earnings per share gives the earnings amount per common share. Numeric finding type: diluted EPS.</dd></div>
+<div data-discovery-target="diluted_shares" data-finding-type="diluted_shares"><dt>Annual diluted weighted-average shares</dt><dd>The EPS denominator context helps interpret per-share earnings; it is not year-end shares outstanding. Numeric finding type: diluted shares.</dd></div>
+<div data-discovery-target="earnings_change"><dt>Earnings-change explanations</dt><dd>Help locate context for why earnings changed; no dedicated published output type.</dd></div>
+<div data-discovery-target="comparability"><dt>Restatement/comparability passages</dt><dd>Help locate context for whether periods can be compared; no dedicated published output type.</dd></div>
+</dl>
+<p>Retrieval relevance is a search signal, not financial correctness or published evidence. Findings validates exact source quotes and amounts before publication; a finding can retain an <strong>unresolved type</strong>. The pipeline extracts reported values; it does not compute EPS from profit and shares.</p>
+<h3>What Findings delivers</h3>
+<p>A list of reported numbers sought for the filing’s current fiscal year. Each finding includes an amount, an exact filing quote, a source-line link, and a numeric type or unresolved type. Period, unit, attribution, and limitations accompany it when supported; unclear fields remain unresolved.</p>
+<p><strong>Illustrative finding:</strong> Diluted EPS · 2025 · $6.20, backed by a quoted filing row and a link to that source line. This is an example, not a saved run result.</p>
+<p>Three types does not mean exactly three findings: several numbers, missing types, unresolved types, or an empty result are possible. Earnings-change and comparability passages provide context, without separate narrative findings. Source validation does not establish financial correctness; independent comparison comes later in Evaluate.</p>
+</section>

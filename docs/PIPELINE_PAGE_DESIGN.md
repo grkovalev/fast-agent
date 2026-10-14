@@ -16,6 +16,32 @@ dependencies for this page. Replay requirements remain open.
 
 ## Shared visual and interaction language
 
+The overview introduces discovery purpose before the route and stage mechanics,
+using a compact, always-visible text/definition-list treatment. Use the same
+vocabulary in the README: three numeric finding types (annual profit/net income
+or loss attributable to shareholders, diluted EPS, annual diluted weighted-average
+shares) and five retrieval targets. Earnings-change explanations and
+restatement/comparability passages locate useful context; neither has a dedicated
+published output type. Diluted weighted-average shares provides EPS denominator
+context, not year-end shares outstanding. These are practical reading rationales,
+not a claim about historical intent; the pipeline extracts reported values and
+does not compute EPS from profit and shares. A finding can retain an unresolved
+type. Retrieval relevance is distinct from financial correctness and from published
+evidence, which requires source-quote and amount validation. Check this terminology
+against `section_scoring.TARGETS`, the shared chunk-scoring targets,
+`FindingsService.FINDING_TYPES`/type definitions, and `contracts.FindingType`;
+the introduction is explanatory copy, not another selection policy or type model.
+
+The same introduction states what Findings delivers: a variable-length list of
+reported numbers sought for the filing’s current fiscal year, each with an amount,
+exact quote, source-line link, and supported numeric type or unresolved type.
+Period, unit, attribution and limitations retain visible uncertainty. Include one
+explicitly illustrative result, separate from saved run data. Three supported
+types does not promise three findings or complete coverage; multiple numbers,
+missing types and empty results are possible. Explanatory retrieval passages do
+not create separate narrative findings. Distinguish source validation from the
+independent comparison in Evaluate.
+
 - Use a compact, always-visible route locator with eight recognizable stages, then
   give each stage an open explanation region. The locator establishes position;
   it is not eight more full-size stage cards.

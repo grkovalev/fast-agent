@@ -32,6 +32,41 @@ visible source line. Open **Evaluate** to compare that discovery output with Com
 Facts loaded only after findings are sealed. Provider diagnostics remain on each stage's
 **Inspect sanitized provider trace** page.
 
+Discovery runs from **Source → Outline → Sections → Chunks → Evidence → Findings**.
+Source saves numbered visible filing lines; Outline adds source-ranged navigation
+topics. Sections ranks those descriptors with Jev, Chunks divides selected sections
+into bounded core ranges with separate overlap context, and Evidence ranks and
+retains a bounded set of chunks for Findings.
+
+There are **three numeric finding types and five retrieval targets**:
+
+- **Annual profit/net income or loss:** the annual shareholder earnings amount
+  helps describe the company’s earnings level (annual profit type).
+- **Diluted EPS:** annual diluted earnings per share gives the earnings amount per
+  common share (diluted EPS type).
+- **Annual diluted weighted-average shares:** the EPS denominator context helps
+  interpret per-share earnings, not year-end shares outstanding (diluted shares type).
+- **Earnings-change explanations:** help locate context for why earnings changed;
+  no dedicated published output type.
+- **Restatement/comparability passages:** help locate context for whether periods
+  can be compared; no dedicated published output type.
+
+Retrieval relevance is a search signal, not financial correctness or published
+evidence. Findings validates exact source quotes and amounts before publication,
+then classifies the numeric type; a finding can retain an **unresolved type**.
+The pipeline extracts reported values; it does not compute EPS from profit and shares.
+
+**What Findings delivers:** a list of reported numbers sought for the filing’s
+current fiscal year. Each finding includes an amount, exact filing quote,
+source-line link, and numeric type or unresolved type. Period, unit, attribution,
+and limitations accompany it when supported; unclear fields remain unresolved.
+Illustrative finding: **Diluted EPS · 2025 · $6.20**, backed by a quoted filing row
+and source link (an example, not saved run data). Three types does not mean exactly
+three findings: several numbers, missing types, unresolved types, or an empty result
+are possible. Earnings-change and comparability passages provide context without
+separate narrative findings. Source validation does not establish financial
+correctness; independent comparison comes later in Evaluate.
+
 Run checks with:
 
 ```sh
