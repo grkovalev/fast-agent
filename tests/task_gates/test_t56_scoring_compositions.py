@@ -49,7 +49,7 @@ def test_scoring_policies_preserve_three_distinct_decisions(tmp_path):
         'section_id', 'generated_topic', 'exact_visible_heading', 'size',
         'short_exact_preview', 'filing_metadata'}
     assert 'One Jev scoring pass' in service.inspection_view(settings)['score']['does']
-    values = (.95, .60, .10)
+    values = (.95, .90, .10)
     section_scores = SectionScoringService._policy(
         [_score(f's{n}', value) for n, value in enumerate(values, 1)], sections, settings)
     chunk_scores = ChunkScoringService(settings, None)._policy(
@@ -57,6 +57,17 @@ def test_scoring_policies_preserve_three_distinct_decisions(tmp_path):
     assert [item.policy_decision for item in section_scores] == ['selected', 'uncertain', 'skipped']
     assert [item.policy_decision for item in chunk_scores] == ['selected', 'uncertain', 'skipped']
     assert all(item.policy_reason for item in section_scores + chunk_scores)
+    # A high-scoring candidate can remain uncertain when selected count is bounded.
+    assert chunk_scores[1].target_scores['annual_profit'] >= settings.chunk_score_keep_threshold
+    repo = V2Repository(tmp_path)
+    repo.create_run(V2Run(run_id='saved-decisions', ticker='MAP',
+                          created_at=datetime.now(UTC), updated_at=datetime.now(UTC)))
+    repo.save_scores('saved-decisions', 'chunk_score', chunk_scores)
+    with TestClient(create_app(settings)) as client:
+        saved = client.get('/v2/runs/saved-decisions/pipeline?stage=chunk_score').text
+    for score in chunk_scores:
+        assert f'<strong>{score.policy_decision}</strong>' in saved
+        assert score.policy_reason in saved
 
 
 def test_scoring_overview_shows_service_questions_and_separate_outcomes(tmp_path):

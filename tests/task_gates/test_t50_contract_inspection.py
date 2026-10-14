@@ -127,19 +127,33 @@ def test_findings_proposal_model_matches_validator_without_changing_rejections(t
 
 def test_evidence_descriptor_schema_is_used_by_runtime_builder(tmp_path):
     source_range = SourceRange(document_id='doc', source_hash='0' * 64,
-                               start_line=1, end_line=1)
+                               start_line=2, end_line=2)
     document = CanonicalDocument(
         ref=CanonicalDocumentRef(document_id='doc', filing_id='filing',
-                                 source_hash='0' * 64, line_count=1),
+                                 source_hash='0' * 64, line_count=2),
         lines=[CanonicalLine(line_number=1, text='Revenue increased.',
                              element_type='paragraph', html_anchor='line-1',
-                             dom_reference='/html/body/p[1]')])
+                             dom_reference='/html/body/p[1]'),
+               CanonicalLine(line_number=2, text='Net income was $12.50.',
+                             element_type='paragraph', html_anchor='line-2',
+                             dom_reference='/html/body/p[2]')])
     chunk = TextChunk(chunk_id='chunk-1', section_id='section-1',
-                      core_range=source_range, request_size_estimate=50)
+                      core_range=source_range, context_ranges=[source_range.model_copy(
+                          update={'start_line': 1, 'end_line': 1})], request_size_estimate=50)
     section = OutlineSection(section_id='section-1', generated_topic='Revenue',
-                             exact_source_title='Revenue', primary_range=source_range)
+                             exact_source_title='Revenue', parent_topic_hint='Performance',
+                             primary_range=source_range.model_copy(update={'start_line': 1}))
     service = ChunkScoringService(Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None), None)
     descriptor = service._descriptor(chunk, section, document,
                                      {'ticker': 'EXAMPLE', 'filing_id': 'filing'})
-    assert EvidenceDescriptor.model_validate(descriptor).exact_chunk_text == 'Revenue increased.'
+    assert EvidenceDescriptor.model_validate(descriptor).exact_chunk_text == 'Revenue increased.\nNet income was $12.50.'
     assert set(descriptor) == set(EvidenceDescriptor.model_fields)
+    assert descriptor['visible_heading_path'] == ['Performance', 'Revenue']
+    request = service._request([descriptor])
+    assert len(request.questions) == 5
+    findings = FindingsService(service.settings, None)
+    proposal = {'exact_quote': 'Revenue increased.', 'source_chunk_id': chunk.chunk_id,
+                'source_line': 1, 'amount': '12.50'}
+    rejected, error = findings._validate(document, [chunk], proposal, 'configured-model')
+    assert rejected is None
+    assert error == 'source line is outside the chunk core evidence range'

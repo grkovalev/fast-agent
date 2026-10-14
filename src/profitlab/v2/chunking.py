@@ -76,10 +76,10 @@ class SourceRangeChunker:
                 },
             },
             'context': {
-                'accepts': 'A bounded core range and preceding core lines in the same section.',
-                'does': 'Adds only a trailing prefix of the preceding core, up to the overlap limit.',
+                'accepts': 'A bounded core range and preceding canonical lines in the same selected section.',
+                'does': 'Repeats bounded whole lines immediately before the core, within the same selected section; never following or cross-section lines.',
                 'outputs': {'context_ranges': 'preceding source ranges for reading context'},
-                'guarantee': 'Overlap is context, never separately discovered evidence or core coverage.',
+                'guarantee': 'Repeated context owns no additional coverage and cannot supply a finding citation for this chunk; only its core is citable.',
                 'policy': {'overlap_tokens': settings.chunk_overlap_tokens},
             },
             'store': {

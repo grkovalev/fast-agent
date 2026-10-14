@@ -48,12 +48,25 @@ def test_core_partition_context_and_bounded_persisted_render(tmp_path):
                    for context in current.context_ranges)
         assert current.request_size_estimate <= settings.chunk_request_budget
 
+    # Context and neighbor links reset at selected-section boundaries.
+    split_sections = [section.model_copy(update={
+        'section_id': f's{n}', 'primary_range': section.primary_range.model_copy(
+            update={'start_line': start, 'end_line': end})})
+        for n, (start, end) in enumerate(((1, 3), (4, 5)), 1)]
+    split_chunks = SourceRangeChunker(settings).build(document, split_sections)
+    first_second_section = next(item for item in split_chunks if item.section_id == 's2')
+    assert not first_second_section.context_ranges
+    assert first_second_section.previous_chunk_id is None
+    assert all(context.start_line >= (1 if item.section_id == 's1' else 4)
+               for item in split_chunks for context in item.context_ranges)
+
     repo = V2Repository(tmp_path)
     now = datetime.now(UTC)
     repo.create_run(V2Run(run_id='chunk-map', ticker='MAP', created_at=now, updated_at=now))
     repo.save_canonical_document('chunk-map', document, b'<p>source</p>',
                                  b''.join(f'<p id="line-{n}">Visible source {n}</p>'.encode()
                                           for n in range(1, 6)))
+    repo.save_outline_sections('chunk-map', [section])
     repo.save_chunks('chunk-map', chunks)
     repo.update_stage(StageSnapshot(run_id='chunk-map', stage='chunk', position=4,
                                     status='completed', output_hash='b' * 64),
@@ -61,6 +74,8 @@ def test_core_partition_context_and_bounded_persisted_render(tmp_path):
     with TestClient(create_app(settings)) as client:
         html = client.get('/v2/runs/chunk-map/pipeline').text
         source_page = client.get('/v2/runs/chunk-map/source?document=doc&page=1')
+        chunk_page = client.get(f'/v2/runs/chunk-map/chunks/{chunks[1].chunk_id}')
+        selected = client.get('/v2/runs/chunk-map/pipeline?stage=chunk')
     fragment = html.split('data-chunks-card', 1)[1].split('</article>', 1)[0]
     assert 'Bounded persisted example from this run' in fragment
     assert fragment.count('class="chunks-core-item"') == 3
@@ -77,6 +92,14 @@ def test_core_partition_context_and_bounded_persisted_render(tmp_path):
     assert f'/v2/runs/chunk-map/chunks/{chunks[0].chunk_id}' in fragment
     assert '/v2/runs/chunk-map/source?document=doc' in fragment
     assert '#line-1' in fragment
+    assert chunk_page.status_code == selected.status_code == 200
+    assert 'cannot supply a finding citation for this chunk' in chunk_page.text
+    assert 'same selected section' in chunk_page.text
+    assert f'/chunks/{chunks[0].chunk_id}' in chunk_page.text
+    assert f'#line-{chunks[1].context_ranges[0].start_line}' in chunk_page.text
+    assert 'cannot supply a finding citation for this chunk' in selected.text
+    assert 'cannot cite those context lines in a finding' in fragment
+    assert 'following or different section' in fragment
     assert source_page.status_code == 200
     assert 'line-1' in source_page.text
     assert 'This stage makes no model request.' in fragment

@@ -112,6 +112,24 @@ second selection pass. Deterministic threshold, target-coverage and count policy
 owns selection; only selected ranges reach Chunks, while uncertain ranges remain
 inspectable. Preserve the shared Evidence composition's exact-chunk-text semantics.
 
+Chunks splits selected sections deterministically into adjacent whole-line core
+ranges. Repeated context consists of bounded immediately preceding canonical lines
+within the same selected section; it may span earlier cores, but never following
+or cross-section lines. Core ranges own coverage and supply finding citations for
+their chunk. Repeated context adds neither coverage nor citation ownership.
+
+Evidence differs from Sections' short descriptors: Jev scores full exact core plus
+preceding context, the parent topic hint/exact source title heading path when
+present, and ticker/filing ID against the same five targets. Scores signal relevance,
+not calibrated probabilities that a value exists. Application policy applies
+thresholds, favors uncovered targets/new sections/new visible year labels, suppresses
+heavy core-plus-context overlap, and bounds selected count and core-text characters.
+Visible-year diversity does not validate fiscal periods, and high relevance does
+not guarantee retention. Only selected chunks enter Findings request assembly;
+uncertain stays inspectable and skipped decisions stay recorded. Findings has its
+own additional request-size limit. Keep this explanation consistent in the overview,
+station inspectors, selected Evidence stage, and chunk source/neighbor inspector.
+
 Keep the stage compositions faithful to runtime branches. For example, Outline
 validates and carries accepted proposals between windows, then deduplicates and
 partitions the entire document *after* the window loop. Its return arrow goes to

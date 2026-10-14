@@ -13,13 +13,13 @@
 {{ stage_header(item, 'scoring-stage-header', 'Score exact visible chunks and retain a diverse bounded set' if evidence else 'Rank the validated outline before expanding source text') }}
 <figure class="scoring-composition" data-{{ prefix }}-loop aria-labelledby="{{ prefix }}-composition-title" aria-describedby="{{ prefix }}-composition-description">
   <figcaption id="{{ prefix }}-composition-title">{{ 'Chunk scores become bounded retained evidence' if evidence else 'Visible section descriptors become a bounded retrieval set' }}</figcaption>
-  <p id="{{ prefix }}-composition-description" class="scoring-intro">{{ 'Jev ranks exact visible chunk text against retrieval targets. A deterministic policy checks target coverage, section and year diversity, overlap, and a retained-text budget.' if evidence else 'One Jev scoring pass ranks descriptors of the flat stored ranges against retrieval targets, in bounded batches. Deterministic threshold, target-coverage, and count policy then selects sections; parent topics are not scored as a separate selection level.' }} Scores are retrieval signals, not probabilities of financial correctness.</p>
+  <p id="{{ prefix }}-composition-description" class="scoring-intro">{{ 'Unlike Sections’ short descriptors, Jev reads full exact core plus preceding context, the visible heading path, and filing identity against the same five targets. Application policy applies thresholds, target coverage, section and visible-year diversity, overlap suppression, and count/core-text limits.' if evidence else 'One Jev scoring pass ranks descriptors of the flat stored ranges against retrieval targets, in bounded batches. Deterministic threshold, target-coverage, and count policy then selects sections; parent topics are not scored as a separate selection level.' }} {% if evidence %}Scores are relevance signals, not calibrated probabilities that a value exists. A high score does not guarantee retention. Visible year labels encourage diversity; they do not validate fiscal periods.{% else %}Scores are retrieval signals, not probabilities of financial correctness.{% endif %}</p>
   <div class="scoring-route">
     <button type="button" class="scoring-station scoring-input pipeline-semantic--artifact" data-{{ prefix }}-station="describe" aria-controls="{{ prefix }}-loop-card" aria-label="1 Describe. {{ 'Reconstruct exact visible chunk text from canonical source ranges.' if evidence else 'Build a visible outline section descriptor.' }}">
       <span class="scoring-step">01 · {{ 'CHUNKS' if evidence else 'SECTIONS' }}</span>
       {% if evidence %}
       <strong>Chunk and target tiles</strong><span class="scoring-tile">Core lines + preceding context</span><span class="scoring-tile">Visible heading path</span><span class="scoring-tile">Filing identity</span>
-      <small>Exact visible text is reconstructed from saved ranges. Context does not own new source coverage.</small>
+      <small>Full exact text is reconstructed from saved ranges. Context owns no additional coverage and cannot supply a finding citation for this chunk.</small>
       {% else %}
       <strong>Visible descriptor stack</strong><span class="scoring-tile">Generated topic <em>navigation label</em></span><span class="scoring-tile">Exact visible heading <em>source text, when present</em></span><span class="scoring-tile">First 600 characters · source line count · ticker and filing ID</span>
       <small>Generated topics remain separate from exact visible titles. This descriptor does not contain full-section text or concatenate a neighboring section.</small>
@@ -40,7 +40,7 @@
     </button>
   </div>
   <div class="scoring-outcomes" aria-label="Distinct scoring outcomes">
-    <div class="scoring-outcome scoring-outcome--selected pipeline-semantic--output"><span aria-hidden="true">↓</span><strong>Selected</strong><span>{{ 'Retained chunk evidence' if evidence else 'Sections sent to chunking' }}</span><small>Only this set continues downstream.</small></div>
+    <div class="scoring-outcome scoring-outcome--selected pipeline-semantic--output"><span aria-hidden="true">↓</span><strong>Selected</strong><span>{{ 'Retained chunk evidence' if evidence else 'Sections sent to chunking' }}</span><small>Only this set continues downstream.{% if evidence %} Selected chunks enter Findings request assembly, which has an additional request-size limit.{% endif %}</small></div>
     <div class="scoring-outcome scoring-outcome--uncertain"><strong>Uncertain</strong><span>Bounded, inspectable candidates</span><small>No downstream continuation.</small></div>
     <div class="scoring-outcome scoring-outcome--skipped"><strong>Skipped</strong><span>Below threshold or excluded by policy bounds</span><small>Decision and reason remain recorded.</small></div>
   </div>

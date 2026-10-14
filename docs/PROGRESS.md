@@ -6,7 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: none. **T66 DONE**, Source/Outline/Sections explanation.
+- Current task: none. **T67 DONE**, Chunks/Evidence explanation.
+  **T66 DONE**, Source/Outline/Sections explanation.
   **T65 DONE**, shared discovery purpose and vocabulary.
   The task register defines T65–T68 as sequential explanation-only tasks.
   **T64 DONE**, two-company real-filing source acceptance;
@@ -21,10 +22,11 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next numbered task after T66: **T67**, in a separate fresh-context agent. T61–T62 broader visual reviews
+- Next numbered task after T67: **T68**, in a separate fresh-context agent. T61–T62 broader visual reviews
   remain open; T64's source-detail visibility is user-confirmed.
-- Latest automated checks: T66 focused source/outline/scoring, inspection, render
-  and hierarchy checks passed (17 tests in 1.67s); repository lint and diff checks passed.
+- Latest automated checks: T67 focused chunk/range/scoring, inspection, render,
+  hierarchy and Findings checks passed (20 tests in 2.13s); repository lint and diff checks passed.
+  T66 focused checks passed (17 tests in 1.67s).
   Earlier T64 plus T61–T63 gates passed (11 tests in 12.02s);
   final pre-commit full suite passed (61 tests in 15.39s). After adding explicit visible-caption
   checks, T64 passed again (2 tests in 6.81s). Repository lint passed.
@@ -44,13 +46,13 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and the [task register](PIPELINE_IMPROVEMENT_TASKS.md).
-**T66 is DONE. T67 is the next numbered task**, assigned to a different fresh-context
-agent when requested. Read the T65–T68 execution contract and T67 in the task register;
+**T67 is DONE. T68 is the next numbered task**, assigned to a different fresh-context
+agent when requested. Read the T65–T68 execution contract and T68 in the task register;
 do not automatically start it. T65 added shared discovery purpose and **What Findings
-delivers**; T66 clarified Source acquisition/canonical limits, flat Outline navigation
-and final partition, and Sections descriptor scoring. Chunks/Evidence remains T67;
-Findings remains T68. Keep discovery runtime, provider requests/questions, selection,
-budgets, contracts, Facts and Evaluate unchanged throughout these explanation tasks.
+delivers**; T66 clarified Source/Outline/Sections; T67 clarified adjacent core ownership,
+non-citable preceding context, full Evidence scoring and bounded retention. Findings
+extraction/cardinality/validation/classification remains T68. Keep discovery runtime,
+provider requests/questions, selection, budgets, contracts, Facts and Evaluate unchanged.
 
 T64's two-company acceptance and user-confirmed cell/year/scale visibility remain
 valid. T61–T62 broader manual review remains pending; preserve the Apple caption-preview
@@ -58,13 +60,80 @@ limitation below. Keep presentation and exact source mapping as separate saved
 diagnostics, never discovery inputs. No user data was changed. Older historical
 “Next task” entries below are not active instructions.
 
-Context-cleaning handoff prepared at the user's request after T66. This commit
-contains the Source/Outline/Sections explanatory copy, focused checks, and design/
-task documentation. Validation remains 17 focused tests passed in 1.67s, Ruff and
-diff checks passed. Manual visual/accessibility review remains pending with steps
-below. On the next request, implement **T67 only** in a separate fresh-context
-agent, following the task register's execution contract. Preserve T65/T66 wording;
-do not expand into T68 or change discovery runtime or Facts/Evaluate.
+Context-cleaning handoff prepared at the user's request after T67. This commit
+contains the Chunks/Evidence explanatory copy, focused checks, and design/task
+documentation. Validation: 20 focused tests passed in 2.13s; Ruff and diff checks
+passed. Manual visual/accessibility review remains pending with steps below.
+On the next request, implement **T68 only** in a separate fresh-context agent,
+following the task register's execution contract. Preserve T65–T67 explanations;
+do not change discovery runtime or Facts/Evaluate. Keep the existing skipped-reason
+diagnostic gap recorded below separate from this explanation task.
+
+## T67 — Chunks and Evidence explanation — completed, 2026-10-14
+
+- Chunks keeps the existing range composition and now names deterministic adjacent
+  whole-line cores and bounded immediately preceding context within the same selected
+  section. Context never reaches following/cross-section lines, owns no additional
+  coverage, and cannot supply a finding citation for its chunk. The Chunk 1 → Chunk 2
+  example, stations, selected stage and source/neighbor inspector agree.
+- Evidence contrasts full exact core-plus-context scoring with Sections' short
+  descriptors, using the visible heading path and ticker/filing ID against the same
+  five targets. Relevance scores are not calibrated probabilities that a value exists.
+  Application thresholds, uncovered-target/section/visible-year diversity, overlap
+  suppression and count/core-text bounds govern retention. Visible years do not
+  validate fiscal periods; high scores need not continue. Selected alone enters
+  Findings request assembly, subject to its additional request-size limit. Uncertain
+  remains inspectable and skipped decisions remain recorded. Selected Evidence now
+  has its own explanation instead of the generic comparison fallback. Facts/Evaluate
+  have no changed behavior or explanatory relationship and needed no edits.
+- Runtime audit: read `chunking.py`, `chunk_scoring.py`, `section_scoring.py`, Findings
+  `_request_data`, prompt/core validation, and chunk orchestration in `pipeline.py`.
+  Service edits affect `inspection_view` prose only. No requests, questions, selection,
+  limits, contracts, storage, source numbering, state or runtime outputs changed.
+  Existing context can span several earlier cores within its section; the previous
+  inspector's “preceding core” wording was too narrow and is corrected.
+- Pre-existing backend diagnostic gap, outside this explanation task: `_policy` can
+  label a core-text-budget exclusion “below uncertain threshold” when the selected
+  count is below its limit and the uncertain band is full. The overview explains
+  the actual policy; persisted reasons are preserved, not rewritten or repaired.
+- Inspected T50 contract/validation, T51 request provenance, T52 inspector, T53
+  hierarchy, T56 policy, T57 range/link, T58 Findings and T60 assembled-render checks.
+  Extended their distinct existing fixtures rather than adding a redundant task gate;
+  none were obsolete or removed. Checks now cover same-section context/neighbor reset,
+  full exact context-plus-core Jev input and heading path, rejected context citation,
+  high-score non-selection, all three saved decisions, and visible/selected copy.
+  Source and neighbor routes remain usable through TestClient; T60 blocks HTTPX
+  SEC/provider sends. Synthetic fixtures are controlled boundary cases, not live or
+  new real-filing acceptance. Prior T64 real-filing evidence remains unchanged.
+- Baseline: `uv run pytest -q tests/task_gates/test_t57_chunks.py
+  tests/task_gates/test_t56_scoring_compositions.py tests/task_gates/test_t50_contract_inspection.py
+  tests/task_gates/test_t60_pipeline_acceptance.py` — 11 passed in 1.67s.
+  Final: `uv run pytest -q tests/task_gates/test_t57_chunks.py
+  tests/task_gates/test_t56_scoring_compositions.py tests/task_gates/test_t50_contract_inspection.py
+  tests/task_gates/test_t51_request_inspection.py tests/task_gates/test_t52_inspector.py
+  tests/task_gates/test_t53_pipeline_hierarchy.py tests/task_gates/test_t58_findings.py
+  tests/task_gates/test_t60_pipeline_acceptance.py` — 20 passed in 2.13s.
+  `uv run ruff check .` and `git diff --check` passed. Existing uv-cache access required
+  escalation after the baseline sandbox rejection; existing Starlette/AnyIO warning
+  remains. Isolated temporary test storage only; no full suite because runtime,
+  shared storage/providers and orchestration are unchanged. No dependencies changed.
+- Live/manual status: no external SEC/provider calls, no browser automation, and no
+  manual visual/accessibility review. Automated HTTP rendering is not visual acceptance.
+- Manual verification in the already-running UI: open
+  `http://127.0.0.1:8000/v2/runs/<run_id>/pipeline`. Read Chunks without opening an
+  inspector: follow Chunk 1's core into Chunk 2's repeated context and new core;
+  identify which lines Chunk 2 may cite. Select **Repeat context**, then open the
+  Chunks stage and a stored chunk; follow core/context source links and previous/next
+  neighbors within a section. Select Evidence **Describe**, **Score**, **Retain**:
+  inspect the full input schema/current illustrative request, same five questions and
+  current policy limits; use the saved trace for an actual historical scoring input.
+  Open Evidence stage to inspect selected/uncertain/skipped reasons. Confirm the
+  overview explains why a high score might not be selected, year diversity is not
+  fiscal-period validation, and selected chunks still face Findings request limits.
+  Repeat wide/narrow, keyboard-only, JavaScript disabled and 200% zoom; core/context
+  bands, reading order and source/neighbor links should remain clear and usable.
+- Next: **T68 only**, a separate fresh-context agent. Not started. T67 results and
+  context-cleaning handoff are included in the commit requested by the user.
 
 ## T66 — Source, Outline and section-selection explanation — completed, 2026-10-14
 

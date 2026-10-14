@@ -23,7 +23,7 @@ were not supplied. T61–T62 broader manual visual reviews remain pending.
 | T64 | Real-filing acceptance of fact source debugging | T63 | DONE |
 | T65 | Shared discovery purpose, target vocabulary, and README explanation | Existing discovery stages | DONE |
 | T66 | Clear Source, Outline, and section-selection explanations | T65 | DONE |
-| T67 | Clear chunk overlap and evidence-retention explanations | T66 | TODO |
+| T67 | Clear chunk overlap and evidence-retention explanations | T66 | DONE |
 | T68 | Clear extraction cardinality, validation, and finding classification | T67 | TODO |
 
 ## T65–T68 execution contract — separate fresh-context agents
@@ -156,7 +156,7 @@ selected/uncertain/skipped branches at wide and narrow widths.
 
 ## T67 — Clarify preceding overlap and evidence retention
 
-**Status:** TODO. **Dependency:** T66.
+**Status:** DONE. **Dependency:** T66.
 
 **Visible result:** the reader understands chunk core ownership, preceding context,
 and why only some full-text-scored chunks enter extraction.

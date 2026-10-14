@@ -57,7 +57,7 @@ def test_shared_prompt_questions_and_discovery_vocabulary(tmp_path, monkeypatch)
     with TestClient(create_app(settings)) as client:
         page = client.get('/v2/runs/t60-builders/pipeline')
         selected = {stage: client.get(f'/v2/runs/t60-builders/pipeline?stage={stage}')
-                    for stage in ('source', 'outline', 'section_score', 'chunk_score', 'findings')}
+                    for stage in ('source', 'outline', 'section_score', 'chunk', 'chunk_score', 'findings')}
 
     assert page.status_code == 200
     assert prompt_marker in page.text
@@ -124,9 +124,26 @@ def test_shared_prompt_questions_and_discovery_vocabulary(tmp_path, monkeypatch)
     assert 'parent topics are not scored as a separate selection level' in sections.text_content()
     assert 'Only this set continues downstream' in sections.text_content()
     evidence, = document.xpath('//*[@data-evidence-card]')
-    assert 'Jev ranks exact visible chunk text' in evidence.text_content()
+    assert 'Jev reads full exact core plus preceding context' in evidence.text_content()
     assert 'First 600 characters' not in evidence.text_content()
     assert 'additional visible text outside those lines' in selected['source'].text
     assert 'not source text or independently selected parent objects' in selected['outline'].text
     assert 'first 600 characters of canonical section text' in selected['section_score'].text
     assert 'uncertain sections remain inspectable without continuing downstream' in selected['section_score'].text
+
+    # T67: the initial route and selected stage agree, without requiring inspection.
+    chunks, = document.xpath('//*[@data-chunks-card]')
+    assert 'Only the core can supply a finding citation' in chunks.text_content()
+    intro, = evidence.xpath('.//*[@id="evidence-composition-description"]')
+    for phrase in ('same five targets', 'high score does not guarantee retention',
+                   'do not validate fiscal periods', 'overlap suppression'):
+        assert phrase in intro.text_content()
+    assert not intro.xpath('.//details | .//button | .//script | .//*[@hidden]')
+    for phrase in ('cannot supply a finding citation for this chunk',
+                   'additional request-size limit', 'Uncertain', 'Skipped'):
+        assert phrase in evidence.text_content()
+    detail, = html.fromstring(selected['chunk_score'].text).xpath('//section[@class="stage-detail"]')
+    assert 'not calibrated probabilities that a value exists' in detail.text_content()
+    assert 'Only selected chunks enter Findings request assembly' in detail.text_content()
+    assert 'Comparison uses exact Decimal equality' not in detail.text_content()
+    assert 'same selected section' in selected['chunk'].text
