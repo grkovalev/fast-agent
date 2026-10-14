@@ -1,6 +1,6 @@
 # JEV-led Findings implementation plan
 
-Status: T69–T70 DONE; T71–T77 PLANNED, 2026-10-14. No data reset performed.
+Status: T69–T71 DONE; T72–T77 PLANNED, 2026-10-15. Scoped V2 data reset completed in T71.
 This replaces the Findings internals in the existing eight-stage pipeline. Keep
 the `v2` package, repository, database filename and URLs; do not create a v3,
 migration, compatibility mode or permanent old/new execution switch.
@@ -291,7 +291,7 @@ design brief and README at activation, removing obsolete Findings explanations.
 | --- | --- | --- | --- |
 | T69 | Baseline evidence and shared replacement contracts/policy | Planning complete | DONE |
 | T70 | Typed mixed Noul/Score adapter and bounded batch execution | T69 | DONE |
-| T71 | Fresh storage/checkpoints and concept-to-chunk/line enumeration | T70 | PLANNED |
+| T71 | Fresh storage/checkpoints and concept-to-chunk/line enumeration | T70 | DONE |
 | T72 | JEV multi-concept source-line assignments | T71 | PLANNED |
 | T73 | JEV context links and assembled evidence bundles | T72 | PLANNED |
 | T74 | JEV bundle ranking and deterministic selection | T73 | PLANNED |
@@ -465,6 +465,42 @@ score inclusion boundaries, shared lines/multiple owners, numeric edge cases,
 source isolation. Full suite required for shared storage. UI: prepared candidate
 schema/request/result projections; active route unchanged. Gate:
 `test_t71_findings_candidates.py`.
+
+### T71 finalized persistence/enumeration decisions — 2026-10-15
+
+- Fresh schema uses `PRAGMA user_version=71` with the existing application ID,
+  package, database filename and routes. Old data is rejected with scoped reset
+  instructions, without mutation. Current old runtime tables remain until T76.
+- Five prepared tables retain typed phase artifacts, atomic final step results,
+  successful batch checkpoints, exact reusable phase caches and run summaries.
+  Artifact indexes cover run/phase/type/concept/occurrence; reads and checkpoint
+  inspection are paginated. A phase's replacement artifacts and result commit
+  together. Conversion diagnostics can retain several proposals per bundle;
+  empty diagnostics have no inferred concept. Transport traces remain separate.
+- Cache identity includes all T69 source/input/policy/concept/phase/question/model
+  fields plus the exact serialized safe request (including instructions/rubrics).
+  Only document/filing/chunk/section routing ID fields are removed from reusable
+  request identity. Canonical hashes, text, offsets and occurrence IDs remain.
+  Reuse returns the current request and routing map, validates answers and checks
+  the saved actual model. Callers must supply the exact semantic input identity;
+  a cache never substitutes for its phase/source/policy identity.
+- Core-only numeric enumeration admits selected chunks at the upstream uncertain
+  threshold for each concept, sorts by concept score/source/ID, retains eligible
+  owners, and deduplicates concept/hash/line occurrences. Below-threshold and
+  nonselected chunk omissions, nonnumeric context-only lines and global count
+  omissions are explicit. Count cuts yield partial; relevance exclusions do not.
+  Parser handles displayed sign/parentheses (including canonical whitespace),
+  comma groups, decimals/fractional decimals, zero, percentages, years and repeats;
+  it chooses no metric, period, unit or scale. Source isolation is enforced before
+  enumeration. The existing Apple external-caption limitation remains unchanged.
+- After verifying T69 compressed/uncompressed baseline hashes, stopped the local
+  server (PID 64233), verified no port-8000 listener, and used `shutil.rmtree` only
+  on resolved `/Users/grkovalev/repos/src/fast-agent/data/v2`. Fresh initialization
+  recreated `profitlab-v2.sqlite3`, version 71, with zero runs. Fixtures and other
+  data were untouched. Server remains stopped; `uv run profitlab serve` is the
+  one-time restart prerequisite. No replacement runtime/UI activation occurred.
+- Gate/full-suite evidence and pending manual verification are in PROGRESS.md.
+  Next task is T72 in a different fresh-context agent, only when requested.
 
 ### T72 — Assign lines to concepts
 

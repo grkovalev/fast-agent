@@ -65,14 +65,16 @@ class ConceptChunkCandidates(V2Contract):
 
 
 # This parser only identifies displayed numeric spans; no metric/year inference.
-_NUMBER = re.compile(r'(?<![\w.])(?:\([−-]?\d[\d,]*(?:\.\d+)?\)|[−-]?\d[\d,]*(?:\.\d+)?)(?![\w.])')
+_DIGITS = r'(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?|\.\d+'
+_NUMBER = re.compile(r'(?<![\w.])(?:\(\s*[−+-]?\s*(?:' + _DIGITS +
+                     r')\s*\)|[−+-]\s*(?:' + _DIGITS + r')|(?:' + _DIGITS + r'))(?!\w|\.\d|,\d)')
 
 
 def displayed_decimal(raw: str) -> Decimal:
-    value = raw.replace(',', '').replace('−', '-')
+    value = ''.join(raw.split()).replace(',', '').replace('−', '-')
     if value.startswith('(') and value.endswith(')'):
         # Parentheses denote a displayed loss, including redundant inner minus.
-        value = '-' + value[1:-1].lstrip('-')
+        value = '-' + value[1:-1].lstrip('+-')
     result = Decimal(value)
     if not result.is_finite():
         raise ValueError('Displayed amount must be finite')

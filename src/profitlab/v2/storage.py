@@ -20,9 +20,10 @@ from .contracts import (
     TextChunk,
     V2Run,
 )
+from .findings_storage import FINDINGS_SCHEMA, FindingsStorage
 
 
-class V2Repository:
+class V2Repository(FindingsStorage):
     _APPLICATION_ID = 0x50524F46  # "PROF" identifies a fresh ProfitLab V2 database.
 
     def __init__(self, data_dir: Path):
@@ -34,7 +35,8 @@ class V2Repository:
             with self.connect() as db:
                 if new_database:
                     db.executescript(self._schema())
-                elif db.execute('PRAGMA application_id').fetchone()[0] != self._APPLICATION_ID:
+                elif (db.execute('PRAGMA application_id').fetchone()[0] != self._APPLICATION_ID or
+                      db.execute('PRAGMA user_version').fetchone()[0] != 71):
                     raise ValueError(self._unsupported_database_message())
                 else:
                     self._assert_current_schema(db)
@@ -47,6 +49,8 @@ class V2Repository:
 
     def _assert_current_schema(self, db):
         required_tables = {
+            'findings_steps', 'findings_artifacts', 'findings_checkpoints',
+            'findings_phase_cache', 'findings_run_results',
             'runs', 'stages', 'events', 'filings', 'canonical_documents', 'outline_sections',
             'outline_run_summaries',
             'outline_batches', 'scores', 'exploration_actions', 'chunks', 'chunk_ranges',
@@ -182,7 +186,8 @@ class V2Repository:
             CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
             CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
             PRAGMA application_id=0x50524F46;
-        '''
+            PRAGMA user_version=71;
+        ''' + FINDINGS_SCHEMA
 
     @contextmanager
     def connect(self):

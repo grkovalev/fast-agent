@@ -6,8 +6,10 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current implementation task: none. **T69–T70 DONE**; T71–T77 PLANNED, JEV-led Findings;
+- Current implementation task: none. **T69–T71 DONE**; T72–T77 PLANNED, JEV-led Findings;
   see [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
+  T71 prepared fresh persistence/checkpoints and deterministic source candidates,
+  and performed the authorized scoped local V2 reset.
   T70 prepared typed mixed JEV transport and bounded checkpoint-capable batching.
   T69 retained baseline evidence and prepared isolated contracts/policy;
   the active runtime stays unchanged. **T68 DONE**, Findings extraction/publication explanation.
@@ -27,10 +29,13 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next when implementation is requested: **T71**, fresh persistence/checkpoints
-  and candidate enumeration, in a different fresh-context agent. T70 is complete;
+- Next when implementation is requested: **T72**, JEV multi-concept line assignments,
+  in a different fresh-context agent. T71 is complete;
   no task starts automatically. T61–T62 broader visual reviews remain open.
-- Latest automated checks: T70 focused gates passed (29 tests in 1.55s), final T70
+- Latest automated checks: T71 gate passed (6 tests in 0.75s); T71/T69 final
+  parser gates passed (11 tests in 0.83s); full suite passed (80 tests in 15.29s);
+  repository Ruff and diff checks passed.
+  Earlier checks: T70 focused gates passed (29 tests in 1.55s), final T70
   gate passed (7 tests in 0.57s), full suite passed (74 tests in 17.82s); lint/diff passed.
   T69 gate plus existing Findings/schema/request inspection
   checks passed (18 tests in 1.28s); repository lint and diff checks passed.
@@ -57,37 +62,96 @@
 ## Resume after context reset
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
-[TASKS.md](TASKS.md), and the [task register](PIPELINE_IMPROVEMENT_TASKS.md).
-**T65–T70 are DONE; T71–T77 are PLANNED. No automatic implementation.**
-Read the [Findings plan](FINDINGS_JEV_IMPLEMENTATION_PLAN.md) and T71 before starting.
-Working branch is `findings-jev-discovery`. T69 prepares replacement components
-without changing the current Findings runtime/inspection or Facts/Evaluate behavior.
-Its baseline fixtures are preserved outside application data in
-`tests/fixtures/benchmarks/t69`; verify manifest hashes before reuse. Three saved
-runs and one genuine live old-stage replay are available. No database reset occurred.
-T71 must stop the server and reset only the resolved application V2 namespace after
-these retained inputs; this authorization does not cover other application data.
-Historical “next task” entries below are not current instructions. T61–T62 broader
-visual reviews and the Apple canonical-caption limitation remain separately open.
+[TASKS.md](TASKS.md), and [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
+**T65–T71 are DONE; T72–T77 are PLANNED. No automatic implementation.**
+Working branch is `findings-jev-discovery`. T69–T71 prepared replacement components
+without activating them. Preserve the baseline fixtures under
+`tests/fixtures/benchmarks/t69` and `t70`; T69's three saved runs and genuine live
+old-stage replay remain available outside application data.
 
-Context-cleaning checkpoint: T70 is complete on `findings-jev-discovery` and its
-implementation, recorded fixtures, tests and handoff are committed together.
-Inspect the worktree and preserve the T69 and T70 fixtures. No data reset or
-replacement runtime/UI activation occurred. T71 is the next bounded task; read its
-server-stop/data-namespace reset rules and retain these baseline artifacts before
-any reset. Shared-provider changes require the full suite. Recheck official model
-limits before later live probes; paid calls never belong in default tests.
+T71 stopped the local server and performed the authorized reset only at resolved
+`/Users/grkovalev/repos/src/fast-agent/data/v2`, then initialized schema version 71
+with zero runs. Old local run URLs are now absent. The server remains stopped;
+`uv run profitlab serve` is the one-time UI restart prerequisite. Do not repeat the
+reset. Typed `findings_storage.py` and provider-free `findings_candidates.py` are
+prepared for T72, but current runtime, prompts, UI stations and Facts/Evaluate
+inputs retain their existing behavior until T76. T61–T62 broader visual review and
+the Apple canonical-caption limitation remain separately open.
+
+Context-cleaning checkpoint: T71 implementation, focused gate and handoff are
+ready together on `findings-jev-discovery`. Resume with T72 only when requested,
+in a different fresh-context agent. Do not repeat the completed data reset or
+start T76 activation early. The server was left stopped; manual UI verification
+remains pending. No speedup is expected from the prepared components yet:
+replacement activation is T76 and measured quality/latency acceptance is T77.
 
 Suggested next-session instruction:
 
-> On branch `findings-jev-discovery`, implement only T71 from
+> On branch `findings-jev-discovery`, implement only T72 from
 > `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md` in a different fresh-context agent.
 > Read AGENTS.md, docs/TASKS.md execution policy, docs/PIPELINE_PAGE_DESIGN.md,
 > the Findings plan and recent docs/PROGRESS.md first. Preserve T69/T70 fixtures.
-> Follow the explicit server-stop/resolved-V2-namespace reset procedure; no other
-> application data is authorized for deletion. Prepare persistence and candidate
-> enumeration without activating replacement runtime/UI phases. Run required
-> focused/full checks, record the T72 handoff, and stop.
+> T71's scoped reset is complete: do not reset again. Use its typed storage,
+> candidate enumeration and T70 batching for multi-concept source assignments;
+> keep prepared components unwired until T76. Run focused gates and required
+> lint, record the T73 handoff, and stop.
+
+## T71 — Fresh persistence and numeric candidate enumeration — completed, 2026-10-15
+
+- Added fresh indexed typed artifact/step/checkpoint/cache/summary tables, retaining
+  the currently used old runtime tables until T76. `user_version=71` rejects old
+  schema without migration or automatic deletion. Final phase artifacts/results
+  replace atomically; complete saved artifacts and checkpoints support pagination.
+  Cache reuse binds source/input/policy/concept/phase/question/actual-model identity
+  and exact safe requests, remapping current request/routes after excluding only
+  documented run-local routing ID fields. Invalid answers/models are rejected.
+- Added prepared concept-to-chunk maps from persisted-score inputs, selected-only
+  admission at the upstream uncertain threshold, deterministic score/source/ID
+  ordering, core-only numeric lines, shared owners and concept/hash/line occurrence
+  deduplication. Numeric spans preserve half-open offsets and displayed Decimal
+  signs/parentheses, commas, decimal fractions, zero, percentages, years and repeat
+  occurrences; whitespace around displayed loss signs remains exact. Nonnumeric
+  lines remain context. Explicit relevance exclusions and count-cut omissions
+  distinguish completed from partial enumeration; no provider calls or fiscal-year/
+  metric inference. Shared inputs are canonical-source validated.
+- Reset evidence: verified all three T69 compressed/uncompressed manifest hashes;
+  resolved `Settings().data_dir / 'v2'` exactly to
+  `/Users/grkovalev/repos/src/fast-agent/data/v2` (only `profitlab-v2.sqlite3`).
+  Stopped the identified `profitlab serve` PID 64233 via TERM and confirmed no
+  port-8000 listener. Used `shutil.rmtree` solely on that resolved namespace, then
+  `V2Repository` recreated the same database, schema version 71, zero runs.
+  No fixture, other application data, or unrelated worktree change was removed.
+  Process inspection/stop needed sandbox escalation; no paid provider calls.
+- Tests inspected: T69 contracts/baselines, T70 batching, T58 current Findings,
+  T33 storage and T64 real-source acceptance. Initial `uv run pytest` over
+  T69/T70/T58: **18 passed in 1.14s**. Added six T71 contract/integration tests:
+  saved AZZ SEC/scores, numeric edge cases, inclusion boundaries/owners/isolation,
+  all artifact-type round trips/atomic phase replacement/pagination/old rejection,
+  saved genuine T70 JEV response checkpoint/restart/cache identity/remapping, and
+  saved Apple 2024 external visible caption absent from canonical lines. Synthetic
+  mutations only control threshold/ownership, malformed input and routing cases.
+  No obsolete coverage needed removal; no default network/paid calls added.
+- Focused T71/T69/T70/T58: **23 passed in 1.28s**; final T71 gate:
+  **6 passed in 0.75s**. Required **`uv run pytest`: 80 passed in 15.29s**, with
+  the existing Starlette/AnyIO warning. Final whitespace-sign parser hardening:
+  T71/T69 **11 passed in 0.83s**. `uv run ruff check .`, final direct Ruff and
+  `git diff --check`: passed. uv cache access required sandbox escalation.
+- No UI change is needed: prepared components are unregistered/unwired. Traced
+  active paths still run the existing retained-chunk Findings extraction, validation,
+  repair and type-classification behavior; upstream selection/budgets, independent
+  Facts and Evaluate request construction remain unchanged. Existing UI/route
+  checks passed in the full suite. Prepared schemas/results are not advertised
+  as live stations. Reset removes saved local runs, as explicitly authorized.
+- Manual verification is **pending** (no browser automation): restart once with
+  `uv run profitlab serve`, open `http://127.0.0.1:8000`, confirm the workspace
+  is empty, create a ticker run through the UI, and follow its Pipeline link.
+  Inspect Findings Assemble/Propose/Validate/Classify/Publish and existing
+  Sections/Evidence/Facts/Evaluate inspectors/source links. Expect the existing
+  active explanations and no new assignment/context/rank stations. Review wide/
+  phone widths, keyboard selection, JS disabled and 200% zoom. Paid live pipeline
+  execution was not repeated for this provider-free preparation; saved real data
+  validated candidate/checkpoint contracts, not new-stage quality or latency.
+  Next: **T72**, in another fresh-context agent, only when requested.
 
 ## T70 — Mixed typed JEV adapter and bounded batching — completed, 2026-10-14
 
