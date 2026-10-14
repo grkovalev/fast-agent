@@ -96,7 +96,9 @@ class SectionScoringService:
             'describe': {
                 'accepts': descriptor,
                 'does': ('Builds one JevVisibleContext from each validated outline section and '
-                         'its canonical visible source preview.'),
+                         'its generated topic, exact heading when present, first 600 characters of canonical '
+                         'section text, source line count, and filing identity (ticker and filing ID). '
+                         'Full-section text and neighboring sections are not concatenated.'),
                 'outputs': {'sections': [descriptor]},
                 'guarantee': ('The visible-only guard rejects Inline XBRL markers, Company Facts, '
                               'and evaluation fields before a request is sent.'),
@@ -104,7 +106,8 @@ class SectionScoringService:
             'score': {
                 'targets': list(TARGETS),
                 'accepts': {'sections': [descriptor]},
-                'does': 'Sends the configured Jev request with one question for every target score.',
+                'does': ('One Jev scoring pass over the stored flat range descriptors, in bounded batches, '
+                         'with one question for every target score. Parent topics are not selected separately.'),
                 'outputs': {'section_id__target': 'noul score for each requested target'},
                 'guarantee': 'Scores are retrieval signals only; they do not determine financial correctness.',
                 'request': {'kind': 'illustrative request built with current configuration',
@@ -113,7 +116,9 @@ class SectionScoringService:
             },
             'select': {
                 'accepts': {'section_id': {'target': 'noul score'}},
-                'does': 'Applies the deterministic coverage and uncertainty retention policy in source order.',
+                'does': ('Applies deterministic thresholds, target coverage and count limits: prioritize uncovered '
+                         'targets, then score, smaller range and source order. Only selected sections reach '
+                         'Chunks; uncertain candidates remain inspectable.'),
                 'outputs': {'selected': 'section ids retained for chunking',
                             'uncertain': 'bounded inspectable candidate section ids',
                             'skipped': 'section ids excluded by score or selection bounds'},

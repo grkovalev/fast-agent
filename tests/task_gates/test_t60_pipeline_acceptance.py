@@ -57,7 +57,7 @@ def test_shared_prompt_questions_and_discovery_vocabulary(tmp_path, monkeypatch)
     with TestClient(create_app(settings)) as client:
         page = client.get('/v2/runs/t60-builders/pipeline')
         selected = {stage: client.get(f'/v2/runs/t60-builders/pipeline?stage={stage}')
-                    for stage in ('section_score', 'chunk_score', 'findings')}
+                    for stage in ('source', 'outline', 'section_score', 'chunk_score', 'findings')}
 
     assert page.status_code == 200
     assert prompt_marker in page.text
@@ -100,3 +100,33 @@ def test_shared_prompt_questions_and_discovery_vocabulary(tmp_path, monkeypatch)
     assert 'No XBRL, Company Facts, or evaluation values are supplied' in selected['chunk_score'].text
     for target in TARGETS:
         assert target in page.text
+
+    # T66: explanations are visible before station selection and agree with
+    # selected-stage copy. Shared Evidence still describes complete chunk text.
+    source, = document.xpath('//*[@data-source-card]')
+    assert 'primary supported annual filing HTML (10-K)' in source.text_content()
+    for kind in ('headings', 'paragraphs', 'list items', 'captions', 'table rows'):
+        assert kind in source.text_content()
+    assert 'retaining visible text inside Inline XBRL wrappers' in source.text_content()
+    assert 'additional visible text outside those numbered lines' in source.text_content()
+    outline, = document.xpath('//*[@data-outline-card]')
+    example, = outline.xpath('.//*[@class="outline-navigation-example"]')
+    assert 'Illustrative navigation example, not saved run data' in example.text_content()
+    assert 'Financial performance → Earnings per share → lines 120–149' in example.text_content()
+    assert not example.xpath('.//details | .//button | .//script | .//*[@hidden]')
+    assert 'not an independently selected parent object' in example.text_content()
+    assert 'Proposed end lines' in outline.text_content()
+    assert 'each saved range' in outline.text_content().lower()
+    sections, = document.xpath('//*[@data-sections-card]')
+    assert 'One Jev scoring pass' in sections.text_content()
+    assert 'First 600 characters · source line count · ticker and filing ID' in sections.text_content()
+    assert 'does not contain full-section text' in sections.text_content()
+    assert 'parent topics are not scored as a separate selection level' in sections.text_content()
+    assert 'Only this set continues downstream' in sections.text_content()
+    evidence, = document.xpath('//*[@data-evidence-card]')
+    assert 'Jev ranks exact visible chunk text' in evidence.text_content()
+    assert 'First 600 characters' not in evidence.text_content()
+    assert 'additional visible text outside those lines' in selected['source'].text
+    assert 'not source text or independently selected parent objects' in selected['outline'].text
+    assert 'first 600 characters of canonical section text' in selected['section_score'].text
+    assert 'uncertain sections remain inspectable without continuing downstream' in selected['section_score'].text

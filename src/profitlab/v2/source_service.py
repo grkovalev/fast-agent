@@ -26,15 +26,18 @@ class V2SourceService:
             'request': {
                 'accepts': 'Selected ticker and annual filing identity.',
                 'does': ('V2SourceService.acquire uses DiscoveryService and SECClient to locate '
-                         'and request the primary annual filing.'),
+                         'and request the primary supported annual filing HTML (10-K).'),
                 'outputs': received,
                 'guarantee': 'The document identity is retained before downstream transformation.',
             },
             'convert': {
                 'accepts': received,
                 'does': ('canonicalize_html converts filing HTML to CanonicalDocument lines, '
-                         'removing hidden and Inline XBRL-only content and metadata.'),
-                'outputs': 'Sanitized visible lines.',
+                         'removing hidden content and XBRL-only metadata while retaining visible text '
+                         'inside Inline XBRL wrappers. Selected headings, paragraphs, list items, '
+                         'captions, and table rows supply numbered lines.'),
+                'outputs': ('Numbered canonical lines and sanitized HTML, which may retain '
+                            'additional visible text outside those lines.'),
                 'guarantee': 'No source text is invented or supplied by hidden metadata.',
             },
             'store': {

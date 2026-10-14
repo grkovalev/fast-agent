@@ -22,7 +22,7 @@ were not supplied. T61–T62 broader manual visual reviews remain pending.
 | T63 | Fact source lines, quotes, and links in evaluation cards and Facts inspection | T62 | DONE |
 | T64 | Real-filing acceptance of fact source debugging | T63 | DONE |
 | T65 | Shared discovery purpose, target vocabulary, and README explanation | Existing discovery stages | DONE |
-| T66 | Clear Source, Outline, and section-selection explanations | T65 | TODO |
+| T66 | Clear Source, Outline, and section-selection explanations | T65 | DONE |
 | T67 | Clear chunk overlap and evidence-retention explanations | T66 | TODO |
 | T68 | Clear extraction cardinality, validation, and finding classification | T67 | TODO |
 
@@ -109,7 +109,7 @@ and the three types in Findings. Record any stage wording deferred to T66–T68.
 
 ## T66 — Clarify Source, Outline, and section selection
 
-**Status:** TODO. **Dependency:** T65.
+**Status:** DONE. **Dependency:** T65.
 
 **Visible result:** the reader can follow primary HTML into a line-addressed topic
 map and understand exactly what Jev sees during the single section-selection pass.

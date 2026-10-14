@@ -49,3 +49,6 @@ def test_overlapping_windows_carry_validated_context_then_partition_once(tmp_pat
     assert inspection['window']['outputs']['continuation_context_limit'] == service.continuation_limit
     assert 'final_outline_section_example' in inspection['reconcile']['outputs']
     assert 'outline_sections' not in inspection['reconcile']['outputs']
+
+    assert 'Each final range ends before the next boundary' in inspection['reconcile']['does']
+    assert 'Parent topics are navigation hints on flat stored ranges' in inspection['reconcile']['does']

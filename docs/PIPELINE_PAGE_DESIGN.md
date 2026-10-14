@@ -87,6 +87,31 @@ runs concurrently with Findings.
 | Facts | Findings-complete gate plus filing identity → independent Company Facts → configured concept mapping and value checkpoint → bounded SEC presentation enrichment and retained-HTML source verification → normalized fact rows with separate provenance diagnostics. | Company Facts supplies comparator values; optional presentation provenance cannot change them or block evaluation. |
 | Evaluate | Findings and Facts enter a paired comparison → deterministic outcomes; eligible mismatches may visit optional bounded scale/unit verification before recording. | Exact and ineligible outcomes bypass the model; verification does not repair discovery. |
 
+Source acquisition means SEC discovery of the primary supported annual filing HTML
+(10-K). Conversion removes hidden content and XBRL-only metadata while retaining
+visible text inside Inline XBRL wrappers. Numbered lines come from selected HTML
+headings, paragraphs, list items, captions, and table rows. Sanitized HTML may retain
+additional visible text outside that numbered representation; do not promise
+complete visible-text coverage.
+
+Outline parent topics are navigation hints on flat stored ranges, not independently
+selected parent objects or an enforced nested hierarchy. Show a bounded parent topic
+→ child topic → source range example labeled as illustrative, separate from saved
+run data. After overlapping-window validation and continuation, non-continuing
+validated starts set final boundaries: each range ends before the next boundary,
+and the last extends to the document end. Proposed end lines constrain validation,
+not final section ends. Distinguish this complete canonical-line partition from
+repeated input windows and preserve warned unlabeled coverage.
+
+Sections scores one descriptor per stored range in one Jev scoring pass, which may
+use multiple bounded batches. Its payload contains the generated topic, exact
+heading when present, first 600 characters of canonical section text, source line
+count, and filing identity (ticker and filing ID), plus the section ID. Full section
+text and neighboring sections are not concatenated. Parent topics do not create a
+second selection pass. Deterministic threshold, target-coverage and count policy
+owns selection; only selected ranges reach Chunks, while uncertain ranges remain
+inspectable. Preserve the shared Evidence composition's exact-chunk-text semantics.
+
 Keep the stage compositions faithful to runtime branches. For example, Outline
 validates and carries accepted proposals between windows, then deduplicates and
 partitions the entire document *after* the window loop. Its return arrow goes to

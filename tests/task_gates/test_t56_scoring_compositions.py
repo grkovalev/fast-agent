@@ -31,7 +31,7 @@ def test_scoring_policies_preserve_three_distinct_decisions(tmp_path):
                         chunk_score_max_retained=1, chunk_score_max_uncertain=1)
     ref = CanonicalDocumentRef(document_id='doc', filing_id='filing',
                                source_hash='0' * 64, line_count=3)
-    lines = [CanonicalLine(line_number=n, text=f'Visible {n}', element_type='paragraph',
+    lines = [CanonicalLine(line_number=n, text=f'Visible {n}' + ' x' * 400, element_type='paragraph',
                            html_anchor=f'line-{n}', dom_reference=f'/p[{n}]') for n in range(1, 4)]
     document = CanonicalDocument(ref=ref, lines=lines)
     ranges = [SourceRange(document_id='doc', source_hash=ref.source_hash,
@@ -40,6 +40,15 @@ def test_scoring_policies_preserve_three_distinct_decisions(tmp_path):
                                primary_range=ranges[n - 1]) for n in range(1, 4)]
     chunks = [TextChunk(chunk_id=f'c{n}', section_id=f's{n}', core_range=ranges[n - 1],
                         request_size_estimate=3) for n in range(1, 4)]
+    service = SectionScoringService(settings, None)
+    descriptor = service._context(sections[0], document, {'ticker': 'MAP', 'filing_id': 'filing'})
+    assert descriptor.short_exact_preview == document.slice(ranges[0])[:600]
+    assert len(descriptor.short_exact_preview) == 600
+    assert descriptor.size == 1
+    assert set(descriptor.model_dump()) == {
+        'section_id', 'generated_topic', 'exact_visible_heading', 'size',
+        'short_exact_preview', 'filing_metadata'}
+    assert 'One Jev scoring pass' in service.inspection_view(settings)['score']['does']
     values = (.95, .60, .10)
     section_scores = SectionScoringService._policy(
         [_score(f's{n}', value) for n, value in enumerate(values, 1)], sections, settings)

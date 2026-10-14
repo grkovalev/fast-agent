@@ -6,7 +6,8 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: none. **T65 DONE**, shared discovery purpose and vocabulary.
+- Current task: none. **T66 DONE**, Source/Outline/Sections explanation.
+  **T65 DONE**, shared discovery purpose and vocabulary.
   The task register defines T65–T68 as sequential explanation-only tasks.
   **T64 DONE**, two-company real-filing source acceptance;
   the user confirmed that cell, year and scale are all visible on 2026-10-14.
@@ -20,10 +21,10 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next numbered task after T65: **T66**, in a separate fresh-context agent. T61–T62 broader visual reviews
+- Next numbered task after T66: **T67**, in a separate fresh-context agent. T61–T62 broader visual reviews
   remain open; T64's source-detail visibility is user-confirmed.
-- Latest automated checks: T65 focused render/inspection and hierarchy checks passed
-  (3 tests in 0.95s); repository lint and diff checks passed.
+- Latest automated checks: T66 focused source/outline/scoring, inspection, render
+  and hierarchy checks passed (17 tests in 1.67s); repository lint and diff checks passed.
   Earlier T64 plus T61–T63 gates passed (11 tests in 12.02s);
   final pre-commit full suite passed (61 tests in 15.39s). After adding explicit visible-caption
   checks, T64 passed again (2 tests in 6.81s). Repository lint passed.
@@ -43,27 +44,94 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and the [task register](PIPELINE_IMPROVEMENT_TASKS.md).
-**T65 is DONE. T66 is the next numbered task**, assigned to a different fresh-context
-agent when requested. Read the T65–T68 execution contract and T66 in the task register;
-do not automatically start it. T65 added shared discovery-purpose vocabulary and
-the user-requested **What Findings delivers** explanation with a labeled example;
-Source/Outline/Sections explanations remain T66, Chunks/Evidence T67, Findings T68.
-Keep discovery runtime, provider requests/questions, selection, budgets, contracts,
-Facts and Evaluate unchanged throughout these explanation tasks.
+**T66 is DONE. T67 is the next numbered task**, assigned to a different fresh-context
+agent when requested. Read the T65–T68 execution contract and T67 in the task register;
+do not automatically start it. T65 added shared discovery purpose and **What Findings
+delivers**; T66 clarified Source acquisition/canonical limits, flat Outline navigation
+and final partition, and Sections descriptor scoring. Chunks/Evidence remains T67;
+Findings remains T68. Keep discovery runtime, provider requests/questions, selection,
+budgets, contracts, Facts and Evaluate unchanged throughout these explanation tasks.
 
-T64's two-company automated acceptance and user-confirmed cell/year/scale visibility
-remain valid. T61–T62 broader manual review remains pending; preserve the Apple
-caption-preview limitation below. Keep presentation and exact source mapping as
-separate saved diagnostics, never discovery inputs. No user data was changed.
-Do not treat older historical “Next task” entries below as active instructions.
+T64's two-company acceptance and user-confirmed cell/year/scale visibility remain
+valid. T61–T62 broader manual review remains pending; preserve the Apple caption-preview
+limitation below. Keep presentation and exact source mapping as separate saved
+diagnostics, never discovery inputs. No user data was changed. Older historical
+“Next task” entries below are not active instructions.
 
-Context-reset handoff prepared on 2026-10-14 at the user's request. Commit scope:
-T65 introduction, result expectations, README/design brief, focused render checks,
-and task/progress documentation. Focused checks passed (3 tests in 0.82s), Ruff and
-diff checks passed; no runtime, provider, storage or dependency changes. Manual
-visual/accessibility review remains pending with steps below. On the user's next
-request, implement T66 only in a new fresh-context agent; do not redo T65 or expand
-into T67/T68. Preserve the existing Findings result-expectation introduction.
+Context-cleaning handoff prepared at the user's request after T66. This commit
+contains the Source/Outline/Sections explanatory copy, focused checks, and design/
+task documentation. Validation remains 17 focused tests passed in 1.67s, Ruff and
+diff checks passed. Manual visual/accessibility review remains pending with steps
+below. On the next request, implement **T67 only** in a separate fresh-context
+agent, following the task register's execution contract. Preserve T65/T66 wording;
+do not expand into T68 or change discovery runtime or Facts/Evaluate.
+
+## T66 — Source, Outline and section-selection explanation — completed, 2026-10-14
+
+- Source now names SEC discovery of primary supported annual filing HTML (10-K),
+  removal of hidden content and XBRL-only metadata, and retention of visible text
+  inside Inline XBRL wrappers. The five numbered element types are visible: headings,
+  paragraphs, list items, captions, table rows. The overview, station inspector and
+  selected stage distinguish numbered canonical lines from additional visible text
+  retained only in sanitized HTML.
+- Outline preserves the overlapping-window/validation/continuation/final-partition
+  diagram. An always-visible, explicitly illustrative **Financial performance →
+  Earnings per share → lines 120–149** example explains parent hints on flat stored
+  ranges. Validated non-continuing starts set boundaries; each final range ends
+  before the next boundary and the last reaches document end. Proposed ends validate
+  window proposals but do not set final ends. Exact title/quote checks, continuation
+  and warned unlabeled coverage remain. The selected table no longer implies an
+  enforced nested hierarchy or independently selected parent objects.
+- Sections names one scoring pass over stored range descriptors, possibly in multiple
+  bounded batches: generated topic, exact heading when present, first 600 characters,
+  source line count, ticker and filing ID (plus section ID in the runtime schema).
+  It explains deterministic thresholds, target coverage and count limits separately
+  from Jev scores. Only selected sections reach Chunks; uncertain remains inspectable.
+  Shared Evidence markup still explains exact visible chunk text and its own retention
+  policy; Facts/Evaluate are unchanged. The durable design brief records these decisions.
+- Runtime audit: read `source_service.py`, SEC `service.py`, `canonical.py`,
+  `outline_service.py`, `section_scoring.py` and the source/outline/section/chunk path
+  in `pipeline.py`. Changes in service modules are inspection prose only. Requests,
+  prompts/questions, selection, budgets, contracts, state, storage, canonical numbering
+  and output behavior are unchanged. No new backend gap was identified; canonical
+  visible-text limitations are now explicit rather than addressed by runtime changes.
+- Checks inspected: T34 source contract; T50 runtime schema and bounded inspection;
+  T51 request provenance; T52 inspector; T53 route hierarchy; T55 continuation/partition;
+  T56 scoring; T60 assembled render. Retained their distinct invariants and extended
+  existing fixtures rather than adding another task gate. No obsolete tests removed.
+  T34's controlled HTML now checks all five element types, hidden/XBRL removal,
+  preserved wrapper text and unnumbered visible content. T56 checks the actual 600-char
+  descriptor builder. T60 checks visible and selected-stage copy, sample provenance,
+  and unchanged Evidence semantics with HTTPX SEC/provider sends blocked.
+- Baseline: `uv run pytest -q tests/task_gates/test_t50_contract_inspection.py
+  tests/task_gates/test_t55_outline.py tests/task_gates/test_t60_pipeline_acceptance.py`
+  — 8 passed in 1.05s. Final: `uv run pytest -q tests/task_gates/test_t34.py
+  tests/task_gates/test_t50_contract_inspection.py tests/task_gates/test_t51_request_inspection.py
+  tests/task_gates/test_t52_inspector.py tests/task_gates/test_t53_pipeline_hierarchy.py
+  tests/task_gates/test_t55_outline.py tests/task_gates/test_t56_scoring_compositions.py
+  tests/task_gates/test_t60_pipeline_acceptance.py` — 17 passed in 1.67s.
+  `uv run ruff check .` and `git diff --check` passed. Focused tests and Ruff needed
+  existing uv-cache access after one sandbox rejection. Existing Starlette/AnyIO
+  deprecation warning remains. Isolated temporary test storage only; no full suite
+  because no shared runtime, storage, provider or orchestration behavior changed.
+- Live/manual status: no external SEC/provider calls, no browser automation and no
+  manual visual/accessibility review. These are explanation/contract checks, not
+  new real-filing or live-provider acceptance.
+- Manual verification in the already-running UI: open
+  `http://127.0.0.1:8000/v2/runs/<run_id>/pipeline`. Read Source before selecting a
+  station: identify all five canonical types and the sanitized-HTML coverage caveat;
+  open **Convert** then the numbered source link and its sanitized HTML anchor. Trace
+  the Outline window loop and final exit; read the illustrative parent/child/range
+  example and confirm it is separate from saved data. Select **Carry and finalize**,
+  then the Outline stage link: inspect grouped flat ranges and their source links.
+  Select Sections **Describe**, **Score** and **Select**: inspect the illustrative
+  request for the short preview and filing identity, and identify the deterministic
+  policy and selected/uncertain/skipped branches. Open the selected Sections page
+  for saved reasons; confirm only selected continues to Chunks. Confirm Evidence
+  still describes exact chunk text. Repeat at wide/narrow widths, keyboard-only,
+  JavaScript disabled and 200% zoom; source links and explanatory reading order
+  should remain usable without opening station inspectors.
+- Next: **T67 only**, a separate fresh-context agent for Chunks/Evidence wording.
 
 ## T65 — Shared discovery purpose and vocabulary — completed, 2026-10-14
 

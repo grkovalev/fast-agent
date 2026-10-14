@@ -186,7 +186,10 @@ Propose navigational topics and ranges only within this window.\n\nPrior context
                 'does': ('During each window, append validated proposals and carry the most recent '
                          'accepted proposals into the next request as navigation metadata. After the '
                          'last window, deduplicate matching range/title proposals, use non-continuing '
-                         'starts as boundaries, then partition every canonical line exactly once.'),
+                         'starts as boundaries. Each final range ends before the next boundary; the last '
+                         'extends to the document end, covering every canonical line exactly once. '
+                         'Parent topics are navigation hints on flat stored ranges, not independently '
+                         'selected parent objects or an enforced nested hierarchy.'),
                 'outputs': {
                     'final_outline_section_example': section.model_dump(mode='json'),
                     'continuation_context': [continuation.model_dump()],

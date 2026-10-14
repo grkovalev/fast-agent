@@ -40,9 +40,19 @@ def test_home_offers_only_live_sec_ticker_workflow_and_explains_missing_contact(
 
 def test_canonical_source_contract_remains_independent_of_source_mode():
     document, visible = canonicalize_html(
-        b'<html><body><h1>Results</h1><p>Net income was $10.</p></body></html>',
+        b'<html><body><div>Additional visible caption</div><h1>Results</h1>'
+        b'<p>Net income was <ix:nonfraction contextRef="x">$10</ix:nonfraction>.</p>'
+        b'<ul><li>List entry</li></ul><table><caption>Table caption</caption>'
+        b'<tr><td>Row</td><td>12</td></tr></table><ix:hidden>Hidden value</ix:hidden></body></html>',
         document_id='document-real-contract', filing_id='filing-real-contract')
-    assert document.ref.line_count == 2
+    assert document.ref.line_count == 5
+    assert [line.element_type for line in document.lines] == [
+        'heading', 'paragraph', 'list_item', 'caption', 'table_row']
+    assert 'Additional visible caption' not in '\n'.join(line.text for line in document.lines)
+    assert b'Additional visible caption' in visible
+    assert b'Hidden value' not in visible
+    assert b'contextRef' not in visible
+    assert b'ix:nonfraction' not in visible
     assert document.slice(SourceRange(document_id=document.ref.document_id,
                                       source_hash=document.ref.source_hash,
                                       start_line=1, end_line=2)) == 'Results\nNet income was $10.'
