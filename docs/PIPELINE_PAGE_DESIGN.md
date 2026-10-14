@@ -357,6 +357,19 @@ the main route with JavaScript disabled and at 200% zoom.
 
 ## Relationship to earlier plans
 
+The agreed next Findings direction is recorded in
+[FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md),
+T69–T77. Its seven stations are Candidates, Assign lines, Attach context,
+Rank/select, Convert, Validate and Seal. It keeps this page's editorial,
+runtime-class JSON inspection, source ownership and independent Facts/Evaluate
+patterns. This is planned behavior, not the current runtime: the Findings
+description above remains accurate until T76 activates backend and UI together.
+At activation, replace the old assembly/extraction/type-classification/whole-set
+repair paragraphs with the implemented concept/bundle and accepted-preserving
+repair relationships. Prepared new contracts must not be presented as saved or
+active results before that switch. No old-database UI reconstruction is required
+for the fresh-only replacement.
+
 This brief supersedes the equal-size desktop cards, same-card anatomy, permanently
 adjacent inspector rail, and literal four-station `Window → Propose → Validate →
 Reconcile → Window` interpretation in the earlier

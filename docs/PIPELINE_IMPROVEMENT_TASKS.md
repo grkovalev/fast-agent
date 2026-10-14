@@ -1,5 +1,13 @@
 # Pipeline UI work
 
+**Next planned runtime/UI work: T69–T77**, in
+[FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
+These replace Findings discovery with JEV concept/line/context/bundle decisions
+and retain the LLM only for selected-bundle conversion. Each task is assigned to a
+different fresh-context agent, sequentially. T76 activates the replacement runtime
+and its seven-station explanation together. The T65–T68 explanation-only scope
+below is completed history and does not constrain this new runtime work.
+
 T48–T59 are DONE; their implementation scopes are archived in
 [PIPELINE_UI_COMPLETED_TASKS.md](PIPELINE_UI_COMPLETED_TASKS.md). The active
 [design brief](PIPELINE_PAGE_DESIGN.md) owns durable UI decisions, and

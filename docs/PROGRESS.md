@@ -6,7 +6,9 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: none. **T68 DONE**, Findings extraction/publication explanation.
+- Current implementation task: none. **T69–T77 PLANNED**, JEV-led Findings;
+  see [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
+  Planning is complete; implementation has not started. **T68 DONE**, Findings extraction/publication explanation.
   **T67 DONE**, Chunks/Evidence explanation.
   **T66 DONE**, Source/Outline/Sections explanation.
   **T65 DONE**, shared discovery purpose and vocabulary.
@@ -23,7 +25,9 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next: completed T65–T68 discovery explanation handoff; no automatic task. T61–T62 broader visual reviews
+- Next when implementation is requested: T69 baseline and replacement contracts,
+  followed by T70–T77 sequentially in different fresh-context agents. No automatic
+  implementation starts from this planning change. T61–T62 broader visual reviews
   remain open; T64's source-detail visibility is user-confirmed.
 - Latest automated checks: T68 final focused discovery/Findings checks passed
   (22 tests in 2.01s); repository lint and diff checks passed.
@@ -49,23 +53,62 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and the [task register](PIPELINE_IMPROVEMENT_TASKS.md).
-**T65–T68 are DONE. No automatic next task.** T68 completed the Findings
+**T65–T68 are DONE; T69–T77 are PLANNED. No automatic implementation.** Read the
+[Findings plan](FINDINGS_JEV_IMPLEMENTATION_PLAN.md) and selected task before
+starting T69. T68 completed the Findings
 cardinality, request fallback, validation, replacement repair, deduplication and
 classification explanation in a separate fresh-context agent. Runtime, requests,
 policies, budgets, contracts, storage and Facts/Evaluate are unchanged. Detailed
 limits and manual review steps are below. T61–T62 broader visual reviews and the
 Apple caption-preview limitation remain pending/recorded; historical “Next task”
-entries below are not active instructions.
+entries below are not active instructions. The new plan supersedes the former
+statement that no T69 scope exists.
 
-Context-cleaning handoff prepared at the user's request after T68. This change
-contains the Findings explanatory composition, selected-stage/inspector copy,
-focused checks and design/task documentation. Validation: 22 focused tests passed
-in 2.01s; Ruff and diff checks passed. Manual visual/accessibility review remains
-pending with steps below. Preserve the documented backend gaps as separate work.
-On a later request to proceed, read the current task register first. No T69 or
-other next implementation scope is currently defined; establish the next bounded
-task with the user rather than treating historical next-task entries or recorded
-limitations as authorization to change runtime behavior.
+Context-cleaning handoff prepared after JEV-led Findings planning. Working branch:
+`findings-jev-discovery`, created from `pipeline-discovery-ui-clarity`. This branch
+contains the T69–T77 plan and linked execution/UI documentation; runtime remains
+unchanged. Documentation links and diff checks passed; runtime tests were not
+needed for the planning-only changes. No database reset or provider calls have
+been performed. Preserve the documented backend gaps and pending earlier visual
+reviews as separate work.
+On a later request to proceed, read the current task register and T69–T77 plan
+first; start only the requested task and hand it off before another agent starts
+the next dependency. The database reset is authorized for implementation, after
+bounded baseline capture. No database data has been erased. Start implementation
+only on a subsequent request, with T69 in a fresh agent; do not launch all tasks
+concurrently or rely on the previous conversation for requirements.
+
+Suggested next-session instruction:
+
+> On branch `findings-jev-discovery`, implement only T69 from
+> `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md`. Read AGENTS.md, the execution policy
+> in docs/TASKS.md, docs/PIPELINE_PAGE_DESIGN.md and docs/PROGRESS.md first. Capture
+> available baseline evidence before any later database reset. Record actual
+> checks, limitations and the next-task handoff, then stop. T70 starts in a
+> different fresh-context agent after T69 is complete.
+
+## T69–T77 — JEV-led Findings planning — 2026-10-14
+
+- Recorded the agreed concept -> chunk candidates -> multi-concept source-line
+  assignment -> context links -> ranked bundles -> selected-bundle LLM conversion
+  -> validation/publication architecture in FINDINGS_JEV_IMPLEMENTATION_PLAN.md.
+- Defined typed domain/request/result contracts, candidate ownership, bounded
+  context pools, ranking/eligibility, accepted-preserving repair, fresh storage,
+  resume/cache/version identities, accounting, and independent Facts boundaries.
+- Split implementation into nine dependency-ordered tasks for different
+  fresh-context agents. T69–T75 prepare tested components; T76 switches runtime
+  and the full matching UI together and deletes the obsolete flow; T77 measures
+  real-data quality and speed. New schemas/examples use actual runtime classes
+  and request builders; losing bundles and source/context provenance stay visible.
+- User authorizes dropping the current database for this separate-branch work;
+  no v3, migrations or backward compatibility. Preserve a bounded baseline before
+  resetting only the resolved application V2 data namespace with server stopped.
+- Documentation only. No runtime change, database deletion, branch creation,
+  provider calls or manual UI verification performed. Existing Findings UI still
+  describes current behavior; its planned replacement is explicitly labeled.
+- Validation: documentation links/task consistency reviewed; `git diff --check`
+  passed. Runtime tests are unnecessary for this
+  documentation-only change. Next: T69 when implementation is requested.
 
 ## T68 — Findings publication explanation — completed, 2026-10-14
 

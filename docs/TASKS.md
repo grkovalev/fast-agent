@@ -22,6 +22,14 @@ They explain current behavior without changing runtime or Facts/Evaluate.
 
 Commands and checks below are acceptance contracts to implement, not claims that they already exist.
 
+The next runtime improvement is planned in
+[JEV-led Findings, T69–T77](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
+Different fresh-context agents execute its tasks sequentially when implementation
+is requested. It replaces Findings in place with concept candidates, JEV line
+assignment/context assembly/ranking, then selected-evidence LLM conversion. UI and
+runtime activation are one task; the current local V2 database may be discarded.
+Planning does not start implementation, create a v3 or require compatibility.
+
 Completed pipeline UI scopes T48–T59 are in
 [PIPELINE_UI_COMPLETED_TASKS.md](PIPELINE_UI_COMPLETED_TASKS.md). The current
 [pipeline page design brief](PIPELINE_PAGE_DESIGN.md) owns UI decisions; the
