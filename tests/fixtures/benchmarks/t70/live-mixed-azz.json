@@ -1,0 +1,383 @@
+{
+  "captured_at": "2026-10-14T21:46:18.140696+00:00",
+  "provenance": {
+    "kind": "real live mixed JEV API response",
+    "source_fixture": "tests/fixtures/benchmarks/t69/v2-6eca22455a84.json.gz",
+    "source_fixture_sha256": "7596a538bf783e5d52fea1616806b6ac51fc69a3c41888118d37a96f1d770a27",
+    "source_range": {
+      "schema_version": 2,
+      "document_id": "document-000000894726000068",
+      "source_hash": "94bb9ef6fab4696939fe2bd5e509b8bb0d2dee3bc9326920536467603f749eb2",
+      "start_line": 291,
+      "end_line": 291,
+      "start_character": 0,
+      "end_character": 64
+    },
+    "official_api": "https://docs.typesafe.ai/api",
+    "official_models": "https://docs.typesafe.ai/models",
+    "bound_seconds": 60
+  },
+  "elapsed_seconds": 0.24752520793117583,
+  "execution": {
+    "status": "completed",
+    "accounting": {
+      "schema_version": 2,
+      "planned": 1,
+      "dispatched": 1,
+      "completed": 1,
+      "cached": 0,
+      "failed": 0,
+      "omitted": 0,
+      "usage": {
+        "input_tokens": 491,
+        "output_tokens": 41
+      },
+      "elapsed_seconds": 0.2251608750084415,
+      "models": [
+        "jev-1.13.0"
+      ]
+    },
+    "completed": [
+      {
+        "batch": {
+          "batch_id": "fb061a308c5a6ee52ba719f540612f0bc46d4b7cebcf347aed11f3d20680952e",
+          "request": {
+            "state": {
+              "items": {
+                "item_0": {
+                  "source": "Weighted average shares outstanding—Diluted 30,211 29,344 25,209"
+                }
+              }
+            },
+            "model": "jev-1.13.0",
+            "questions": {
+              "item_0_q0": {
+                "type": "noul",
+                "instructions": {
+                  "scope": "Use only `state.items.item_0` as the state for `question` below. All state references within that question refer to this item.",
+                  "question": {
+                    "question": "Does `state.source` report diluted weighted average shares?"
+                  }
+                },
+                "criteria": null
+              },
+              "item_0_q1": {
+                "type": "score",
+                "instructions": {
+                  "scope": "Use only `state.items.item_0` as the state for `question` below. All state references within that question refer to this item.",
+                  "question": "Rate the directness of `state.source` for diluted weighted average shares."
+                },
+                "criteria": [
+                  "Unrelated",
+                  "Relevant but unresolved",
+                  "Direct reported value, some context unresolved",
+                  "Direct reported value with clear period, unit and scope"
+                ]
+              }
+            }
+          },
+          "routes": {
+            "item_0_q0": [
+              "azz-line-291",
+              "membership"
+            ],
+            "item_0_q1": [
+              "azz-line-291",
+              "quality"
+            ]
+          }
+        },
+        "response": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "item_0_q0": {
+              "type": "noul",
+              "noul": 0.97
+            },
+            "item_0_q1": {
+              "type": "score",
+              "score": 2.13,
+              "legend": {
+                "0": "Unrelated",
+                "1": "Relevant but unresolved",
+                "2": "Direct reported value, some context unresolved",
+                "3": "Direct reported value with clear period, unit and scope"
+              },
+              "probabilities": {
+                "0": 0.0,
+                "1": 0.1,
+                "2": 0.67,
+                "3": 0.23
+              },
+              "confidence": 0.67
+            }
+          },
+          "usage": {
+            "input_tokens": 491,
+            "output_tokens": 41
+          }
+        },
+        "cached": false,
+        "elapsed_seconds": 0.22499487502500415
+      }
+    ],
+    "omissions": [],
+    "error": null
+  },
+  "traces": [
+    {
+      "kind": "http_response",
+      "span_id": "http-b407221dccd446a093db28aeb5285dbb",
+      "call_id": "http-b407221dccd446a093db28aeb5285dbb",
+      "provider": "jev",
+      "stage": "findings",
+      "attempt": 1,
+      "summary": "HTTP 200",
+      "result": {
+        "status": 200,
+        "body": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "item_0_q0": {
+              "type": "noul",
+              "noul": 0.97
+            },
+            "item_0_q1": {
+              "type": "score",
+              "score": 2.13,
+              "confidence": 0.67,
+              "legend": {
+                "0": "Unrelated",
+                "1": "Relevant but unresolved",
+                "2": "Direct reported value, some context unresolved",
+                "3": "Direct reported value with clear period, unit and scope"
+              },
+              "probabilities": {
+                "0": 0.0,
+                "1": 0.1,
+                "2": 0.67,
+                "3": 0.23
+              }
+            }
+          },
+          "usage": {
+            "input_tokens": 491,
+            "output_tokens": 41
+          }
+        },
+        "headers": {
+          "server": "fasthttp",
+          "date": "Wed, 14 Oct 2026 21:46:17 GMT",
+          "content-type": "application/json",
+          "content-length": "406",
+          "x-frame-options": "DENY",
+          "x-content-type-options": "nosniff",
+          "referrer-policy": "strict-origin-when-cross-origin",
+          "content-security-policy": "frame-ancestors 'none'",
+          "permissions-policy": "camera=(), microphone=(), geolocation=()",
+          "access-control-allow-origin": "",
+          "access-control-allow-methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD",
+          "access-control-allow-headers": "Content-Type, Authorization, X-Requested-With, X-Stainless-Timeout, X-Api-Key, X-OpenAI-Agents-SDK, X-Operation-ID, X-Bifrost-Setup-Token",
+          "access-control-max-age": "86400",
+          "vary": "Origin",
+          "x-bifrost-request-id": "67f4c861-c158-457c-9dbe-f49596663283",
+          "x-request-id": "67f4c861-c158-457c-9dbe-f49596663283",
+          "x-bifrost-trace-id": "38a78e6935714ced87a0aa2339ac7cd8",
+          "cf-cache-status": "DYNAMIC",
+          "cf-ray": "a4a9c6a66dadc118-AMS",
+          "x-typesafe-request-id": "req_01a13c6164527335b98d8b861e40e62f",
+          "x-bifrost-provider": "typesafe",
+          "x-bifrost-original-model": "jev-1.13.0",
+          "x-bifrost-resolved-model": "jev-1.13.0",
+          "x-bifrost-request-type": "decisions",
+          "x-bifrost-routing-info-provider": "typesafe",
+          "x-bifrost-routing-info-model": "jev-1.13.0",
+          "x-bifrost-routing-info-key": "typesafe-primary",
+          "x-bifrost-routing-info-requested-provider": "typesafe",
+          "x-bifrost-routing-info-requested-model": "jev-1.13.0",
+          "x-bifrost-upstream-latency-ms": "205.340"
+        }
+      }
+    },
+    {
+      "name": "provider.http",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8080/typesafe/v1/systemone",
+        "body": {
+          "state": {
+            "items": {
+              "item_0": {
+                "source": "Weighted average shares outstanding—Diluted 30,211 29,344 25,209"
+              }
+            }
+          },
+          "model": "jev-1.13.0",
+          "questions": {
+            "item_0_q0": {
+              "type": "noul",
+              "instructions": {
+                "scope": "Use only `state.items.item_0` as the state for `question` below. All state references within that question refer to this item.",
+                "question": {
+                  "question": "Does `state.source` report diluted weighted average shares?"
+                }
+              }
+            },
+            "item_0_q1": {
+              "type": "score",
+              "instructions": {
+                "scope": "Use only `state.items.item_0` as the state for `question` below. All state references within that question refer to this item.",
+                "question": "Rate the directness of `state.source` for diluted weighted average shares."
+              },
+              "criteria": [
+                "Unrelated",
+                "Relevant but unresolved",
+                "Direct reported value, some context unresolved",
+                "Direct reported value with clear period, unit and scope"
+              ]
+            }
+          }
+        }
+      },
+      "result": {
+        "status": 200,
+        "body": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "item_0_q0": {
+              "type": "noul",
+              "noul": 0.97
+            },
+            "item_0_q1": {
+              "type": "score",
+              "score": 2.13,
+              "confidence": 0.67,
+              "legend": {
+                "0": "Unrelated",
+                "1": "Relevant but unresolved",
+                "2": "Direct reported value, some context unresolved",
+                "3": "Direct reported value with clear period, unit and scope"
+              },
+              "probabilities": {
+                "0": 0.0,
+                "1": 0.1,
+                "2": 0.67,
+                "3": 0.23
+              }
+            }
+          },
+          "usage": {
+            "input_tokens": 491,
+            "output_tokens": 41
+          }
+        },
+        "headers": {
+          "server": "fasthttp",
+          "date": "Wed, 14 Oct 2026 21:46:17 GMT",
+          "content-type": "application/json",
+          "content-length": "406",
+          "x-frame-options": "DENY",
+          "x-content-type-options": "nosniff",
+          "referrer-policy": "strict-origin-when-cross-origin",
+          "content-security-policy": "frame-ancestors 'none'",
+          "permissions-policy": "camera=(), microphone=(), geolocation=()",
+          "access-control-allow-origin": "",
+          "access-control-allow-methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD",
+          "access-control-allow-headers": "Content-Type, Authorization, X-Requested-With, X-Stainless-Timeout, X-Api-Key, X-OpenAI-Agents-SDK, X-Operation-ID, X-Bifrost-Setup-Token",
+          "access-control-max-age": "86400",
+          "vary": "Origin",
+          "x-bifrost-request-id": "67f4c861-c158-457c-9dbe-f49596663283",
+          "x-request-id": "67f4c861-c158-457c-9dbe-f49596663283",
+          "x-bifrost-trace-id": "38a78e6935714ced87a0aa2339ac7cd8",
+          "cf-cache-status": "DYNAMIC",
+          "cf-ray": "a4a9c6a66dadc118-AMS",
+          "x-typesafe-request-id": "req_01a13c6164527335b98d8b861e40e62f",
+          "x-bifrost-provider": "typesafe",
+          "x-bifrost-original-model": "jev-1.13.0",
+          "x-bifrost-resolved-model": "jev-1.13.0",
+          "x-bifrost-request-type": "decisions",
+          "x-bifrost-routing-info-provider": "typesafe",
+          "x-bifrost-routing-info-model": "jev-1.13.0",
+          "x-bifrost-routing-info-key": "typesafe-primary",
+          "x-bifrost-routing-info-requested-provider": "typesafe",
+          "x-bifrost-routing-info-requested-model": "jev-1.13.0",
+          "x-bifrost-upstream-latency-ms": "205.340"
+        }
+      },
+      "stage": "findings",
+      "provider": "jev",
+      "attempt": 1,
+      "call_id": "http-b407221dccd446a093db28aeb5285dbb",
+      "actor": "pipeline"
+    },
+    {
+      "name": "jev.evaluate",
+      "request": {
+        "state": {
+          "items": {
+            "item_0": {
+              "source": "Weighted average shares outstanding—Diluted 30,211 29,344 25,209"
+            }
+          }
+        },
+        "model": "jev-1.13.0",
+        "questions": {
+          "item_0_q0": {
+            "type": "noul",
+            "instructions": {
+              "scope": "Use only `state.items.item_0` as the state for `question` below. All state references within that question refer to this item.",
+              "question": {
+                "question": "Does `state.source` report diluted weighted average shares?"
+              }
+            }
+          },
+          "item_0_q1": {
+            "type": "score",
+            "instructions": {
+              "scope": "Use only `state.items.item_0` as the state for `question` below. All state references within that question refer to this item.",
+              "question": "Rate the directness of `state.source` for diluted weighted average shares."
+            },
+            "criteria": [
+              "Unrelated",
+              "Relevant but unresolved",
+              "Direct reported value, some context unresolved",
+              "Direct reported value with clear period, unit and scope"
+            ]
+          }
+        }
+      },
+      "result": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "item_0_q0": {
+            "type": "noul",
+            "noul": 0.97
+          },
+          "item_0_q1": {
+            "type": "score",
+            "score": 2.13,
+            "legend": {
+              "0": "Unrelated",
+              "1": "Relevant but unresolved",
+              "2": "Direct reported value, some context unresolved",
+              "3": "Direct reported value with clear period, unit and scope"
+            },
+            "probabilities": {
+              "0": 0.0,
+              "1": 0.1,
+              "2": 0.67,
+              "3": 0.23
+            },
+            "confidence": 0.67
+          }
+        },
+        "usage": {
+          "input_tokens": 491,
+          "output_tokens": 41
+        }
+      },
+      "provider": "jev",
+      "stage": "findings"
+    }
+  ]
+}

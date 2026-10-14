@@ -1,0 +1,40 @@
+{
+  "provenance": {
+    "kind": "real live HTTP 200 response rejected by initial overly strict rounding validation; retained from redacted transport diagnostics",
+    "captured_at": "2026-10-14T21:46:05Z",
+    "provider_request_id": "req_01a13c613569773d90db83759f7e1623",
+    "request_identity": "fb061a308c5a6ee52ba719f540612f0bc46d4b7cebcf347aed11f3d20680952e",
+    "source": "Same AZZ line 291 and packed request as live-mixed-azz.json",
+    "local_elapsed_seconds": null
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "item_0_q0": {
+        "type": "noul",
+        "noul": 0.98
+      },
+      "item_0_q1": {
+        "type": "score",
+        "score": 2.12,
+        "legend": {
+          "0": "Unrelated",
+          "1": "Relevant but unresolved",
+          "2": "Direct reported value, some context unresolved",
+          "3": "Direct reported value with clear period, unit and scope"
+        },
+        "probabilities": {
+          "0": 0.0,
+          "1": 0.08,
+          "2": 0.71,
+          "3": 0.21
+        },
+        "confidence": 0.71
+      }
+    },
+    "usage": {
+      "input_tokens": 491,
+      "output_tokens": 41
+    }
+  }
+}

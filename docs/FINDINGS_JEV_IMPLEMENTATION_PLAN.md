@@ -1,6 +1,6 @@
 # JEV-led Findings implementation plan
 
-Status: T69 DONE; T70–T77 PLANNED, 2026-10-14. No data reset performed.
+Status: T69–T70 DONE; T71–T77 PLANNED, 2026-10-14. No data reset performed.
 This replaces the Findings internals in the existing eight-stage pipeline. Keep
 the `v2` package, repository, database filename and URLs; do not create a v3,
 migration, compatibility mode or permanent old/new execution switch.
@@ -290,7 +290,7 @@ design brief and README at activation, removing obsolete Findings explanations.
 | Task | Deliverable | Depends on | Status |
 | --- | --- | --- | --- |
 | T69 | Baseline evidence and shared replacement contracts/policy | Planning complete | DONE |
-| T70 | Typed mixed Noul/Score adapter and bounded batch execution | T69 | PLANNED |
+| T70 | Typed mixed Noul/Score adapter and bounded batch execution | T69 | DONE |
 | T71 | Fresh storage/checkpoints and concept-to-chunk/line enumeration | T70 | PLANNED |
 | T72 | JEV multi-concept source-line assignments | T71 | PLANNED |
 | T73 | JEV context links and assembled evidence bundles | T72 | PLANNED |
@@ -408,6 +408,42 @@ recorded real responses if available; synthetic responses only for controlled
 malformations. Full suite required for this shared-provider change. UI: expose
 adapter schemas through existing inspection only where already used; no future
 phase advertised. Gate: `test_t70_jev_batching.py`.
+
+### T70 finalized adapter/batching decisions — 2026-10-14
+
+- Shared JEV questions/answers are discriminated Noul/Score unions; no Choice
+  consumer was introduced. Existing Noul request serialization is unchanged.
+  Score uses 2–10 criteria, consecutive zero-based legend/distribution levels,
+  finite probabilities/confidence, sum/weighted-score checks and exact string
+  rubric matching. Structured instructions/criteria serialize through validated
+  JSON values; structured criteria have level-count validation because provider
+  legend rendering is unspecified. Real responses round scores/probabilities
+  independently to two decimals: validation permits their accumulated rounding
+  envelope. A retained real 2.12 score corresponds to 2.13 from displayed weights.
+- `findings_batching.py` packs atomic state/question groups whole, with explicit
+  structured instruction scopes into `state.items.item_N`; IDs only route results.
+  Packing includes full state/instruction/criteria/model serialization. Oversized
+  items are omitted without truncation. Request-count omissions and atomic-size
+  omissions retain item IDs/reasons. `PhaseAccounting` counts request groups,
+  including one omitted group per oversized item; `omitted_items` separately
+  counts atomic omissions, which may share one omitted packed request.
+- Verified official API/model docs on 2026-10-14: 32 MiB body, 64k request and 32k
+  question context for Jev 1.13/1.14 and current aliases, no long-context header.
+  Packing enforces application character/question/token-estimate limits plus
+  conservative UTF-8 byte estimates against both provider context limits; unknown
+  model limits are rejected. Estimates are not native tokenizer measurements.
+- One shared HTTP client uses current TracedTransport retry/tracing/redaction and
+  `v2_provider_concurrency`; executor adds no retries. Successful batches invoke
+  an awaited checkpoint hook, including validated cache hits. Failures/deadlines
+  and cancellation retain typed partial results and drain cancelled workers;
+  they never become successful empty work. Stable plan indices preserve result
+  order even for identical packed requests. Native live usage excludes cache hits.
+- Wire hashes identify exact reusable requests; callers must additionally verify
+  the T69 full source/policy/question/model identity before supplying cached data.
+  Current routes remap item IDs on reuse. Persistence, stage integration, global
+  phase/deadline budgets and sealing remain T71–T76; this executor remains unwired.
+- Gate/full-suite/live evidence and pending manual checks are in PROGRESS.md and
+  `tests/fixtures/benchmarks/t70/README.md`. No reset or UI/runtime activation.
 
 ### T71 — Fresh persistence and candidate enumeration
 

@@ -6,8 +6,9 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current implementation task: none. **T69 DONE**; T70–T77 PLANNED, JEV-led Findings;
+- Current implementation task: none. **T69–T70 DONE**; T71–T77 PLANNED, JEV-led Findings;
   see [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
+  T70 prepared typed mixed JEV transport and bounded checkpoint-capable batching.
   T69 retained baseline evidence and prepared isolated contracts/policy;
   the active runtime stays unchanged. **T68 DONE**, Findings extraction/publication explanation.
   **T67 DONE**, Chunks/Evidence explanation.
@@ -26,10 +27,12 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next when implementation is requested: **T70**, typed mixed Noul/Score adapter
-  and bounded batch execution, in a different fresh-context agent. T69 is complete;
+- Next when implementation is requested: **T71**, fresh persistence/checkpoints
+  and candidate enumeration, in a different fresh-context agent. T70 is complete;
   no task starts automatically. T61–T62 broader visual reviews remain open.
-- Latest automated checks: T69 gate plus existing Findings/schema/request inspection
+- Latest automated checks: T70 focused gates passed (29 tests in 1.55s), final T70
+  gate passed (7 tests in 0.57s), full suite passed (74 tests in 17.82s); lint/diff passed.
+  T69 gate plus existing Findings/schema/request inspection
   checks passed (18 tests in 1.28s); repository lint and diff checks passed.
   T68 final focused discovery/Findings checks passed
   (22 tests in 2.01s); repository lint and diff checks passed.
@@ -55,8 +58,8 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and the [task register](PIPELINE_IMPROVEMENT_TASKS.md).
-**T65–T69 are DONE; T70–T77 are PLANNED. No automatic implementation.**
-Read the [Findings plan](FINDINGS_JEV_IMPLEMENTATION_PLAN.md) and T70 before starting.
+**T65–T70 are DONE; T71–T77 are PLANNED. No automatic implementation.**
+Read the [Findings plan](FINDINGS_JEV_IMPLEMENTATION_PLAN.md) and T71 before starting.
 Working branch is `findings-jev-discovery`. T69 prepares replacement components
 without changing the current Findings runtime/inspection or Facts/Evaluate behavior.
 Its baseline fixtures are preserved outside application data in
@@ -67,22 +70,91 @@ these retained inputs; this authorization does not cover other application data.
 Historical “next task” entries below are not current instructions. T61–T62 broader
 visual reviews and the Apple canonical-caption limitation remain separately open.
 
-Context-cleaning checkpoint: T69 implementation, baseline fixtures, focused gate
-and this handoff are committed together on `findings-jev-discovery`. Use the latest
-T69 commit as the starting point and inspect the worktree before editing. T70 has
-not started. Its shared-provider change requires the full suite in addition to its
-focused gate and lint. Recheck the official JEV API/model limits before any live
-probe; default tests must not make paid calls. Do not reset data in T70 or activate
-the prepared Findings components; runtime/UI activation remains T76.
+Context-cleaning checkpoint: T70 is complete on `findings-jev-discovery` and its
+implementation, recorded fixtures, tests and handoff are committed together.
+Inspect the worktree and preserve the T69 and T70 fixtures. No data reset or
+replacement runtime/UI activation occurred. T71 is the next bounded task; read its
+server-stop/data-namespace reset rules and retain these baseline artifacts before
+any reset. Shared-provider changes require the full suite. Recheck official model
+limits before later live probes; paid calls never belong in default tests.
 
 Suggested next-session instruction:
 
-> On branch `findings-jev-discovery`, implement only T70 from
+> On branch `findings-jev-discovery`, implement only T71 from
 > `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md` in a different fresh-context agent.
 > Read AGENTS.md, docs/TASKS.md execution policy, docs/PIPELINE_PAGE_DESIGN.md,
-> the Findings plan and recent docs/PROGRESS.md first. Preserve T69 baseline
-> fixtures. Prepare mixed typed JEV batching without activating new runtime/UI
-> phases or resetting data. Record checks and the T71 handoff, then stop.
+> the Findings plan and recent docs/PROGRESS.md first. Preserve T69/T70 fixtures.
+> Follow the explicit server-stop/resolved-V2-namespace reset procedure; no other
+> application data is authorized for deletion. Prepare persistence and candidate
+> enumeration without activating replacement runtime/UI phases. Run required
+> focused/full checks, record the T72 handoff, and stop.
+
+## T70 — Mixed typed JEV adapter and bounded batching — completed, 2026-10-14
+
+- Added discriminated Noul/Score questions/answers, structured instructions/criteria,
+  finite distribution/legend/weighted-score checks, exact question IDs/types and
+  string rubric matching in the existing shared adapter. Real provider outputs
+  independently round probabilities/score; their two-decimal rounding envelope
+  is accepted. No Choice or mutually exclusive line classification was introduced.
+- Prepared deterministic whole-item packing in `v2/findings_batching.py`, including
+  explicit nested state references, instruction/rubric overhead, request-count/
+  question/character/token-estimate/provider-limit checks and omission reasons.
+  One shared traced HTTP client uses existing transport retries and configured
+  provider concurrency. Awaited checkpoint hooks, exact-request cache reuse/current
+  route remapping, actual model/native usage, stable plan order and typed request/
+  atomic-omission accounting are available for T71 persistence. Failures, deadline
+  interruption and cancellation preserve completed work and stop remaining workers;
+  no failed subset becomes a successful empty result. Full source/policy identity
+  validation remains the cache caller's responsibility.
+- Official API/model contracts rechecked before live calls at
+  https://docs.typesafe.ai/api and https://docs.typesafe.ai/models: Score 2–10
+  levels, structured instructions, 32 MiB request body, 64k/request and
+  32k/question for Jev 1.13/1.14; no long-context mode. Unknown model limits fail
+  closed. Full serialization is conservatively estimated, including UTF-8 bytes;
+  estimates are not native tokenizer measurements or quality acceptance.
+- Used only configured credentials and proxy. Three network-enabled attempts:
+  an initial ProviderFailure without a retained response body, a recorded HTTP 200
+  rejected by the initial overly strict weighted-score check, then a successful
+  mixed Noul/Score probe after the rounding fix. Two sandbox connection attempts
+  failed before escalation; an earlier local frozen-accounting error failed before
+  dispatch. Retained successful AZZ canonical line 291 response uses pinned actual
+  `jev-1.13.0`, 491 input/41 output tokens, 0.2252s executor time / 0.2475s call
+  wrapper. The preceding retained rounded response has another 491/41 tokens;
+  first network-enabled attempt's usage remains unavailable. Do not treat these
+  as a stage speed comparison or a complete aggregate billing measurement.
+  Redacted request/result/transport provenance is in
+  `tests/fixtures/benchmarks/t70`; no credentials or source database changes.
+- Tests inspected: existing T58/T69, scoring, Facts/Evaluate and request/schema
+  inspection. Baseline `uv run pytest tests/task_gates/test_t58_findings.py
+  tests/task_gates/test_t69_findings_contracts.py`: **11 passed in 0.85s**.
+  Added seven focused tests using the real recorded mixed response and controlled
+  malformed/failure cases: IDs/types/rubrics/distributions, packing/limits,
+  bounded concurrency/cache/checkpoints/accounting, deadline/cancellation and
+  empty/omitted inputs. Default tests perform no paid calls.
+- Focused `uv run pytest` across T70/T69/T58/T56/T59/T50/T51: **29 passed in 1.55s**.
+  Final `.venv/bin/pytest tests/task_gates/test_t70_jev_batching.py`: **7 passed in
+  0.57s**. First full suite: 73 passed/one stale Source-copy assertion failed in
+  15.46s. Removed that redundant assertion for the obsolete T66 phrase; the same
+  test still verifies the current hidden/XBRL-removal explanation. No coverage of
+  behavior was removed. Final **`uv run pytest`: 74 passed in 17.82s**;
+  existing Starlette/AnyIO deprecation warning. `uv run ruff check .` and
+  `git diff --check`: passed. uv cache/network access required escalation.
+- No UI change is needed: the batch executor remains prepared/unwired, current
+  Noul wire semantics and active stage execution/selection/budgets/provenance stay
+  unchanged. Traced Findings, Sections/Evidence and Evaluate consumers still use
+  their existing requests. Existing adapter schemas naturally reflect typed unions
+  where already inspected; no future station is advertised. No data reset, runtime
+  activation, browser automation or T71 work was performed. T70 results and the
+  context-cleaning handoff were subsequently committed at the user's request.
+- Manual verification is **pending**: in the existing UI open
+  `http://127.0.0.1:8000/v2/runs/v2-6eca22455a84/pipeline`, select Findings and inspect
+  Assemble/Propose/Validate/Classify/Publish plus a saved finding source/trace link.
+  Also select Sections/Evidence/Evaluate and their prompt/request inspectors.
+  Expected: unchanged active Noul scoring/evaluation and saved Findings behavior;
+  no prepared assignment/context/rank phases appear. Review wide/phone widths,
+  keyboard, JS disabled and 200% zoom. If needed, `uv run profitlab serve` is the
+  one-time server prerequisite; no CLI stage/demo command is needed.
+  Next: **T71**, in another fresh-context agent, only when requested.
 
 ## T69 — Baseline and replacement contracts — completed, 2026-10-14
 

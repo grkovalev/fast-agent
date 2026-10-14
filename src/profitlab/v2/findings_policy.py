@@ -1,7 +1,7 @@
 """One inspectable policy for the prepared JEV-led Findings components.
 
-These are provisional application bounds, not verified provider token limits.
-T70 supplies adapter enforcement; T76 activates them in the pipeline.
+These are provisional application bounds. The prepared batch executor separately
+enforces conservative estimates against verified provider limits; T76 activates it.
 """
 import hashlib
 import json

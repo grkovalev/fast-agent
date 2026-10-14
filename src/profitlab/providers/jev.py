@@ -1,11 +1,9 @@
-"""TypeSafe /v1/systemone Noul contract, verified against docs.typesafe.ai/api.
-
-Only the Noul primitive needed for screening is supported by this slice.
-"""
+"""TypeSafe /v1/systemone typed contract, verified against docs.typesafe.ai/api."""
+from math import isclose
 from typing import Annotated, Literal, Protocol
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 from profitlab.providers.transport import ProviderFailure, TracedTransport
 
@@ -16,21 +14,63 @@ class APIModel(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
 
 
+StructuredText = str | dict[str, JsonValue] | list[JsonValue]
+
+
 class NoulQuestion(APIModel):
     type: Literal['noul'] = 'noul'
-    instructions: str = Field(min_length=1)
-    criteria: dict[Literal['true', 'false'], str] | None = None
+    instructions: StructuredText = Field(min_length=1)
+    criteria: dict[Literal['true', 'false'], StructuredText] | None = None
+
+
+class ScoreQuestion(APIModel):
+    type: Literal['score'] = 'score'
+    instructions: StructuredText = Field(min_length=1)
+    criteria: list[StructuredText] = Field(min_length=2, max_length=10)
+
+
+Question = Annotated[NoulQuestion | ScoreQuestion, Field(discriminator='type')]
 
 
 class JevRequest(APIModel):
     state: str | dict[str, JsonValue] | list[JsonValue]
     model: str = Field(min_length=1)
-    questions: dict[str, NoulQuestion] = Field(min_length=1)
+    questions: dict[str, Question] = Field(min_length=1)
 
 
 class NoulAnswer(APIModel):
     type: Literal['noul']
     noul: Probability
+
+
+class ScoreAnswer(APIModel):
+    type: Literal['score']
+    score: float = Field(ge=0, le=9)
+    legend: dict[str, str] = Field(min_length=2, max_length=10)
+    probabilities: dict[str, Probability]
+    confidence: Probability
+
+    @model_validator(mode='after')
+    def distribution(self):
+        levels = {str(i) for i in range(len(self.legend))}
+        if set(self.legend) != levels or set(self.probabilities) != levels:
+            raise ValueError('Score legend and probabilities must contain consecutive levels from zero.')
+        # Live API rounds score and probabilities independently to two decimals.
+        # Permit only the accumulated rounding envelope, not arbitrary mismatch.
+        rounding = .005
+        if not isclose(sum(self.probabilities.values()), 1,
+                       abs_tol=rounding * len(levels) + 1e-9):
+            raise ValueError('Score probabilities must sum to one.')
+        expected = sum(int(k) * v for k, v in self.probabilities.items())
+        if self.score > len(levels) - 1 or not isclose(
+            self.score, expected,
+            abs_tol=rounding * (1 + sum(range(len(levels)))) + 1e-9,
+        ):
+            raise ValueError('Score must equal its probability-weighted levels.')
+        return self
+
+
+Answer = Annotated[NoulAnswer | ScoreAnswer, Field(discriminator='type')]
 
 
 class TokenUsage(APIModel):
@@ -40,8 +80,25 @@ class TokenUsage(APIModel):
 
 class JevResponse(APIModel):
     model: str = Field(min_length=1)
-    answers: dict[str, NoulAnswer]
+    answers: dict[str, Answer]
     usage: TokenUsage
+
+
+def validate_response(request: JevRequest, result: JevResponse) -> JevResponse:
+    """Bind IDs, primitive and rubric to the exact dispatched request."""
+    if set(result.answers) != set(request.questions):
+        raise ValueError('Answer IDs must exactly match question IDs.')
+    for key, question in request.questions.items():
+        answer = result.answers[key]
+        if answer.type != question.type:
+            raise ValueError('Answer type must match question type.')
+        if isinstance(question, ScoreQuestion):
+            if len(answer.legend) != len(question.criteria):
+                raise ValueError('Score levels must match requested rubric.')
+            for i, criterion in enumerate(question.criteria):
+                if isinstance(criterion, str) and answer.legend[str(i)] != criterion:
+                    raise ValueError('Score legend must match requested rubric.')
+    return result
 
 
 class JevClient(Protocol):
@@ -74,8 +131,7 @@ class LiveJevClient:
                         json=request.model_dump(exclude_none=True))
             try:
                 result = JevResponse.model_validate_json(response.content)
-                if set(result.answers) != set(request.questions):
-                    raise ValueError('Answer IDs must exactly match question IDs.')
+                validate_response(request, result)
             except ValueError as error:
                 raise ProviderFailure('response_validation', str(error)) from None
             output.update(result.model_dump())

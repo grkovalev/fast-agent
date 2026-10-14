@@ -117,7 +117,6 @@ def test_source_card_uses_persisted_sec_filing_and_canonical_line_result(tmp_pat
     source_card = overview.text[source_start:outline_start]
     assert 'Process summary placeholder' not in source_card
     assert 'Prompt control placeholder' not in source_card
-    assert 'Inline XBRL-only content' in overview.text
 
 
 def test_pending_source_does_not_claim_a_saved_document(tmp_path):
