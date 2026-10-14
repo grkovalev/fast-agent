@@ -219,9 +219,18 @@ occurrence lists onto the overview. Separate statement details show up to 20 SEC
 presentations and validated report links. Presentation rows remain explicitly distinct
 from canonical lines. Ambiguous, hidden-only, unavailable, and unsaved historical
 mappings show reasons and available statement links without invented visible anchors.
-[T64](PIPELINE_IMPROVEMENT_TASKS.md) owns two-company real-filing acceptance. The
-user confirmed T63 UI review on 2026-10-14; T61–T62 manual visual review remains
-pending.
+[T64](PIPELINE_IMPROVEMENT_TASKS.md) completed two-company real-filing acceptance.
+The user confirmed T63 UI review and T64 cell/year/scale visibility on 2026-10-14;
+no itemized visual observations were supplied. T61–T62 broader manual visual review
+remains pending.
+
+T64's saved Microsoft/Apple acceptance verifies exact numeric cells and scales in
+two statement layouts. Nearby canonical header previews are supporting context,
+not a complete transcription of every visible caption: Apple's external `div/span`
+scale captions survive in sanitized HTML but some are absent from numbered lines
+and those previews. Recorded Inline scale is exact; full sanitized filing links
+remain available to inspect the original visible caption. This acceptance does not
+change canonical numbering or imply complete caption coverage in nearby previews.
 
 Presentation enrichment and exact-source mapping run after Findings is sealed and serve inspection only.
 Company Facts remains the independent comparator-value source; source-location

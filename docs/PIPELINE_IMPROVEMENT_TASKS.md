@@ -8,17 +8,19 @@ T48–T59 are DONE; their implementation scopes are archived in
 **T60 — DONE.** Automated gates passed, and the user confirmed the remaining UI
 verification on 2026-10-13. Detailed visual observations were not supplied.
 
-**T61–T63 — DONE; T64 — TODO.** The user requested fact source lines in evaluation results
+**T61–T64 — DONE.** The user requested fact source lines in evaluation results
 for debugging. These tasks include backend provenance acquisition and mapping;
 statement row numbers alone do not satisfy the requested canonical-line links.
-T61–T63 implementation and automated gates are complete. The user confirmed the T63 UI review on 2026-10-14; detailed observations were not supplied. T61–T62 manual visual reviews remain pending.
+T61–T64 implementation and automated gates are complete. The user confirmed the
+T63 UI review and T64 cell/year/scale visibility on 2026-10-14; detailed observations
+were not supplied. T61–T62 broader manual visual reviews remain pending.
 
 | Task | Result | Depends on | Status |
 | --- | --- | --- | --- |
 | T61 | SEC statement/report/row provenance for selected facts | Existing Facts stage | DONE |
 | T62 | Verified mapping from fact occurrences to canonical filing lines | T61 | DONE |
 | T63 | Fact source lines, quotes, and links in evaluation cards and Facts inspection | T62 | DONE |
-| T64 | Real-filing acceptance of fact source debugging | T63 | TODO |
+| T64 | Real-filing acceptance of fact source debugging | T63 | DONE |
 
 ## Shared constraints
 
@@ -203,7 +205,7 @@ review on the existing UI at wide and phone widths, keyboard, no JS, and 200% zo
 
 ## T64 — Verify fact source debugging on real filings
 
-**Status:** TODO. **Dependency:** T63.
+**Status:** DONE. **Dependency:** T63. Two-company saved-real-data automated acceptance passed; the user confirmed cell, year and scale visibility on 2026-10-14. No itemized visual observations were supplied. See [PROGRESS.md](PROGRESS.md) for evidence and the caption-preview limitation.
 
 **Goal:** prove that evaluation source links identify the facts users need to debug,
 not merely matching numbers somewhere in a filing.

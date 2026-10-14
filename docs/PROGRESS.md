@@ -6,7 +6,9 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: none. **T63 implementation and automated gates are DONE**:
+- Current task: none. **T64 DONE**, two-company real-filing source acceptance;
+  the user confirmed that cell, year and scale are all visible on 2026-10-14.
+  **T63 implementation and automated gates are DONE**:
   evaluation cards and Facts inspection expose saved canonical fact-source links,
   quotes, periods/scales, multiple occurrences and explicit unavailable states.
   The user confirmed the T63 UI review on 2026-10-14; detailed observations were
@@ -16,12 +18,11 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next planned work: **T64**, two-company real-filing fact-source acceptance in the
-  [task register](PIPELINE_IMPROVEMENT_TASKS.md). T61–T62 visual reviews remain open.
-- Latest automated checks: T63 and affected provenance/UI gates passed (14 tests in
-  6.14s); shared contract/request inspection gates passed (7 tests in 0.81s).
-  Repository lint, whitespace and two focused JavaScript checks passed. The most
-  recent full suite remains T62's 57 tests; no storage/execution changes in T63.
+- Next numbered task: none currently defined. T61–T62 broader visual reviews
+  remain open; T64's source-detail visibility is user-confirmed.
+- Latest automated checks: T64 plus T61–T63 gates passed (11 tests in 12.02s);
+  final pre-commit full suite passed (61 tests in 15.39s). After adding explicit visible-caption
+  checks, T64 passed again (2 tests in 6.81s). Repository lint passed.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -38,8 +39,10 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and the [task register](PIPELINE_IMPROVEMENT_TASKS.md).
-T63 implementation is complete; on the next request start **T64**, mark it
-IN_PROGRESS, and follow the execution policy. Do not start it automatically.
+**T64 is DONE.** Two-company automated acceptance passed and the user confirmed
+that cell, year and scale are visible. No itemized company/device/accessibility
+observations were supplied. Retain the caption-preview limitation below.
+No later numbered task is defined; do not invent or automatically start one.
 Keep `StructuredFact`, comparison states and provider inputs unchanged. Presentation
 and `FactSourceMapping` remain separate saved diagnostics keyed by stable fact IDs;
 rendering never recomputes or retrieves provenance. Evaluation loads linked fact
@@ -47,6 +50,96 @@ mappings across storage pages. The shared preview shows three occurrences; all s
 locations remain on the 20-per-page mapping route. PRE rows are supporting concept
 presentations, never canonical lines. Preserve Findings saved-step diagnostics and
 CSV requests. No user data was deleted or migrated.
+
+Context-reset handoff prepared on 2026-10-14 at the user's request. This change
+contains only T64 acceptance fixtures/tests and their documentation; no runtime,
+schema, provider, UI markup or dependency changes. The user asked to commit these
+results before clearing context. The next implementation scope has not been chosen.
+A concrete follow-up candidate is complete visible statement-caption coverage in
+canonical lines/header previews, especially Apple's external `div/span` captions.
+Before scheduling that work, define its canonical numbering/source-link implications
+and a bounded task in the register; the current T64 acceptance must remain intact.
+Do not treat older historical “Next task” entries below as active instructions.
+Final pre-commit verification: `uv run pytest -q` — 61 passed in 15.39s;
+`uv run ruff check .` and `git diff --check` passed. Existing Starlette/AnyIO
+deprecation warning remains. No additional live calls or browser automation.
+
+## T64 — Two-company real-filing acceptance — completed, 2026-10-14
+
+- Added one parametrized real-data integration/audit gate for MSFT and AAPL.
+  Each covers annual net income, diluted EPS and diluted shares for 2024 and
+  comparative 2023: 12 verified fact mappings, 32 visible occurrences, no unresolved
+  mappings among these selected real records. Audits every raw concept, period,
+  consolidated entity and unit, exact Decimal transformation, visible scale caption,
+  canonical row quote, distinct comparative cell/context, sanitized cell and anchor.
+  Microsoft shares use millions; Apple shares use thousands. Exact canonical links,
+  rather than rendered SEC report links, satisfy the automated source requirement.
+- New unchanged Apple primary HTML: accession `0000320193-24-000123`, report date
+  2024-09-28, filed 2024-11-01. Source:
+  https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm
+  — decompressed SHA-256
+  `d973d738142b64c66b749d7a9657fd28c3726ab48fd0847060835b11c82aabb9`.
+  Company Facts: https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json;
+  same-accession projection SHA-256
+  `a5d6cb256100e8af347f3771b7dce4937483a67317c73d12a9cc98b7419e6380`.
+  Full response hash, acquisition timestamps, projection scope and row coverage are
+  in `tests/fixtures/t64/provenance.json` and `README.md`. Reused unchanged Microsoft
+  primary HTML and Company Facts from T62/T61 with hash assertions. No Apple
+  quarterly archive acquisition; missing PRE does not constrain exact Inline mapping.
+- Saved Facts/Evaluate/details routes verify every shown source anchor against
+  retained sanitized HTML, including comparative details. Real quotes with controlled
+  unscaled income, exact EPS and absent shares exercise actual deterministic mismatch,
+  exact and missing-finding outcomes. An intentionally incompatible EUR fact yields
+  actual unavailable mapping diagnostics and no source link. These finding/diagnostic
+  inputs are controlled cases, not SEC observations or recorded provider results.
+  Existing T62/T63 tests additionally verify ambiguous, hidden-only, historical
+  unsaved, source-disagreement and presentation-only fallbacks. Rendering is guarded
+  against SEC acquisition and index recomputation. Comparisons remain unchanged.
+- Tests inspected: T61 presentation, T62 mapping, T63 UI; retained their distinct
+  failure, persistence, request-isolation, preview/pagination and presentation coverage.
+  No obsolete tests removed. Initial baseline: `uv run pytest
+  tests/task_gates/test_t62_fact_sources.py tests/task_gates/test_t63_fact_source_ui.py
+  -q` — 5 passed in 5.96s. New gate initially exposed audit assumptions (HTML colon
+  paths are structural references; incompatible unit is unavailable; storage adds
+  run-version metadata), corrected in the test without changing runtime behavior.
+- Checks: `uv run pytest tests/task_gates/test_t64_real_fact_acceptance.py
+  tests/task_gates/test_t61_presentation.py tests/task_gates/test_t62_fact_sources.py
+  tests/task_gates/test_t63_fact_source_ui.py -q` — 11 passed in 12.02s.
+  `uv run pytest -q` — 61 passed in 15.10s, covering shared storage/orchestration.
+  Final added visible-caption assertion: T64 — 2 passed in 6.81s.
+  `uv run ruff check .` passed; existing Starlette/AnyIO deprecation warning remains.
+  Cache access/acquisition required escalation. No browser automation performed.
+- Live status: configured SEC client successfully acquired Apple submissions,
+  primary HTML and Company Facts on 2026-10-14. Mapping/evaluation/UI acceptance
+  used saved data and isolated temporary storage. No paid provider calls or complete
+  live pipeline validation claimed; no user runs changed and no second server started.
+- UI trace review: Source canonicalization, post-Findings Facts normalization/mapping,
+  saved Facts inspection and Evaluate comparison/provenance paths are unchanged.
+  No UI edit is needed: existing T63 routes explain verified and unavailable mappings,
+  periods and exact recorded scale; this task adds acceptance evidence only.
+  **Limitation:** Apple's external `div/span` statement scale captions survive the
+  sanitized filing but some are absent from canonical lines/nearby header previews.
+  The audit checks original visible captions and recorded Inline scale independently.
+  No canonical renumbering or caption-completeness claim was introduced.
+- **Manual source-detail visibility confirmed:** after receiving the exact UI
+  click path and labels, the user reported “all visible” on 2026-10-14. This closes
+  T64 with the two-company automated evidence above. No itemized company, viewport,
+  keyboard, no-JS or zoom observations are claimed. The following steps remain
+  available for broader review. On the already-running
+  UI, open MSFT and AAPL runs at
+  `http://127.0.0.1:8000/v2/runs/<run_id>/pipeline?stage=evaluate` and select Facts
+  at `?stage=facts`. For income/EPS/shares, follow **Open fact source**, compare
+  the numeric cell, fiscal-year column and visible scale caption with the saved
+  provenance; expand all occurrences through the saved mapping link. For a 2024 run,
+  the fixture README gives exact expected rows/cells; newer live runs naturally have
+  different figures. Inspect a mismatch and a missing finding when available: the
+  independent fact link must still work. Inspect an older unsaved/unavailable mapping:
+  it must give a reason and no invented canonical link. Check wide/phone widths,
+  keyboard navigation, no JavaScript and 200% zoom; specifically assess Apple caption
+  readability in the full sanitized filing. Use the normal UI to create missing runs.
+  One-time server prerequisite if needed: `uv run profitlab serve`.
+  Caption-preview completeness remains a documented limitation, not an incorrect
+  numeric mapping. No further numbered task is currently defined.
 
 ## T63 — Fact-source debugging in evaluation and Facts — implemented, 2026-10-14
 
