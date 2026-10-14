@@ -9,7 +9,7 @@ and intentionally does not migrate or read previous run data.
 Planned fact-source debugging work is tracked as
 [T61–T64](PIPELINE_IMPROVEMENT_TASKS.md#t61--retain-sec-presentation-locations-for-selected-facts):
 SEC presentation provenance, exact canonical-line mapping, evaluation/Facts UI,
-and real-filing acceptance. T61–T62 are implemented; T63–T64 remain TODO. Presentation rows are not exact canonical-line mappings.
+and real-filing acceptance. T61–T63 are implemented; T64 remains TODO. T63 UI review is user-confirmed; manual visual reviews for T61–T62 remain pending. Presentation rows are not exact canonical-line mappings.
 
 Commands and checks below are acceptance contracts to implement, not claims that they already exist.
 

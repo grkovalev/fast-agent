@@ -1,0 +1,5 @@
+{% set source = fact_sources.get(card.fact.fact_id) %}
+{% if source and source.locations %}
+{% set location = source.locations[0] %}
+<a href="/v2/runs/{{ run.run_id }}/source/{{ location.source_range.document_id }}/html#{{ location.html_anchor }}">Open fact source</a><small>Canonical line {{ location.source_range.start_line }} · {{ source.location_count }} saved occurrence(s). All locations and context in provenance details.</small>
+{% else %}<small>Canonical fact source · {{ source.status | replace('_', ' ') if source else 'unavailable' }}. See provenance details for the reason.</small>{% endif %}

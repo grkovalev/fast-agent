@@ -4,9 +4,10 @@
 <p>Presentation rows are SEC report order, not canonical filing lines.</p>
 {% if provenance.dataset %}<p><a href="{{ provenance.dataset.source_url }}">{{ provenance.dataset.quarter }} statement dataset</a> · retrieved {{ provenance.dataset.retrieved_at }}<br><code>{{ provenance.dataset.source_hash }}</code></p>{% endif %}
 {% for location in provenance.locations[:20] %}<p><strong>{{ location.statement }} · report {{ location.report }} · presentation row {{ location.presentation_row }}</strong><br>{{ location.filer_label }} · {{ location.tag }} · {{ location.taxonomy_version }}{% if location.report_url %}<br><a href="{{ location.report_url }}">Open SEC statement report</a>{% endif %}</p>{% endfor %}
+{% if provenance.location_count > 20 %}<p>Showing 20 of {{ provenance.location_count }} presentation locations. Open all saved records for the complete list.</p>{% endif %}
+{% if provenance.truncated %}<p class="muted">Bounded statement preview; open all saved records for complete locations and diagnostics.</p>{% endif %}
 {% for diagnostic in provenance.diagnostics %}<p class="muted">{{ diagnostic }}</p>{% endfor %}
 <p><a href="/v2/runs/{{ run.run_id }}/pipeline/facts/presentation">All saved statement records and provenance</a></p>
 {% else %}<p>No presentation provenance was saved for this fact. Historical runs are not enriched during rendering.</p>{% endif %}
 </details>
-{% set source = fact_sources.get(item.fact_id) %}
-<p>Canonical source mapping · <strong>{{ source.status | replace('_', ' ') if source else 'unavailable' }}</strong>{% if source %} · {{ source.location_count }} verified visible occurrence(s){% endif %}<br><a href="/v2/runs/{{ run.run_id }}/pipeline/facts/source?fact_id={{ item.fact_id }}">Inspect saved canonical source mapping</a></p>
+{% include '_fact_source_preview.html' %}

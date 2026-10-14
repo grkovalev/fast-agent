@@ -34,6 +34,7 @@ from profitlab.v2.inspection import contract_envelopes
 from profitlab.v2.outline_service import OutlineService
 from profitlab.v2.section_scoring import SectionScoringService
 from profitlab.v2.source_service import V2SourceService
+from profitlab.web.fact_provenance import presentation_preview, source_preview
 from profitlab.web.findings_results import findings_step_results
 
 WEB_DIR = Path(__file__).parent
@@ -354,6 +355,11 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                 settings, summary=pipeline.repo.comparison_summary(run_id),
                 finding_count=totals['finding_count']),
         }
+        for station in ('enrich', 'store'):
+            facts_content['inspection'][station]['saved_provenance_url'] = (
+                f'/v2/runs/{run_id}/pipeline?stage=facts#fact-source-results')
+        evaluation_content['inspection']['record']['saved_provenance_url'] = (
+            f'/v2/runs/{run_id}/pipeline?stage=evaluate#evaluation-results')
         stage_cards = [item.model_dump() | {
             'icon': stage_presentation[item.stage][0],
             'label': stage_presentation[item.stage][1],
@@ -413,14 +419,11 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
                   'evaluation_cards': []}
         presentations = pipeline.repo.fact_presentations_for_ids(
             run_id, [item.fact_id for item in result['structured_facts']]) if stage == 'facts' else []
-        result['fact_presentations'] = {item.fact_id: item.model_dump(mode='json')
+        result['fact_presentations'] = {item.fact_id: presentation_preview(item)
                                       for item in presentations}
         sources = pipeline.repo.fact_sources_for_ids(
             run_id, [item.fact_id for item in result['structured_facts']]) if stage == 'facts' else []
-        result['fact_sources'] = {item.fact_id: {
-            'status': item.status, 'location_count': len(item.locations),
-            'method': item.method,
-        } for item in sources}
+        result['fact_sources'] = {item.fact_id: source_preview(item) for item in sources}
         examples = {}
         for model, items in (
             (CanonicalDocumentRef, canonical_refs), (OutlineSection, outline),
@@ -448,6 +451,10 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             all_findings = {item.finding_id: item for item in linked_findings}
             all_facts = {item.fact_id: item for item in pipeline.repo.structured_facts_for_ids(
                 run_id, [item.fact_id for item in result['comparisons'] if item.fact_id])}
+            result['fact_sources'] = {item.fact_id: source_preview(item) for item in
+                pipeline.repo.fact_sources_for_ids(run_id, list(all_facts))}
+            result['fact_presentations'] = {item.fact_id: presentation_preview(item) for item in
+                pipeline.repo.fact_presentations_for_ids(run_id, list(all_facts))}
             chunks = {item.chunk_id: item for item in pipeline.repo.chunks_for_ids(
                 run_id, [item.source_chunk_id for item in linked_findings
                          if item.source_chunk_id])}

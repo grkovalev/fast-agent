@@ -6,22 +6,22 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current task: none. **T62 is DONE**: selected SEC facts retain verified visible
-  canonical-line mappings from retained Inline XBRL, separate from comparator values.
-  Automated gates and live primary-HTML acquisition passed; manual T62 UI review is
-  pending. T61 manual review also remains pending. **T60 is DONE** with earlier
-  user-confirmed verification.
+- Current task: none. **T63 implementation and automated gates are DONE**:
+  evaluation cards and Facts inspection expose saved canonical fact-source links,
+  quotes, periods/scales, multiple occurrences and explicit unavailable states.
+  The user confirmed the T63 UI review on 2026-10-14; detailed observations were
+  not supplied. T61–T62 manual visual review remains pending. **T60 is DONE** with
+  earlier user-confirmed verification.
 - UI documentation: the durable decisions and logic-change review rule are in
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next planned work: **T63**, followed by T64 in the
-  [task register](PIPELINE_IMPROVEMENT_TASKS.md). Evaluation-card fact-source panels
-  are not implemented; saved mappings are inspectable from the Facts stage.
-- Latest automated checks: full Python suite passed (57 tests in 9.39s), repository
-  lint, whitespace, and focused JavaScript checks passed. T61/T62 manual visual review
-  and reviewed-case benchmark verification remain pending. T60 verification does not
-  cover T61/T62.
+- Next planned work: **T64**, two-company real-filing fact-source acceptance in the
+  [task register](PIPELINE_IMPROVEMENT_TASKS.md). T61–T62 visual reviews remain open.
+- Latest automated checks: T63 and affected provenance/UI gates passed (14 tests in
+  6.14s); shared contract/request inspection gates passed (7 tests in 0.81s).
+  Repository lint, whitespace and two focused JavaScript checks passed. The most
+  recent full suite remains T62's 57 tests; no storage/execution changes in T63.
 - Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
 - Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
 - Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
@@ -38,16 +38,70 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and the [task register](PIPELINE_IMPROVEMENT_TASKS.md).
-T62 is complete; on the next request start **T63**, mark it IN_PROGRESS, and follow
-the execution policy. Preserve Findings saved-step diagnostics and CSV requests.
-Keep `StructuredFact` and verification payloads unchanged: statement provenance and
-`FactSourceMapping` remain separate diagnostics keyed by stable fact IDs. The mapper
-runs after Findings, checks exact Inline context/unit/Decimal semantics and retained
-source agreement, and preserves canonical numbering/anchors. PRE rows remain
-supporting concept presentations, not canonical lines or proven numeric-cell locations.
-T63 should load saved mappings by linked fact ID, including cross-page comparators;
-never recompute or fetch provenance on page render. Do not start T63 automatically
-or delete user data.
+T63 implementation is complete; on the next request start **T64**, mark it
+IN_PROGRESS, and follow the execution policy. Do not start it automatically.
+Keep `StructuredFact`, comparison states and provider inputs unchanged. Presentation
+and `FactSourceMapping` remain separate saved diagnostics keyed by stable fact IDs;
+rendering never recomputes or retrieves provenance. Evaluation loads linked fact
+mappings across storage pages. The shared preview shows three occurrences; all saved
+locations remain on the 20-per-page mapping route. PRE rows are supporting concept
+presentations, never canonical lines. Preserve Findings saved-step diagnostics and
+CSV requests. No user data was deleted or migrated.
+
+## T63 — Fact-source debugging in evaluation and Facts — implemented, 2026-10-14
+
+- Evaluation cards load saved mappings and presentation provenance by linked fact ID,
+  including comparators beyond the current Facts page. A verified comparator has a
+  direct **Open fact source** link outside collapsed diagnostics. Missing-finding
+  cards retain those links; additional findings without a comparator have no invented
+  fact-source panel. Existing finding citation links remain separately labeled.
+- Shared backend projection and templates expose up to three canonical occurrences,
+  visible row/cell text, exact periods and unit, sign/scale, transformed Decimal,
+  mapping method/status, diagnostics, and nearby visible year/scale headers. Preview
+  caps and truncation are explicit; the existing 20-per-page details route exposes
+  every retained occurrence. SEC statement details remain separate and show validated
+  report links even when no canonical occurrence is available. Historical unsaved
+  mappings are explicitly unavailable.
+- Selected Facts keeps its numeric table compact and puts full-width provenance
+  sections below it. Facts Enrich/Store and Evaluate Record station inspectors link
+  to the corresponding saved results. The overview does not load occurrence lists.
+  Added wrapping and bounded quote scrolling for long source text; no JavaScript is
+  required for source links or native details controls. Updated the design brief.
+- Reviewed Facts scheduling, normalization/enrichment, Evaluate pairing/comparison,
+  and optional scale/unit verification. This is read-only UI projection: no changes
+  to pipeline order, budgets, value selection, discovery inputs, verifier payloads,
+  stored fact/comparison contracts, provider verdicts, or storage schema. No provider
+  or SEC requests, mapper reconstruction, second server, or user data changes.
+- Tests inspected: T62 source mapping, T61 presentation, T59 Facts/Evaluate,
+  T35 evaluation policy, T60 acceptance and shared inspector gates. No obsolete
+  coverage was found; retained existing gates and added one real-data route integration
+  test plus one preview-bounds invariant. Initial requested T29 file no longer exists;
+  used the current T35 evaluation gate for the baseline.
+- Saved-real-data provenance: reused the unchanged MSFT 2024 primary HTML in
+  `tests/fixtures/t62` and matching Company Facts/SUB/NUM/PRE/index in `t61`, with
+  URLs/hashes in their provenance JSON. No new fixture acquisition. Controlled test
+  comparisons cover exact match, mismatch, and missing finding; padding facts exercise
+  cross-page lookup. Diagnostic variants and 25 repeated locations exercise missing
+  mappings and pagination, not additional real SEC observations.
+- Checks: baseline `uv run pytest tests/task_gates/test_t62_fact_sources.py
+  tests/task_gates/test_t59_facts_evaluate.py tests/task_gates/test_t35.py -q` —
+  7 passed in 4.43s. Final `uv run pytest tests/task_gates/test_t63_fact_source_ui.py
+  tests/task_gates/test_t62_fact_sources.py tests/task_gates/test_t61_presentation.py
+  tests/task_gates/test_t59_facts_evaluate.py tests/task_gates/test_t60_pipeline_acceptance.py
+  tests/task_gates/test_t52_inspector.py -q` — 14 passed in 6.14s. Shared
+  `test_t50_contract_inspection.py` and `test_t51_request_inspection.py` — 7 passed
+  in 0.81s. `node --test tests/task_gates/test_t52_inspector.cjs
+  tests/task_gates/test_t49_progress.cjs` — 2 passed in 83ms.
+  `uv run ruff check .` and `git diff --check` passed. uv cache reads required
+  escalation for lint. Existing Starlette/AnyIO deprecation warning remains.
+- Live scope: no new external calls or paid model requests. Rendering reads saved
+  provenance; route tests prevent SEC acquisition, mapper execution, and enrichment
+  during rendering. No browser automation or visual validation is claimed.
+- **Manual T63 review:** the user confirmed on 2026-10-14 that the delivered UI
+  looks good. Detailed observations were not supplied; no itemized visual checklist
+  is claimed. T61–T62 manual reviews remain open.
+- Next task: **T64**. Two-company real-filing acceptance and T61–T62 manual UI
+  review remain open.
 
 ## T62 — Verified canonical fact-source mapping — completed, 2026-10-13
 

@@ -18,7 +18,8 @@
 <dl>{% for field, label in [('accepts', 'Accepts'), ('does', 'Does'), ('outputs', 'Outputs'), ('guarantee', 'Guarantee')] %}
 {% if field in inspection %}<div class="{% if inspection[field] is not string %}is-json{% endif %}"><dt>{{ label }}</dt><dd>{{ value(inspection[field]) }}</dd></div>{% endif %}
 {% endfor %}</dl>
-{% for field, content in inspection.items() if field not in ('accepts', 'does', 'outputs', 'guarantee', 'run_result', 'results_url') %}
+{% if inspection.saved_provenance_url is defined %}<p><a href="{{ inspection.saved_provenance_url }}">Inspect saved fact source lines, context, and provenance</a></p>{% endif %}
+{% for field, content in inspection.items() if field not in ('accepts', 'does', 'outputs', 'guarantee', 'run_result', 'results_url', 'saved_provenance_url') %}
 <section class="pipeline-inspector-extra"><h4>{{ field | replace('_', ' ') | title }}</h4>{{ value(content) }}</section>
 {% endfor %}
 </{% if hidden %}template{% else %}section{% endif %}>

@@ -202,14 +202,26 @@ quotes, exact source links, transformation details and visible header context.
 Historical runs without saved mappings remain unavailable. Rendering never rebuilds
 an index or retrieves SEC data.
 
-The user requested verified fact source lines in evaluation results for debugging;
-[T63–T64](PIPELINE_IMPROVEMENT_TASKS.md) track the remaining evaluation/Facts panels
-and real-filing acceptance. Evaluation cards do not yet expose these saved mappings. An evaluation comparator should expose its visible filing row,
-canonical line/range, period and scale context, and an exact sanitized-source link
-beside the existing finding citation details. The selected Facts stage should expose
-the same saved provenance. Keep SEC statement/report/presentation row numbers
-distinct from canonical filing line numbers, and retain multiple occurrences when
-applicable. Ambiguous, hidden-only, and unavailable mappings need explicit reasons.
+T63 exposes these saved mappings on evaluation cards, loaded by linked fact IDs
+independently of the current Facts storage page. Each verified comparator has a direct
+**Open fact source** action to its first sanitized filing occurrence. The expanded
+provenance shows up to three occurrences with canonical line/range, visible row quote,
+numeric cell, exact period/unit, sign/scale, transformed Decimal, and nearby visible
+header context. Quotes/cells are bounded to 1,200 characters, header previews to six
+400-character rows, and diagnostics to five 500-character entries; shortened previews
+are labeled and link to the paginated full saved mapping. Missing-finding cards still
+expose the independent fact's sources; cards without a fact have no fact-source panel.
+
+The selected Facts page keeps the numeric table compact and places the same provenance
+in full-width fact sections below it, reached by each row's inspection link. Facts
+Enrich/Store and Evaluate Record inspectors link to these saved results without loading
+occurrence lists onto the overview. Separate statement details show up to 20 SEC
+presentations and validated report links. Presentation rows remain explicitly distinct
+from canonical lines. Ambiguous, hidden-only, unavailable, and unsaved historical
+mappings show reasons and available statement links without invented visible anchors.
+[T64](PIPELINE_IMPROVEMENT_TASKS.md) owns two-company real-filing acceptance. The
+user confirmed T63 UI review on 2026-10-14; T61–T62 manual visual review remains
+pending.
 
 Presentation enrichment and exact-source mapping run after Findings is sealed and serve inspection only.
 Company Facts remains the independent comparator-value source; source-location

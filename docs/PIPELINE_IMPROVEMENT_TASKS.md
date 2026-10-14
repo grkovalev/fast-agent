@@ -8,16 +8,16 @@ T48–T59 are DONE; their implementation scopes are archived in
 **T60 — DONE.** Automated gates passed, and the user confirmed the remaining UI
 verification on 2026-10-13. Detailed visual observations were not supplied.
 
-**T61–T62 — DONE; T63–T64 — TODO.** The user requested fact source lines in evaluation results
+**T61–T63 — DONE; T64 — TODO.** The user requested fact source lines in evaluation results
 for debugging. These tasks include backend provenance acquisition and mapping;
 statement row numbers alone do not satisfy the requested canonical-line links.
-T61–T62 implementation and automated gates are complete; their manual visual reviews remain pending.
+T61–T63 implementation and automated gates are complete. The user confirmed the T63 UI review on 2026-10-14; detailed observations were not supplied. T61–T62 manual visual reviews remain pending.
 
 | Task | Result | Depends on | Status |
 | --- | --- | --- | --- |
 | T61 | SEC statement/report/row provenance for selected facts | Existing Facts stage | DONE |
 | T62 | Verified mapping from fact occurrences to canonical filing lines | T61 | DONE |
-| T63 | Fact source lines, quotes, and links in evaluation cards and Facts inspection | T62 | TODO |
+| T63 | Fact source lines, quotes, and links in evaluation cards and Facts inspection | T62 | DONE |
 | T64 | Real-filing acceptance of fact source debugging | T63 | TODO |
 
 ## Shared constraints
@@ -167,7 +167,7 @@ Facts/Source inspection explanations in the same implementation task.
 
 ## T63 — Show fact source lines in evaluation results
 
-**Status:** TODO. **Dependency:** T62.
+**Status:** DONE. Implementation and automated gates passed; the user confirmed the UI review on 2026-10-14. Detailed observations were not supplied. **Dependency:** T62. See [PROGRESS.md](PROGRESS.md).
 
 **Goal:** from an evaluation card, the user can inspect both the finding's cited
 line and the independent fact's verified source line(s) to understand a mismatch.

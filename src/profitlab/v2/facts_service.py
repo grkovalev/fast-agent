@@ -130,6 +130,7 @@ class CompanyFactsService:
                     'join': 'Exact accession, concept namespace/tag and taxonomy version, annual period bucket, unit, Decimal, and consolidated dimensionless context. NUM dates/durations are rounded by SEC.',
                     'taxonomy': 'Company Facts lacks taxonomy year; retain all matching versions and mark multiple versions ambiguous.',
                     'saved_presentation': summary.get('presentation', 'Unavailable: no saved presentation provenance.'),
+                    'saved_source_mapping': summary.get('source_mapping', 'Unavailable: no saved source mappings.'),
                 },
             },
             'enrich': {
