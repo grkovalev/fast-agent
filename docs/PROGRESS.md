@@ -6,8 +6,9 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current implementation task: none. **T69–T72 DONE**; T73–T77 PLANNED, JEV-led Findings;
+- Current implementation task: none. **T69–T73 DONE**; T74–T77 PLANNED, JEV-led Findings;
   see [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
+  T73 prepared bounded context attachment, shared coverage pools and typed bundles.
   T72 prepared independent JEV source-line assignments and successful-batch reuse.
   T71 prepared fresh persistence/checkpoints and deterministic source candidates,
   and performed the authorized scoped local V2 reset.
@@ -30,10 +31,12 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next when implementation is requested: **T73**, bounded JEV context attachment and bundle assembly,
-  in a different fresh-context agent. T72 is complete;
+- Next when implementation is requested: **T74**, JEV bundle ranking and deterministic selection,
+  in a different fresh-context agent. T73 is complete;
   no task starts automatically. T61–T62 broader visual reviews remain open.
-- Latest automated checks: T72 focused gates passed (32 tests in 1.76s);
+- Latest automated checks: T73/T69–T72 focused gates passed (36 tests in 3.45s);
+  full suite passed (98 tests in 18.70s); repository Ruff and diff checks passed.
+  Earlier: T72 focused gates passed (32 tests in 1.76s);
   full suite passed (88 tests in 15.73s); repository Ruff and diff checks passed.
   Earlier: T71 gate passed (6 tests in 0.75s); T71/T69 final
   parser gates passed (11 tests in 0.83s); full suite passed (80 tests in 15.29s);
@@ -66,8 +69,8 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
-**T65–T72 are DONE; T73–T77 are PLANNED. No automatic implementation.**
-Working branch is `findings-jev-discovery`. T69–T72 prepared replacement components
+**T65–T73 are DONE; T74–T77 are PLANNED. No automatic implementation.**
+Working branch is `findings-jev-discovery`. T69–T73 prepared replacement components
 without activating them. Preserve the baseline fixtures under
 `tests/fixtures/benchmarks/t69`, `t70` and `t72`; T69's three saved runs and genuine live
 old-stage replay remain available outside application data.
@@ -81,24 +84,81 @@ used by prepared T72 line assignments, but current runtime, prompts, UI stations
 and Facts/Evaluate inputs retain their existing behavior until T76. T61–T62 broader visual review and
 the Apple canonical-caption limitation remain separately open.
 
-Context-cleaning checkpoint: T72 implementation, recorded live smoke evidence,
-focused/full checks and handoff are preserved together on `findings-jev-discovery`.
-The user requested committing this checkpoint before clearing context. No T73 work
-was started.
-Resume with T73 only when requested, in a different fresh-context agent. Do not
+T73 is complete; its context service remains prepared and unwired. The T73
+implementation and this handoff are committed together; all recorded
+baseline/provider fixtures remain intact.
+Resume with T74 only when requested, in a different fresh-context agent. Do not
 repeat the completed reset or activate T76 early. No speedup is expected from
 unwired prepared components; quality/latency acceptance remains T77.
 
 Suggested next-session instruction:
 
-> On branch `findings-jev-discovery`, implement only T73 from
-> `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md` in a different fresh-context agent.
-> Read AGENTS.md, docs/TASKS.md execution policy, docs/PIPELINE_PAGE_DESIGN.md,
-> the Findings plan and recent docs/PROGRESS.md first. Preserve T69/T70/T72 fixtures.
-> T71's reset is complete: do not reset again. Use T72's supported line assignments,
-> T71 storage and T70 batching for bounded context links and evidence bundles.
-> Keep prepared components unwired until T76. Run focused gates and required lint,
-> record the T74 handoff, and stop.
+> Implement only T74 from `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md` in a different
+> fresh-context agent. Read AGENTS.md, task policy, pipeline design, the full Findings
+> plan and recent progress. Use T73's pools/links/bundles and T70 batching for bundle
+> ranking, required-condition judgments and deterministic selection. Keep prepared
+> components unwired until T76; preserve fixtures and do not reset storage. Run the
+> focused gate/lint and required shared-code full suite, document T75, then stop.
+
+## T73 — Attach context and assemble bundles — completed, 2026-10-15
+
+- Added prepared `findings_context.py`: pure bounded pool/enumeration planning,
+  five independent general/role Nouls per supported source/concept/context pair,
+  link decisions, explicit unresolved roles and source-ordered typed bundles.
+  Context text is held once per canonical line in the plan and resolved from
+  canonical references; no full outline or chunk enters provider state.
+- Allowed coverage is the shared union of concept-candidate core/preceding ranges
+  plus selected earnings-change/comparability chunks with that target score at or
+  above the same upstream uncertain relevance threshold recorded in concept maps.
+  Structural slots precede nearest local lines; distant structural headers and
+  following context are allowed only in the same owning section and allowed pool.
+  Date/year-only table headers include day numbers. Overlapping ranges deduplicate
+  occurrences while retaining ownership. Other-section and local/structural scope
+  exclusions are recorded; contiguous exclusions use range summaries to stay bounded.
+- General support must meet the context support threshold for selection. If capped,
+  prefer supported role count, support, distance then source order; persist dropped
+  links with raw answers. Restore source order for inspection/conversion. Role answers
+  are independent and never multiplied. Missing roles stay unresolved; absent
+  external canonical captions are unavailable, with no HTML/XBRL fallback.
+- Added typed pool storage to existing generic artifacts and public illustrative
+  contracts. No schema version/reset is needed. Exact source, pool, enumeration,
+  omissions, questions, policy and pinned model bind reuse; local IDs remap. Atomic
+  final persistence cannot publish a failed/cancelled/interrupted subset; successful
+  batches remain reusable after restart. Remaining request/deadline allowances are
+  bounded here; T76 still owns the shared whole-stage budget.
+- Tests inspected/timed: existing T69–T72 baseline **26 passed in 1.95s**. No obsolete
+  tests were removed. Ten focused T73 checks use genuine saved AZZ canonical/chunk/
+  score provenance from T69 and Apple 2024 HTML from T64; semantic support/role
+  answers are explicitly controlled invariants, not accuracy evidence. They cover
+  comparative-year/date headers, scale/entity labels, distant/shared/following
+  context, overlapping ownership, absent roles/external captions, cross-section
+  rejection, threshold boundaries, nonsupported assignments, question/count/size
+  caps, cancellation/failure/deadline, restart, tamper rejection and local-ID remap.
+  First gate exposed frozen-link mutation and a date-header enumeration gap, both
+  corrected. A combined gate caught the missing typed-pool illustration, corrected.
+  Final focused T69–T73: **36 passed in 3.45s**. `uv run ruff check .`: passed.
+  Final `uv run pytest -q`: **98 passed in 18.70s**, with the existing
+  Starlette/AnyIO deprecation warning. `git diff --check`: passed. uv checks
+  needed sandbox escalation to read the existing cache. An earlier full suite
+  before the final threshold regression passed 97 tests in 18.06s.
+- No live provider probe was needed or performed; no new live accuracy/latency
+  claim. No browser automation. T69/T70/T72 real recorded fixtures remain intact;
+  no application data or credentials were changed.
+- UI review: `pipeline.py` still invokes existing `FindingsService.build`; web
+  `app.py` still renders its saved existing inspection projection. Prepared context
+  code has no active runtime imports. Current source/chunk budgets, old Findings
+  extraction/repair/classification/seal gates and independent Facts/Evaluate inputs
+  remain unchanged, so no UI edit is required. PIPELINE_PAGE_DESIGN.md's explicit
+  planned-until-T76 relationship remains accurate. The prepared plan/result exposes
+  exact executed role questions, context ownership and omissions for that activation.
+- Manual verification **pending**: if stopped, `uv run profitlab serve` is the
+  one-time prerequisite. Open `http://127.0.0.1:8000`, create/open a ticker run,
+  follow Pipeline → Findings and select its existing stations. Expect the current
+  retained-chunk extraction/validation/repair/classification explanation and saved
+  results; no Attach-context station is active before T76. Inspect source jumps and
+  Facts/Evaluate separation; no new visible behavior is claimed by this task.
+- Next: **T74**, rank and select bundles, in a different fresh-context agent only
+  when requested. T75 conversion and T76 runtime/UI activation remain unimplemented.
 
 ## T72 — Assign lines to concepts — completed, 2026-10-15
 

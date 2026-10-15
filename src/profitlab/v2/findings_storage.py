@@ -11,6 +11,7 @@ from .findings_contracts import (
     ConceptLineAssignment,
     ConversionDiagnostic,
     FindingContextLink,
+    FindingContextPool,
     FindingEvidenceBundle,
     FindingLineCandidate,
     FindingPublicationProvenance,
@@ -26,6 +27,7 @@ ARTIFACTS = {
     ConceptChunkCandidates: ('concept', FindingsPhase.CANDIDATES, 'concept'),
     FindingLineCandidate: ('line', FindingsPhase.CANDIDATES, 'candidate_id'),
     ConceptLineAssignment: ('assignment', FindingsPhase.ASSIGN, 'candidate_id'),
+    FindingContextPool: ('context_pool', FindingsPhase.ATTACH, 'concept'),
     FindingContextLink: ('context', FindingsPhase.ATTACH, 'link_id'),
     FindingEvidenceBundle: ('bundle', FindingsPhase.ATTACH, 'bundle_id'),
     RankedFindingBundle: ('rank', FindingsPhase.RANK, 'bundle_id'),
@@ -166,14 +168,17 @@ def reusable_request(batch: PackedJevBatch):
     Occurrence IDs already identify concept/hash/line. Source hashes, line offsets,
     instruction strings and model remain in the key. Responses remap via current routes.
     """
+    return reusable_input(batch.request.model_dump(mode='json', exclude_none=True))
+
+
+def reusable_input(value):
+    """Normalize documented local routing fields, preserving exact safe content."""
     local_fields = {'document_id', 'filing_id', 'chunk_id', 'section_id'}
-    def normalize(value):
-        if isinstance(value, dict):
-            return {key: normalize(item) for key, item in value.items() if key not in local_fields}
-        if isinstance(value, list):
-            return [normalize(item) for item in value]
-        return value
-    return normalize(batch.request.model_dump(mode='json', exclude_none=True))
+    if isinstance(value, dict):
+        return {key: reusable_input(item) for key, item in value.items() if key not in local_fields}
+    if isinstance(value, list):
+        return [reusable_input(item) for item in value]
+    return value
 
 
 def reusable_request_key(batch: PackedJevBatch):

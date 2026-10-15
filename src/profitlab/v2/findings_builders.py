@@ -92,7 +92,7 @@ def build_assignment_request(filing: FindingsFilingMetadata, candidate: FindingL
 def build_context_request(filing: FindingsFilingMetadata, candidate: FindingLineCandidate,
                           context: VisibleFindingLine, *, context_section_id: str,
                           allowed_pool: list[SourceRange], model: str,
-                          policy: FindingsPolicy) -> JevRequest:
+                          policy: FindingsPolicy, enforce_budget: bool = True) -> JevRequest:
     if context_section_id != candidate.section_id or not any(
         same_document(r, context.source_range) and
         r.start_line <= context.source_range.start_line <= r.end_line for r in allowed_pool
@@ -107,7 +107,10 @@ def build_context_request(filing: FindingsFilingMetadata, candidate: FindingLine
     questions = {'context_support': NoulQuestion(instructions=base + 'Does it support that source/concept?')}
     questions.update({role.value: NoulQuestion(instructions=base + question)
                       for role, question in ROLE_QUESTIONS.items()})
-    return _checked_request(state, questions, model, policy.attach_budget)
+    if enforce_budget:
+        return _checked_request(state, questions, model, policy.attach_budget)
+    guard_findings_payload(state.model_dump(mode='json'))
+    return JevRequest(state=state.model_dump(mode='json'), questions=questions, model=model)
 
 
 def build_bundle_input(bundle: FindingEvidenceBundle, document: CanonicalDocument) -> ConversionBundleInput:

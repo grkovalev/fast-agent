@@ -177,6 +177,29 @@ class ConceptLineAssignment(V2Contract):
         return self
 
 
+class ContextPoolRange(V2Contract):
+    chunk_id: StableID
+    section_id: StableID
+    source_range: SourceRange
+    kind: Literal['core', 'preceding_context']
+
+
+class FindingContextPool(V2Contract):
+    """Shared allowed coverage; canonical text is resolved only when requested."""
+    concept: FindingConcept
+    ranges: list[ContextPoolRange] = Field(max_length=100000)
+    limitation: str = 'Only retained canonical coverage is available; external captions are unavailable.'
+
+
+class FindingContextCandidate(V2Contract):
+    link_id: StableID
+    source_candidate_id: StableID
+    context_range: SourceRange
+    section_id: StableID
+    owning_chunk_ids: list[StableID] = Field(min_length=1, max_length=10000)
+    structural: bool
+
+
 class ContextRoleAnswer(V2Contract):
     role: ContextRole
     answer: NoulAnswer

@@ -1,6 +1,6 @@
 # JEV-led Findings implementation plan
 
-Status: T69–T72 DONE; T73–T77 PLANNED, 2026-10-15. Scoped V2 data reset completed in T71.
+Status: T69–T73 DONE; T74–T77 PLANNED, 2026-10-15. Scoped V2 data reset completed in T71.
 This replaces the Findings internals in the existing eight-stage pipeline. Keep
 the `v2` package, repository, database filename and URLs; do not create a v3,
 migration, compatibility mode or permanent old/new execution switch.
@@ -292,8 +292,8 @@ design brief and README at activation, removing obsolete Findings explanations.
 | T69 | Baseline evidence and shared replacement contracts/policy | Planning complete | DONE |
 | T70 | Typed mixed Noul/Score adapter and bounded batch execution | T69 | DONE |
 | T71 | Fresh storage/checkpoints and concept-to-chunk/line enumeration | T70 | DONE |
-| T72 | JEV multi-concept source-line assignments | T71 | PLANNED |
-| T73 | JEV context links and assembled evidence bundles | T72 | PLANNED |
+| T72 | JEV multi-concept source-line assignments | T71 | DONE |
+| T73 | JEV context links and assembled evidence bundles | T72 | DONE |
 | T74 | JEV bundle ranking and deterministic selection | T73 | PLANNED |
 | T75 | Selected-bundle LLM conversion and strict validation | T74 | PLANNED |
 | T76 | Atomic runtime/UI activation and obsolete flow removal | T75 | PLANNED |
@@ -574,6 +574,31 @@ following context, overlapping chunks, absent roles, unavailable external captio
 cross-section rejection, question budgets and resume. Prepared Attach inspector
 shows exact role questions and context ownership. Gate:
 `test_t73_findings_context.py`.
+
+T73 completed, 2026-10-15:
+
+- Prepared `findings_context.py` builds shared canonical coverage from the union of
+  concept-candidate chunks and selected earnings-change/comparability chunks whose
+  respective target reaches the same recorded upstream uncertain threshold. Core
+  and preceding-context ranges retain chunk/section ownership; no new source fetch,
+  section crossing or chunk coverage change is allowed.
+- Reserve structural candidates (headings/captions and table rows with no numbers
+  or date/year-only numbers), then nearest local lines, then remaining structural
+  lines, within the configured cap. Following lines are allowed only inside this
+  pool. Overlap deduplicates by canonical occurrence, retaining every owner.
+  Nonlocal/nonstructural exclusions are grouped by source range; other-section
+  exclusions are explicit. Candidate/request/selected-context caps mark partial
+  coverage, while bounded search scope remains an explicit limitation.
+- Five independent Nouls per source/context pair persist general support and all
+  four role answers. General support admits links; selected-line ties use supported
+  role count, support, distance and source order. Selected context returns to source
+  order. No probability multiplication, invented metadata or external-caption import.
+  Typed pools, links and bundles persist atomically; raw successful batches checkpoint
+  before further work, with exact-input/policy/model reuse and current local-ID remap.
+- Prepared plan/result and actual request builders expose questions, ownership,
+  omissions, unresolved roles and answers for the later Attach inspector. No active
+  runtime/UI/Facts/Evaluate switch or database reset. Gates/provenance/manual handoff
+  are recorded in PROGRESS.md. Next: T74, only when requested, in a fresh agent.
 
 ### T74 — Rank and select bundles
 

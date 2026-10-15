@@ -20,9 +20,11 @@ from .findings_contracts import (
     ConceptChunkCandidates,
     ConceptChunkReference,
     ConceptLineAssignment,
+    ContextPoolRange,
     ContextRole,
     ContextRoleAnswer,
     FindingContextLink,
+    FindingContextPool,
     FindingConversionProposal,
     FindingEvidenceBundle,
     FindingLineCandidate,
@@ -116,6 +118,10 @@ def safe_findings_examples(policy: FindingsPolicy | None = None) -> dict:
                              input_hash=digest,policy_hash=policy.identity()) for phase in FindingsPhase]
     return {'kind':'validated illustration; no provider calls or active runtime registration',
         'contracts':{'candidate_map':ConceptChunkCandidates(concept=concept,relevance_threshold=.2,chunks=[owner]),
+            'context_pool':FindingContextPool(concept=concept, ranges=[
+                ContextPoolRange(chunk_id=chunk.chunk_id, section_id=chunk.section_id,
+                    source_range=r, kind='core' if r == chunk.core_range else 'preceding_context')
+                for r in [chunk.core_range, *chunk.context_ranges]]),
             'candidate':candidate,'assignment':assignment,'context_link':links[0],'bundle':bundle,'rank':rank,
             'proposal':proposal,'publication':publication,
             'identity':FindingsInputIdentity(canonical_source_hashes=[digest],exact_inputs_hash=digest,
