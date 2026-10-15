@@ -7,6 +7,7 @@ from profitlab.providers.jev import validate_response
 from .finding_concepts import FindingConcept
 from .findings_batching import CompletedJevBatch, PackedJevBatch
 from .findings_contracts import (
+    CompletedConversionBatch,
     ConceptChunkCandidates,
     ConceptLineAssignment,
     ConversionDiagnostic,
@@ -16,6 +17,7 @@ from .findings_contracts import (
     FindingEvidenceBundle,
     FindingLineCandidate,
     FindingPublicationProvenance,
+    FindingsConversionResult,
     FindingsInputIdentity,
     FindingsPhase,
     FindingsRunSummary,
@@ -34,6 +36,7 @@ ARTIFACTS = {
     RankedFindingBundle: ('rank', FindingsPhase.RANK, 'bundle_id'),
     FindingConversionPack: ('conversion_pack', FindingsPhase.RANK, 'pack_id'),
     ConversionDiagnostic: ('conversion', FindingsPhase.CONVERT, 'bundle_id'),
+    FindingsConversionResult: ('conversion_result', FindingsPhase.CONVERT, 'result_id'),
     FindingPublicationProvenance: ('publication', FindingsPhase.VALIDATE, 'bundle_id'),
 }
 
@@ -151,6 +154,61 @@ class FindingsStorage:
                 (run_id, identity.phase, identity.cache_key(), limit, offset)).fetchall()
         return [CompletedJevBatch.model_validate_json(row['payload']) for row in rows]
 
+    def save_conversion_result(self, run_id, result: FindingsConversionResult):
+        """Persist terminal diagnostics including failed/interrupted non-publication."""
+        self.get_run(run_id)
+        result = FindingsConversionResult.model_validate_json(result.model_dump_json())
+        step = result.step
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM findings_artifacts WHERE run_id=? AND phase=?',
+                       (run_id, FindingsPhase.CONVERT))
+            for ordinal, value in enumerate([*result.diagnostics, result]):
+                kind, phase, key = ARTIFACTS[type(value)]
+                concept = value.proposal.concept if isinstance(value, ConversionDiagnostic) and value.proposal else ''
+                db.execute('INSERT INTO findings_artifacts VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    (run_id, phase, kind, str(concept), str(getattr(value, key)), ordinal, value.model_dump_json()))
+            db.execute('INSERT OR REPLACE INTO findings_steps VALUES (?, ?, ?, ?, ?)',
+                (run_id, step.phase, step.input_hash, step.policy_hash, step.model_dump_json()))
+
+    def save_conversion_checkpoint(self, run_id, completed: CompletedConversionBatch):
+        self.get_run(run_id)
+        completed = CompletedConversionBatch.model_validate_json(completed.model_dump_json())
+        # Requested identity must be pinned to the returned model before reusable caching.
+        key = completed.request.cache_key()
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('INSERT OR REPLACE INTO findings_checkpoints VALUES (?, ?, ?, ?, ?, ?)',
+                (run_id, FindingsPhase.CONVERT, key, key, completed.request.model_dump_json(),
+                 completed.model_dump_json()))
+            if completed.response.model == completed.request.model:
+                db.execute('INSERT OR REPLACE INTO findings_phase_cache VALUES (?, ?, ?, ?)',
+                    (key, key, completed.request.model_dump_json(), completed.model_dump_json()))
+
+    def conversion_checkpoint(self, request):
+        import json
+        key = request.cache_key()
+        with self.connect() as db:
+            row = db.execute('SELECT payload FROM findings_phase_cache WHERE identity_key=? AND batch_id=?',
+                             (key, key)).fetchone()
+        if not row:
+            return None
+        saved = CompletedConversionBatch.model_validate_json(row['payload'])
+        if conversion_identity(saved.request) != conversion_identity(request) or saved.response.model != request.model:
+            return None
+        # Only remap canonical routing IDs from supplied current source/context references.
+        refs = {line.source_range.source_hash: line.source_range.document_id
+                for b in request.state.selected_bundles for line in [b.source, *b.context]}
+        def remap(value):
+            if isinstance(value, dict):
+                return {k: refs.get(value.get('source_hash'), v) if k == 'document_id' else remap(v)
+                        for k, v in value.items()}
+            if isinstance(value, list):
+                return [remap(x) for x in value]
+            return value
+        response = type(saved.response).model_validate(remap(json.loads(saved.response.model_dump_json())))
+        return saved.model_copy(update={'request': request, 'response': response, 'cached': True})
+
     def save_findings_run_result(self, run_id: str, result: FindingsRunSummary):
         self.get_run(run_id)
         result = FindingsRunSummary.model_validate_json(result.model_dump_json())
@@ -186,3 +244,15 @@ def reusable_input(value):
 def reusable_request_key(batch: PackedJevBatch):
     return hashlib.sha256(json.dumps(reusable_request(batch), sort_keys=True,
                                     separators=(',', ':')).encode()).hexdigest()
+
+
+def conversion_identity(request):
+    """Full safe wire identity; decode embedded state/repair JSON before local-ID removal."""
+    value = request.model_dump(mode='json')
+    for message in value['body']['messages']:
+        if message['role'] == 'user':
+            try:
+                message['content'] = json.loads(message['content'])
+            except ValueError:
+                pass
+    return reusable_input(value)

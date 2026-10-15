@@ -205,6 +205,10 @@ class Finding(V2Contract):
     validation_state: Literal['validated', 'rejected', 'unresolved']
     model: str | None = None
     repair_attempted: bool = False
+    bundle_id: StableID | None = None
+    context_references: list[SourceRange] = Field(default_factory=list, max_length=200)
+    source_chunk_ids: list[StableID] = Field(default_factory=list, max_length=10000)
+    scale: str | None = None
 
 
 class StructuredFact(V2Contract):

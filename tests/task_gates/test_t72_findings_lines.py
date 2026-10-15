@@ -65,6 +65,14 @@ async def test_real_executed_requests_answers_storage_and_restart(tmp_path):
     plan = FindingsAssignmentPlan.model_validate(record['plan'])
     expected = FindingsAssignmentsResult.model_validate(record['result'])
     policy = FindingsPolicy()
+    # Preserve the genuine fixture unchanged; rebuild its identical wire requests
+    # under today's complete policy identity (T75 adds conversion-only bounds).
+    recorded_plan = plan
+    document, _, _ = inputs(policy)
+    plan = build_assignment_plan(document, recorded_plan.filing, recorded_plan.candidates,
+        model=recorded_plan.identity.model_identity, policy=policy,
+        max_requests=recorded_plan.request_allowance)
+    assert [x.request for x in plan.batches.batches] == [x.request for x in recorded_plan.batches.batches]
     responses = {x.batch.batch_id: x.response for x in expected.execution.completed}
     class Replay:
         async def evaluate(self, request):

@@ -1,6 +1,6 @@
 # JEV-led Findings implementation plan
 
-Status: T69–T74 DONE; T75–T77 PLANNED, 2026-10-15. Scoped V2 data reset completed in T71.
+Status: T69–T75 DONE; T76–T77 PLANNED, 2026-10-15. Scoped V2 data reset completed in T71.
 This replaces the Findings internals in the existing eight-stage pipeline. Keep
 the `v2` package, repository, database filename and URLs; do not create a v3,
 migration, compatibility mode or permanent old/new execution switch.
@@ -295,7 +295,7 @@ design brief and README at activation, removing obsolete Findings explanations.
 | T72 | JEV multi-concept source-line assignments | T71 | DONE |
 | T73 | JEV context links and assembled evidence bundles | T72 | DONE |
 | T74 | JEV bundle ranking and deterministic selection | T73 | DONE |
-| T75 | Selected-bundle LLM conversion and strict validation | T74 | PLANNED |
+| T75 | Selected-bundle LLM conversion and strict validation | T74 | DONE |
 | T76 | Atomic runtime/UI activation and obsolete flow removal | T75 | PLANNED |
 | T77 | Real-data quality/latency acceptance and final closure | T76 | PLANNED |
 
@@ -676,6 +676,53 @@ metadata references, unselected bundle rejection, no extra model work, accepted
 results surviving repair, empty conversion, dedup identity and bounded failure.
 Prepared Convert/Validate/Seal inspectors use real models/builders. Gate:
 `test_t75_findings_conversion.py`.
+
+### T75 finalized conversion decisions — 2026-10-15
+
+- Prepared `findings_conversion.py` revalidates T74 selected eligible bundles and
+  exact canonical packs, then repacks whole bundles under the actual Chat
+  Completions body: model, system/user/repair messages, tool or native output
+  schema, reasoning option and output-token reservation. New configurable policy
+  bounds are 30,000 estimated input tokens, 1,024 margin, 3 characters/token and
+  8,000 output tokens. These are application limits/estimates, not a verified
+  model capacity or tokenizer. Final-envelope size/count cuts retain explicit
+  omissions, accounting and partial results; no source/context is truncated.
+- SDK retries are disabled; the existing traced transport owns HTTP retries.
+  Structured-output framework retries are absent. Actual model, response ID,
+  raw proposals, provider tokens and per-batch timing persist in typed results.
+  Failed/deadline/cancelled results persist with successful batch checkpoints
+  and no publishable subset. Empty selection makes zero model requests.
+- Each proposal is validated independently against its supplied selected bundle:
+  fixed concept, whole source-line identity, supplied numeric span/raw text/sign/
+  Decimal, an exact quote covering that span, and metadata references limited to
+  supplied source/context lines. Source references do not verify financial meaning
+  or requested year. Null metadata and unresolved roles produce visible limitations.
+  Amount remains displayed scale; `Finding.scale` stores separate cited scale.
+- Stable finding IDs bind concept/source hash/line/exact numeric offsets/displayed
+  amount. Repeated proposals merge ownership; distinct occurrences/concepts survive.
+  Published Findings retain bundle ID, chosen/all owning chunks and selected
+  context references; publication records additionally retain metadata claims and
+  numeric span. Active old constructors have optional defaults only until T76.
+- One separate repair request contains only bundles with invalid proposals and
+  their diagnostics. Accepted values survive omission/replacement in repair;
+  repaired duplicates cannot overwrite accepted findings. Over-budget repair is
+  terminal rejection with accepted findings retained. There is no type-model call.
+- Conversion caches use full safe wire/state/policy/provider/model identity,
+  normalize run-local routing IDs (including embedded JSON messages), and remap
+  document references on reuse. Reuse requires returned model equal to pinned
+  requested identity; aliases with a different actual model are recorded but
+  conservatively not reusable. All selected inputs and omissions participate in
+  phase identity even when every bundle is omitted.
+- Convert/Validate/Seal prepared inspection examples use executed request/output/
+  result/provenance classes and builders. They remain unregistered: pipeline and
+  web routes still use the existing FindingsService. T76 owns atomic activation,
+  partial Facts gates, phase-wide accounting/version cohorts, Validate/Seal
+  persistence/publication and UI source/context previews. It must preserve
+  Evaluate's independent comparator and existing optional scale-verification
+  decision inputs while changing the evidence preview to selected context.
+- Checks/live provenance and manual handoff are in PROGRESS.md and
+  `tests/fixtures/benchmarks/t75/README.md`. No application storage reset.
+  Implementation and the context-reset handoff are committed together on request.
 
 ### T76 — Activate the replacement with its UI
 

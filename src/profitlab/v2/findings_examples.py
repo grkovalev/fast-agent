@@ -6,7 +6,7 @@ from decimal import Decimal
 from profitlab.providers.jev import NoulAnswer
 
 from .canonical import CanonicalDocument, CanonicalLine
-from .contracts import CanonicalDocumentRef, Finding, SourceRange, TextChunk
+from .contracts import CanonicalDocumentRef, SourceRange, TextChunk
 from .finding_concepts import FindingConcept
 from .findings_builders import (
     build_assignment_request,
@@ -26,11 +26,12 @@ from .findings_contracts import (
     ContextRoleAnswer,
     FindingContextLink,
     FindingContextPool,
+    FindingConversionOutput,
     FindingConversionPack,
     FindingConversionProposal,
     FindingEvidenceBundle,
     FindingLineCandidate,
-    FindingPublicationProvenance,
+    FindingsConversionResult,
     FindingsFilingMetadata,
     FindingsInputIdentity,
     FindingsPhase,
@@ -110,14 +111,12 @@ def safe_findings_examples(policy: FindingsPolicy | None = None) -> dict:
         scale=MetadataClaim(value='millions',source_references=[source(1)]),
         attribution=MetadataClaim(value='common shareholders',source_references=[source(2)]),
         limitations=['Qualification/comparability context unresolved.'])
-    finding=Finding(finding_id='illustrative-finding',exact_quote=texts[2],source_range=source(3),
-        amount=proposal.amount,source_chunk_id=chunk.chunk_id,finding_type=concept.value,
-        validation_state='validated',model='illustrative-llm')
-    publication=FindingPublicationProvenance(finding=finding,concept=concept,bundle_id=bundle.bundle_id,
-        numeric_span=candidate.numeric_spans[0],context_references=[source(1),source(2)],
-        metadata_claims={k:getattr(proposal,k) for k in ('period','unit','scale','attribution')})
     steps=[FindingsStepResult(phase=phase,status='completed',availability='final',
                              input_hash=digest,policy_hash=policy.identity()) for phase in FindingsPhase]
+    from .findings_conversion import build_conversion_request, validate_conversion
+    publication, diagnostic = validate_conversion(proposal.model_dump(mode='json'), conversion, 'illustrative-llm')
+    wire_request = build_conversion_request(conversion, policy, model='illustrative-llm',
+        base_url='https://example.invalid/v1')
     return {'kind':'validated illustration; no provider calls or active runtime registration',
         'contracts':{'candidate_map':ConceptChunkCandidates(concept=concept,relevance_threshold=.2,chunks=[owner]),
             'context_pool':FindingContextPool(concept=concept, ranges=[
@@ -128,13 +127,23 @@ def safe_findings_examples(policy: FindingsPolicy | None = None) -> dict:
             'conversion_pack':FindingConversionPack(pack_id='illustrative-pack',state=conversion,
                 messages=build_conversion_messages(conversion,policy)),
             'proposal':proposal,'publication':publication,
+            'conversion_result':FindingsConversionResult(publications=[publication], diagnostics=[diagnostic], step=steps[4]),
             'identity':FindingsInputIdentity(canonical_source_hashes=[digest],exact_inputs_hash=digest,
                 phase=FindingsPhase.ASSIGN,concept=concept,policy_hash=policy.identity(),
                 question_version=policy.question_version,model_identity='illustrative-jev'),
             'summary':FindingsRunSummary(status='completed',sealed=True,policy_hash=policy.identity(),steps=steps,
-                published_finding_ids=[finding.finding_id])},
+                published_finding_ids=[publication.finding.finding_id])},
         'assignment_request':request,'context_requests':context_requests,
         'rank_state':build_rank_state(filing,bundle,document,policy),
         'rank_request':build_rank_request(build_rank_state(filing,bundle,document,policy),
             'illustrative-jev',policy),'conversion_state':conversion,
-        'conversion_messages':build_conversion_messages(conversion,policy),'policy':policy}
+        'conversion_messages':build_conversion_messages(conversion,policy),
+        'conversion_request':wire_request,
+        'prepared_inspectors': {
+            'convert': {'request':wire_request, 'output_schema':FindingConversionOutput.model_json_schema()},
+            'validate': {'diagnostic':diagnostic, 'publication':publication,
+                'guarantee':'Selected source/span/sign and supplied metadata references; financial interpretation remains uncertain.'},
+            'seal': {'summary':FindingsRunSummary(status='completed',sealed=True,policy_hash=policy.identity(),
+                steps=steps,published_finding_ids=[publication.finding.finding_id]),
+                'guarantee':'Only all-terminal successful phases can seal; accepted findings bypass bounded repair.'}},
+        'policy':policy}

@@ -386,6 +386,7 @@ class ConversionDiagnostic(V2Contract):
     state: Literal['accepted', 'rejected', 'empty']
     reasons: list[str] = Field(default_factory=list, max_length=100)
     repaired: bool = False
+    raw_proposal: dict | None = None
 
 
 class PhaseAccounting(V2Contract):
@@ -580,3 +581,48 @@ class RankState(V2Contract):
     concept_definition: str = Field(min_length=1)
     required_conditions: dict[RequiredCondition, str] = Field(min_length=4, max_length=4)
     rubric: list[str] = Field(min_length=4, max_length=4)
+
+
+class FindingConversionOutput(V2Contract):
+    findings: list[FindingConversionProposal] = Field(max_length=1000)
+
+
+class ConversionResponse(V2Contract):
+    """Raw proposals are independently validated, preserving good siblings."""
+    model: str = Field(min_length=1)
+    findings: list[dict] = Field(max_length=1000)
+    usage: TokenUsage | None = None
+    response_id: str | None = None
+
+
+class ConversionRequest(V2Contract):
+    base_url: str = Field(min_length=1)
+    model: str = Field(min_length=1)
+    policy_hash: Hash
+    state: ConversionState
+    body: dict
+    repair_bundle_ids: list[StableID] = Field(default_factory=list, max_length=300)
+
+    def cache_key(self):
+        import json
+
+        from .findings_storage import conversion_identity
+        return hashlib.sha256(json.dumps(conversion_identity(self), sort_keys=True,
+                                         separators=(',', ':')).encode()).hexdigest()
+
+
+class CompletedConversionBatch(V2Contract):
+    request: ConversionRequest
+    response: ConversionResponse
+    cached: bool = False
+    elapsed_seconds: float = Field(default=0, ge=0)
+
+
+class FindingsConversionResult(V2Contract):
+    result_id: Literal['conversion-result'] = 'conversion-result'
+    batches: list[CompletedConversionBatch] = Field(default_factory=list, max_length=21)
+    diagnostics: list[ConversionDiagnostic] = Field(default_factory=list, max_length=10000)
+    publications: list[FindingPublicationProvenance] = Field(default_factory=list, max_length=10000)
+    conversion: PhaseAccounting = Field(default_factory=PhaseAccounting)
+    repair: PhaseAccounting = Field(default_factory=PhaseAccounting)
+    step: FindingsStepResult

@@ -75,6 +75,11 @@ class FindingsPolicy(V2Contract):
     max_jev_requests: int = Field(default=100, ge=1, le=2000)
     total_deadline_seconds: float = Field(default=300, gt=0, le=3600)
     conversion_request_characters: int = Field(default=60000, ge=1000, le=1000000)
+    # Configured application input ceiling, not a claim about model context capacity.
+    conversion_input_tokens: int = Field(default=30000, ge=256, le=1000000)
+    conversion_token_margin: int = Field(default=1024, ge=0, le=100000)
+    conversion_characters_per_token: float = Field(default=3, gt=0, le=4)
+    conversion_output_tokens: int = Field(default=8000, ge=1, le=100000)
     max_conversion_requests: int = Field(default=2, ge=1, le=20)
     max_repair_requests: int = Field(default=1, ge=0, le=1)
 

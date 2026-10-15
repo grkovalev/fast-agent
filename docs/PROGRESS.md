@@ -6,8 +6,9 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current implementation task: none. **T69–T74 DONE**; T75–T77 PLANNED, JEV-led Findings;
+- Current implementation task: none. **T69–T75 DONE**; T76–T77 PLANNED, JEV-led Findings;
   see [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
+  T75 prepared selected-bundle conversion, strict span/metadata validation and accepted-preserving repair.
   T74 prepared bundle ranking, required-condition eligibility and whole-bundle conversion packing.
   T73 prepared bounded context attachment, shared coverage pools and typed bundles.
   T72 prepared independent JEV source-line assignments and successful-batch reuse.
@@ -32,10 +33,14 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next when implementation is requested: **T75**, selected-bundle conversion and strict validation,
-  in a different fresh-context agent. T74 is complete;
+- Next when implementation is requested: **T76**, atomic runtime/UI activation and obsolete flow removal,
+  in a different fresh-context agent. T75 is complete;
   no task starts automatically. T61–T62 broader visual reviews remain open.
-- Latest automated checks: T69–T74 focused gates passed (46 tests in 4.47s);
+- Latest automated checks: T75 plus shared contract/storage example checks passed
+  (22 tests in 1.43s); standalone T75 gate passed (11 tests in 1.14s); final full suite
+  passed (119 tests in 20.28s); repository Ruff and diff checks passed.
+  Combined T69–T75 gates passed before the final recorded-response addition
+  (56 tests in 5.18s). Earlier: T69–T74 focused gates passed (46 tests in 4.47s);
   full suite passed (108 tests in 20.13s); repository Ruff and diff checks passed.
   Earlier: T73/T69–T72 focused gates passed (36 tests in 3.45s);
   full suite passed (98 tests in 18.70s); repository Ruff and diff checks passed.
@@ -72,8 +77,8 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
-**T65–T74 are DONE; T75–T77 are PLANNED. No automatic implementation.**
-Working branch is `findings-jev-discovery`. T69–T74 prepared replacement components
+**T65–T75 are DONE; T76–T77 are PLANNED. No automatic implementation.**
+Working branch is `findings-jev-discovery`. T69–T75 prepared replacement components
 without activating them. Preserve the baseline fixtures under
 `tests/fixtures/benchmarks/t69`, `t70` and `t72`; T69's three saved runs and genuine live
 old-stage replay remain available outside application data.
@@ -87,27 +92,89 @@ used by prepared T72 line assignments, but current runtime, prompts, UI stations
 and Facts/Evaluate inputs retain their existing behavior until T76. T61–T62 broader visual review and
 the Apple canonical-caption limitation remain separately open.
 
-T74 is complete; ranking and all earlier replacement components remain prepared
-and unwired. The T74 implementation and this context-reset handoff are committed
-together. Exact rank plans/results and typed conversion packs persist through
-the existing T71 storage. Per-concept/global top-N count selection is intentional;
-text/packing cuts are partial. Stable concept-value traversal fills the global cap.
-T75 must enforce the actual provider/model/tool/output-schema envelope beyond the
-shared exact system/user messages already bounded by T74. Preserve all fixtures;
-do not repeat the reset or activate T76 early. No speedup is expected from
-unwired components; quality/latency acceptance remains T77.
+T75 is complete; all replacement components remain prepared and unwired.
+T75 implementation, checks, live-smoke fixture and this context-reset handoff
+are committed together. Resume with T76 only when the user requests implementation.
+The existing runtime still uses extraction, whole-set repair and type classification.
+Do not repeat the T71 reset. Preserve baseline and live fixtures, including T75's
+one isolated LLM compatibility response. T76 must activate seven phases and their
+complete UI together, remove obsolete code/storage, update run cohorts/accounting,
+and enforce completed/partial Findings seal gates for Facts/provenance. T75's
+converter saves conversion/validation evidence together, but does not publish or
+seal active Findings. T76 must persist Validate/Seal phases and atomic publication.
 
 Suggested next-session instruction:
 
-> Implement only T75 from `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md` in a different
-> fresh-context agent. Read AGENTS.md, task policy, pipeline design, the full Findings
-> plan and recent progress. Reuse T74's eligible selected ranks and exact whole-bundle
-> conversion packs for LLM conversion and strict source/span/metadata validation.
-> Preserve initially accepted findings through bounded selected-bundle repair;
-> do not add a post-conversion type call. Enforce the final provider/model/tool/schema
-> request envelope in addition to T74 message bounds. Keep components unwired until
-> T76, preserve fixtures and do not reset storage. Run focused gates/lint and required
-> full suite, document T76, then stop without committing automatically.
+> Implement only T76 from `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md` in a different
+> fresh-context agent. Read AGENTS.md, task policy, pipeline design, full Findings
+> plan and recent progress. Wire prepared T69–T75 components and seven-station UI
+> atomically; preserve selected-bundle provenance, accepted-preserving repair,
+> final-envelope omissions and independent Facts/Evaluate inputs. Update phase
+> accounting, cohorts and partial seal gates; remove obsolete runtime/storage and
+> perform only the already-authorized scoped reset if schema cleanup requires it.
+> Preserve all benchmark fixtures. Run focused gate, full suite, lint/diff; give
+> manual UI checks and stop without automatically starting T77 or committing.
+
+## T75 — Selected-bundle conversion/validation — completed, 2026-10-15
+
+- Added prepared `findings_conversion.py`: actual model/tool/native output-schema
+  envelope bounds, whole-bundle repacking with explicit partial omissions,
+  per-proposal exact source/span/sign/Decimal/metadata-reference validation,
+  fixed concepts, stable occurrence IDs, retained ownership/context/scale and
+  one separate accepted-preserving repair. No post-conversion type call.
+- Typed wire requests, raw responses, model IDs/usage/timing, diagnostics and
+  publication provenance persist via existing typed artifact/checkpoint tables.
+  Failed/deadline/cancelled results persist without publishable findings; successful
+  earlier batches remain reusable. Cache keys exclude local routing IDs and remap
+  references; exact policy/provider/envelope and pinned actual-model identity guard
+  reuse. Live alias/actual mismatch is deliberately not cached for later reuse.
+- Added configured input-token estimate/margin, chars/token and output reservation
+  to FindingsPolicy, all in its hash. Limits are application bounds, not measured
+  model capacity. Convert/Validate/Seal safe inspectors use real models/builders;
+  new optional Finding fields retain provenance without activating the new flow.
+- Tests inspected/timed: baseline T74+T69 **15 passed in 2.06s**; no obsolete tests
+  removed. T75 gate covers multiple year/number columns, parentheses/sign/offsets,
+  exact quote coverage, invalid concept/bundle/metadata refs, occurrence dedup,
+  initially accepted results surviving repair, terminal malformed rejections,
+  zero-input/no calls, final-envelope/repair bounds, partial omissions,
+  failure/cancellation/deadline, typed persistence/restart/remapping/policy cache,
+  and actual SDK tool/native wire equality/model/usage through MockTransport.
+  Final T75 gate: **11 passed in 1.14s**; combined T69–T75 before the final saved
+  replay addition: **56 passed in 5.18s**. Final full suite with saved replay:
+  **119 passed in 20.28s**, existing Starlette/AnyIO warning. Final example cleanup
+  removed the superseded handwritten publication so all illustrative summary IDs
+  refer to converter-built findings; affected T75/T69/T71 gates **22 passed in
+  1.43s**. Ruff/diff passed.
+  T72 replay test rebuilds today's plan and asserts exact wire equality against
+  the unchanged genuine fixture; new conversion policy fields invalidate its old
+  policy hash as intended. First full run found this stale test identity; fixed
+  without changing fixtures or relaxing runtime identity validation.
+- Live compatibility smoke: credentials configured; one isolated conversion on
+  real saved AZZ canonical line 147, controlled assignment/rank, actual configured
+  LLM. Requested `openai/gpt-5.6-luna`, returned `gpt-5.6-luna`, one request,
+  **2,034 input/705 output tokens**, zero repairs, two source/span-validated fixed
+  profit proposals. Unknown period/unit/scale/attribution stayed null with explicit
+  limitations; this does not establish requested-year financial accuracy.
+  No live JEV, end-to-end pipeline, quality or latency acceptance is claimed.
+  Safe record and provenance: `tests/fixtures/benchmarks/t75/`; isolated temporary
+  DB removed, application namespace/fixtures preserved. No application reset.
+- UI/control-path review: `pipeline.py` still imports/calls old FindingsService;
+  `web/app.py` inspection, `_pipeline_findings.html` and `findings_results.py` still
+  describe/read that active path. Facts/provenance gates and evaluation inputs are
+  unchanged. Evaluate `_scale_context` still uses retained chunk inputs; T76 must
+  distinguish its decision input from selected-context UI preview. No active UI
+  edit is needed because the prepared converter is unreachable from product
+  routes. The durable design brief intentionally keeps old behavior until T76.
+- Manual verification pending, no browser automation: after one-time
+  `uv run profitlab serve`, open http://127.0.0.1:8000/ → Pipeline → Findings and
+  select the existing stations. Expect the current assembly/extract/validate/type/
+  publish explanation, with no new seven-station runtime advertised. At wide/phone
+  widths, keyboard, JavaScript disabled and 200% zoom, existing reading/navigation
+  should remain unchanged. There is no product click path for T75 alone; T76 will
+  expose saved selected bundles, context/provenance, omissions and bounded repair.
+- Remaining: T76 activation, atomic Validate/Seal publication, partial Facts gates,
+  obsolete cleanup, UI/evaluation preview and cohort/accounting updates; T77 real
+  selection quality/year accuracy and latency acceptance. Next task **T76** only.
 
 ## T74 — Rank/select bundles — completed, 2026-10-15
 
