@@ -35,8 +35,7 @@ class PresentationService:
         )}
 
     def enrich(self, run, facts):
-        if self.repo.stage(run.run_id, 'findings').status != 'completed':
-            raise ValueError('Findings must be sealed before presentation enrichment.')
+        self.repo.require_findings_seal(run.run_id)
         if not facts:
             self.repo.save_fact_presentations(run.run_id, [])
             return []

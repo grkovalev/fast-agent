@@ -34,11 +34,11 @@ the introduction is explanatory copy, not another selection policy or type model
 
 The same introduction states what Findings delivers: a variable-length list of
 reported numbers sought for the filing’s current fiscal year, each with an amount,
-exact quote, source-line link, and supported numeric type or unresolved type.
+exact quote, source-line link, and fixed concept and selected bundle/context provenance.
 Period, unit, attribution and limitations retain visible uncertainty. Include one
 explicitly illustrative result, separate from saved run data. Three supported
 types does not promise three findings or complete coverage; multiple numbers,
-missing types and empty results are possible. Explanatory retrieval passages do
+missing concepts, unresolved metadata and empty results are possible. Explanatory retrieval passages do
 not create separate narrative findings. Distinguish source validation from the
 independent comparison in Evaluate.
 
@@ -83,7 +83,7 @@ runs concurrently with Findings.
 | Sections | Visible outline-descriptor stack → provider score vectors → deterministic policy gate → selected, uncertain, and skipped groups. | Scores rank retrieval relevance; only selected sections continue. |
 | Chunks | Selected section as a line-addressed band → adjacent core ranges with separate preceding-context bands and neighbor links. | Core ranges own source coverage; overlap repeats context without becoming new coverage. |
 | Evidence | Chunk and target tiles → score vectors → bounded retained set, with separate uncertain and skipped groups. | Coverage, diversity, deduplication, and budgets govern what continues. |
-| Findings | Evidence and navigation inputs → bounded request → proposal validation, conditional repair/rejection, deduplication, type classification, sealed output. | Every published citation and amount passes validation; uncertainty remains visible; extraction and classification are distinct model roles. |
+| Findings | Concept lanes → numeric core candidates → JEV assignments/context/bundle ranking → eligible selection → LLM conversion → validation → atomic seal. | Only selected bundles enter conversion; accepted findings bypass bounded repair; metadata provenance and semantic uncertainty remain distinct. |
 | Facts | Findings-complete gate plus filing identity → independent Company Facts → configured concept mapping and value checkpoint → bounded SEC presentation enrichment and retained-HTML source verification → normalized fact rows with separate provenance diagnostics. | Company Facts supplies comparator values; optional presentation provenance cannot change them or block evaluation. |
 | Evaluate | Findings and Facts enter a paired comparison → deterministic outcomes; eligible mismatches may visit optional bounded scale/unit verification before recording. | Exact and ineligible outcomes bypass the model; verification does not repair discovery. |
 
@@ -139,36 +139,49 @@ and bounded, and its candidate replacement semantics must match the service.
 Sections and Evidence selection must visibly distinguish selected, uncertain, and
 skipped outcomes. Evaluate must show a direct bypass around optional verification.
 
-Findings uses a bounded, always-visible illustration of several retained chunks entering
-one initial extraction request and zero or more candidates per chunk. Label it as an
-illustration, never historical counts. Assembly tries the full retained set with the
-full outline, then packs complete chunks by descending score with the full outline.
-Only if none fits does it try the highest-scored core, its navigation entry and no
-preceding context; otherwise it seals an explicitly limited empty set without
-extraction or classification calls. Core evidence is serialized as CSV and preceding
-context is separate; reserve serialization details for inspection.
+Findings has seven selectable stations: Candidates, Assign lines, Attach context,
+Rank/select, Convert, Validate and Seal. Compact preparation and conversion groups
+surround a selection gate and visible winning/losing groups; do not repeat seven
+full-size cards. The always-visible illustration labels three concept lanes,
+shared source lines and shared context as illustrative. A source line can support
+several concepts; a bundle is one concept/source occurrence with selected context.
 
-The extraction prompt seeks the current fiscal-reporting year. Deterministic validation
-checks a stored chunk reference, core-line membership, an exact quote within one
-canonical line, a finite Decimal and numeric presence in that quote. It does not
-prove year, unit, scale, attribution or consolidated-versus-segment meaning. The
-Validate inspector must state that references are checked against stored chunks,
-not strictly against the request’s retained subset, and metadata is shape-checked,
-not independently source-verified. Outline hierarchy remains navigation only.
+Candidates reuse selected upstream chunk scores per concept above the uncertain
+relevance threshold, then enumerate numeric core lines without metric keywords.
+JEV independently assigns concept support; uncertain/rejected answers remain saved.
+Attach context asks general support and period/duration, unit/scale, entity and
+qualification roles together. Its explicit allowed pool contains candidate cores,
+preceding overlap and retained explanatory chunks, within the owning section.
+Following lines can be context within that pool; Chunks' preceding-only overlap
+contract does not change. Local/structural/cap omissions and unresolved roles stay
+visible. Canonical numbering and absent external-caption limitations remain.
 
-Any rejected proposals may trigger one repair call if extraction budget remains.
-The replacement response replaces the entire initial set, including initially
-accepted candidates, and goes through the same validation. Keep the first candidate
-per identical quote/amount pair; deduplication is neither one finding per chunk nor
-Jev extraction ranking. Complete cached types can be reused. Otherwise Jev classifies
-validated candidates into annual shareholder profit/net income or loss, diluted EPS,
-or annual diluted weighted-average shares. Exactly one type at or above the runtime
-threshold assigns it; zero or multiple supported types remain unresolved. Per-request
-classification size overflow also keeps an unresolved finding. An unresolved type
-alone does not reject it. The Classify inspector distinguishes this fallback from
-total classification-call budget overflow and provider errors, which can fail Findings
-before publication. Preserve saved initial/replacement, final validation/deduplication,
-classification and sealed-output results, with missing history explicitly unavailable.
+Rank/select evaluates complete bundles with a Score rubric and required-condition
+Nouls for requested fiscal year, annual duration, reported basis and concept scope.
+Known negatives reject and uncertainty stays uncertain; rank never overrules
+ineligibility. Code selects only eligible bundles with deterministic per-concept,
+total and serialized-text limits. Selected, uncertain, rejected and omitted groups
+are distinct. Only selected bundles cross the LLM boundary, carrying known concepts,
+exact source/context, role references, numeric spans and filing report date. No full
+outline, unselected chunks, Company Facts or evaluation values enter conversion.
+
+Each bundle may yield zero, one or several proposals. Validate checks the selected
+bundle/fixed concept, exact source line/quote and numeric span/offset/sign/finite
+Decimal. The amount stays the displayed number and scale stays separate. Metadata
+must cite supplied source/context; this proves provenance, not year/unit/scope
+interpretation. Deduplicate by concept, exact source span and amount, merging
+ownership while preserving distinct occurrences. Accepted findings bypass one
+bounded repair; only rejected proposals return to the same validation gate and
+valid repairs merge. There is no type classifier or discovery fallback.
+
+All seven successful terminal phases precede atomic Validate/Seal publication.
+Empty/no-supported/no-eligible sets seal with zero LLM calls. Actual coverage cuts
+seal partial with omissions. Provider failure, total deadline or cancellation
+retains successful exact checkpoints without publishing a subset or starting
+Facts. Both completed and partial sealed results unlock independent Facts and its
+provenance lane. Evaluate's visible finding context uses saved selected source/context
+references; its independent comparator and optional scale-verification chunk inputs
+remain unchanged. Source links use existing canonical routes/anchors.
 
 ## Station content and inspection
 
@@ -186,22 +199,21 @@ and policy that matter at that station. It is not a second workflow interface.
 Keep long text wrapped and structured payloads full width, with bounded vertical
 scrolling. Do not squeeze JSON into a definition-list cell or narrow card.
 
-Each Findings station opens its saved result for the current run above the
-contract explanation. Record the assembled request, initial and replacement
-proposals, initial and final validation diagnostics with deduplicated candidates,
-classified findings, and sealed output as each step finishes. A request with no
-fitting evidence records skipped extraction, validation, and classification plus
-an empty sealed output. Keep these results separate from illustrative requests
-and current configuration. Older runs may expose their saved request and final
-findings; label missing intermediate results explicitly instead of reconstructing
-them. Preview at most 20 entries per list with bounded text and total payload size,
-and link to saved diagnostics or the paginated published findings. The selected
-Findings stage also exposes the five results as expandable sections.
-Extraction request core evidence uses a CSV string with `line_number,text`
-columns per retained chunk; CSV quoting preserves the visible text exactly.
-Context and classifier input keep their separate structures. Request budgeting
-measures the serialized CSV payload; evidence-character accounting still counts
-the visible text rather than CSV headers or quoting.
+Each Findings station opens its saved typed result above the executed contracts,
+real request-builder illustrations and effective policy. The selected Findings
+page exposes the same seven saved results. Persisted results, schemas and validated
+illustrations are labeled separately. No old-run reconstruction survives the
+fresh-only schema. Previews bound lists/text/payload and link to paginated complete
+phase artifacts and successful request checkpoints, including source/context links,
+raw support, context roles, losing bundle reasons and omissions. A running phase
+is explicit; read-time inspection makes no provider or SEC requests.
+
+Accounting distinguishes assignment, context, rank, conversion and repair. Live
+requests/usage/models/time and cache reuse are separate. A typed terminal-attempt
+ledger preserves paid requests/usage across failed or cancelled resumes; run totals
+accumulate attempts while individual step results describe the current attempt.
+The overview projects only bounded aggregate accounting, with full summaries on
+saved detail pages. Policy identity and run cohorts include every Findings bound.
 
 The backend owns inspection content:
 
@@ -357,18 +369,11 @@ the main route with JavaScript disabled and at 200% zoom.
 
 ## Relationship to earlier plans
 
-The agreed next Findings direction is recorded in
-[FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md),
-T69–T77. Its seven stations are Candidates, Assign lines, Attach context,
-Rank/select, Convert, Validate and Seal. It keeps this page's editorial,
-runtime-class JSON inspection, source ownership and independent Facts/Evaluate
-patterns. This is planned behavior, not the current runtime: the Findings
-description above remains accurate until T76 activates backend and UI together.
-At activation, replace the old assembly/extraction/type-classification/whole-set
-repair paragraphs with the implemented concept/bundle and accepted-preserving
-repair relationships. Prepared new contracts must not be presented as saved or
-active results before that switch. No old-database UI reconstruction is required
-for the fresh-only replacement.
+The active JEV-led Findings architecture is recorded in
+[FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
+T76 activates runtime and seven-station UI together; T77 owns real-data quality and
+latency acceptance. The current fresh-only storage schema is 76. No old extraction,
+whole-set replacement repair, type classifier or compatibility UI remains.
 
 This brief supersedes the equal-size desktop cards, same-card anatomy, permanently
 adjacent inspector rail, and literal four-station `Window → Propose → Validate →

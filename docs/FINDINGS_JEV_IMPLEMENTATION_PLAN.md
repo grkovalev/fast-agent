@@ -1,6 +1,6 @@
 # JEV-led Findings implementation plan
 
-Status: T69–T75 DONE; T76–T77 PLANNED, 2026-10-15. Scoped V2 data reset completed in T71.
+Status: T69–T76 DONE; T77 PLANNED, 2026-10-15. Scoped V2 data resets completed in T71 and T76.
 This replaces the Findings internals in the existing eight-stage pipeline. Keep
 the `v2` package, repository, database filename and URLs; do not create a v3,
 migration, compatibility mode or permanent old/new execution switch.
@@ -296,7 +296,7 @@ design brief and README at activation, removing obsolete Findings explanations.
 | T73 | JEV context links and assembled evidence bundles | T72 | DONE |
 | T74 | JEV bundle ranking and deterministic selection | T73 | DONE |
 | T75 | Selected-bundle LLM conversion and strict validation | T74 | DONE |
-| T76 | Atomic runtime/UI activation and obsolete flow removal | T75 | PLANNED |
+| T76 | Atomic runtime/UI activation and obsolete flow removal | T75 | DONE |
 | T77 | Real-data quality/latency acceptance and final closure | T76 | PLANNED |
 
 ### T69 — Baseline and replacement contracts

@@ -104,8 +104,8 @@ def _batch(items: list[AtomicJevItem]) -> PackedJevBatch:
 
 def pack_jev_items(items: list[AtomicJevItem], budget: JevPhaseBudget,
                    max_requests: int) -> JevBatchPlan:
-    if max_requests < 1:
-        raise ValueError('Request cap must be positive')
+    if max_requests < 0:
+        raise ValueError('Request cap must be nonnegative')
     if len({x.item_id for x in items}) != len(items):
         raise ValueError('Atomic item IDs must be unique')
     batches, omissions, pending = [], [], []

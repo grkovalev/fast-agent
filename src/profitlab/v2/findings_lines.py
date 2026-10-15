@@ -1,4 +1,4 @@
-"""Prepared source-line assignments. Unregistered until the T76 runtime switch."""
+"""JEV source-line assignments with exact reusable checkpoints."""
 import asyncio
 import hashlib
 import json
@@ -35,7 +35,7 @@ from .findings_storage import reusable_request
 
 
 class FindingsAssignmentPlan(V2Contract):
-    request_allowance: int = Field(ge=1)
+    request_allowance: int = Field(ge=0)
     filing: FindingsFilingMetadata
     candidates: list[FindingLineCandidate] = Field(max_length=10000)
     identity: FindingsInputIdentity
@@ -91,7 +91,7 @@ def build_assignment_plan(document: CanonicalDocument, filing: FindingsFilingMet
         items.append(AtomicJevItem(item_id=candidate.candidate_id,
             request=build_assignment_request(filing, candidate, model, policy, enforce_budget=False)))
     cap = policy.max_jev_requests if max_requests is None else max_requests
-    if not 1 <= cap <= policy.max_jev_requests:
+    if not 0 <= cap <= policy.max_jev_requests:
         raise ValueError('Assignment request allowance must fit Findings policy')
     batches = pack_jev_items(items, policy.assign_budget, cap)
     identity = FindingsInputIdentity(canonical_source_hashes=[document.ref.source_hash],

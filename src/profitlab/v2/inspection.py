@@ -18,7 +18,12 @@ from .contracts import (
     StructuredFact,
     TextChunk,
 )
-from .findings_service import FindingProposal
+from .findings_contracts import (
+    FindingConversionProposal,
+    FindingEvidenceBundle,
+    FindingLineCandidate,
+    RankedFindingBundle,
+)
 from .section_scoring import JevVisibleContext
 
 STAGE_CONTRACTS: dict[str, tuple[type[BaseModel], ...]] = {
@@ -27,7 +32,7 @@ STAGE_CONTRACTS: dict[str, tuple[type[BaseModel], ...]] = {
     'section_score': (OutlineSection, JevVisibleContext, ScoredItem),
     'chunk': (OutlineSection, TextChunk, SourceRange),
     'chunk_score': (TextChunk, EvidenceDescriptor, ScoredItem),
-    'findings': (TextChunk, FindingProposal, Finding, SourceRange),
+    'findings': (FindingLineCandidate, FindingEvidenceBundle, RankedFindingBundle, FindingConversionProposal, Finding, SourceRange),
     'facts': (StructuredFact, FactPresentation, FactSourceMapping),
     'evaluate': (Finding, StructuredFact, FactComparison),
 }

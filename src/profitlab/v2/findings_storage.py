@@ -1,4 +1,4 @@
-"""Typed, indexed persistence for prepared Findings phases (not active runtime)."""
+"""Typed, indexed persistence for Findings phases."""
 import hashlib
 import json
 
@@ -22,6 +22,7 @@ from .findings_contracts import (
     FindingsPhase,
     FindingsRunSummary,
     FindingsStepResult,
+    PhaseAccounting,
     RankedFindingBundle,
 )
 
@@ -41,6 +42,10 @@ ARTIFACTS = {
 }
 
 FINDINGS_SCHEMA = '''
+CREATE TABLE findings_attempts (
+ attempt_id INTEGER PRIMARY KEY AUTOINCREMENT,
+ run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE, payload TEXT NOT NULL);
+CREATE INDEX findings_attempts_run ON findings_attempts(run_id, attempt_id);
 CREATE TABLE findings_steps (
  run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
  phase TEXT NOT NULL, input_hash TEXT NOT NULL, policy_hash TEXT NOT NULL,
@@ -108,6 +113,38 @@ class FindingsStorage:
                              (run_id, phase)).fetchone()
         return FindingsStepResult.model_validate_json(row['payload']) if row else None
 
+    def _checkpoint_accounting(self, db, run_id, phase, completed, *, repair=False):
+        row = db.execute('SELECT payload FROM findings_steps WHERE run_id=? AND phase=?', (run_id, phase)).fetchone()
+        if not row:
+            return  # Standalone component tests do not own an active orchestration attempt.
+        step = FindingsStepResult.model_validate_json(row['payload'])
+        if step.status != 'running':
+            return
+        summary_row = db.execute('SELECT payload FROM findings_run_results WHERE run_id=?', (run_id,)).fetchone()
+        if not summary_row:
+            return
+        summary = FindingsRunSummary.model_validate_json(summary_row['payload'])
+        if summary.status != 'running':
+            return
+        name = {FindingsPhase.ASSIGN:'jev_assign', FindingsPhase.ATTACH:'jev_attach',
+                FindingsPhase.RANK:'jev_rank', FindingsPhase.CONVERT:'llm_repair' if repair else 'llm_conversion'}[phase]
+        old = getattr(summary, name)
+        usage = old.usage.model_dump() if old.usage else {'input_tokens':0, 'output_tokens':0}
+        response = completed.response
+        if not completed.cached and response.usage:
+            for key in usage:
+                usage[key] += getattr(response.usage, key)
+        value = PhaseAccounting(planned=old.planned + 1,
+            dispatched=old.dispatched + int(not completed.cached), completed=old.completed + int(not completed.cached),
+            cached=old.cached + int(completed.cached), usage=usage,
+            elapsed_seconds=old.elapsed_seconds + completed.elapsed_seconds,
+            models=sorted({*old.models, response.model}))
+        step = step.model_copy(update={'accounting': value,
+            'reason':'Successful batches checkpointed; in-flight call accounting is unavailable after a hard interruption.'})
+        db.execute('UPDATE findings_steps SET payload=? WHERE run_id=? AND phase=?', (step.model_dump_json(), run_id, phase))
+        summary = summary.model_copy(update={name: value})
+        db.execute('UPDATE findings_run_results SET payload=? WHERE run_id=?', (summary.model_dump_json(), run_id))
+
     def save_findings_checkpoint(self, run_id: str, identity: FindingsInputIdentity,
                                  completed: CompletedJevBatch):
         self.get_run(run_id)
@@ -123,6 +160,7 @@ class FindingsStorage:
                 (run_id, identity.phase, key, batch_id, identity.model_dump_json(), completed.model_dump_json()))
             db.execute('INSERT OR REPLACE INTO findings_phase_cache VALUES (?, ?, ?, ?)',
                 (key, batch_id, identity.model_dump_json(), completed.model_dump_json()))
+            self._checkpoint_accounting(db, run_id, identity.phase, completed)
 
     def findings_checkpoint(self, identity: FindingsInputIdentity, batch: PackedJevBatch, *,
                             run_id: str | None = None):
@@ -181,6 +219,8 @@ class FindingsStorage:
             db.execute('INSERT OR REPLACE INTO findings_checkpoints VALUES (?, ?, ?, ?, ?, ?)',
                 (run_id, FindingsPhase.CONVERT, key, key, completed.request.model_dump_json(),
                  completed.model_dump_json()))
+            self._checkpoint_accounting(db, run_id, FindingsPhase.CONVERT, completed,
+                repair=bool(completed.request.repair_bundle_ids))
             if completed.response.model == completed.request.model:
                 db.execute('INSERT OR REPLACE INTO findings_phase_cache VALUES (?, ?, ?, ?)',
                     (key, key, completed.request.model_dump_json(), completed.model_dump_json()))
@@ -208,6 +248,121 @@ class FindingsStorage:
             return value
         response = type(saved.response).model_validate(remap(json.loads(saved.response.model_dump_json())))
         return saved.model_copy(update={'request': request, 'response': response, 'cached': True})
+
+    def start_findings_attempt(self, run_id, result):
+        """Current phase projections start fresh; exact successful batch caches survive."""
+        if result.status != 'running' or result.sealed or result.steps:
+            raise ValueError('A new attempt starts with an empty running summary')
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM findings_steps WHERE run_id=?', (run_id,))
+            db.execute('DELETE FROM findings_artifacts WHERE run_id=?', (run_id,))
+            db.execute('INSERT OR REPLACE INTO findings_run_results VALUES (?, ?)', (run_id, result.model_dump_json()))
+
+    def save_findings_progress(self, run_id, step):
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('INSERT OR REPLACE INTO findings_steps VALUES (?, ?, ?, ?, ?)',
+                (run_id, step.phase, step.input_hash, step.policy_hash, step.model_dump_json()))
+
+    def interrupt_findings(self, run_id):
+        summary = self.findings_run_result(run_id)
+        if summary is None or summary.status != 'running':
+            return
+        steps = [self.findings_step(run_id, phase) for phase in FindingsPhase]
+        steps = [step for step in steps if step is not None]
+        for index, step in enumerate(steps):
+            if step.status == 'running':
+                step = step.model_copy(update={'status':'interrupted',
+                    'reason':'Worker stopped; successful batch usage retained. In-flight call accounting is unknown.'})
+                self.save_findings_progress(run_id, step)
+                steps[index] = step
+        result = summary.model_copy(update={'status':'interrupted', 'steps':steps,
+            'limitation':'Resume exact successful checkpoints. In-flight request/usage cannot be recovered after process loss.'})
+        self.save_findings_terminal(run_id, result)
+
+    def require_findings_seal(self, run_id):
+        result = self.findings_run_result(run_id)
+        if (self.stage(run_id, 'findings').status not in ('completed', 'partial') or
+                result is None or not result.sealed or result.status not in ('completed', 'partial')):
+            raise ValueError('Findings must have a completed or partial sealed result before independent data begins.')
+
+    @staticmethod
+    def _accumulate_attempt(db, run_id, result):
+        """Keep paid work from failed/resumed attempts; caches never erase usage."""
+        names = ('jev_assign', 'jev_attach', 'jev_rank', 'llm_conversion', 'llm_repair')
+        previous = [FindingsRunSummary.model_validate_json(r['payload']) for r in db.execute(
+            'SELECT payload FROM findings_attempts WHERE run_id=? ORDER BY attempt_id', (run_id,))]
+        db.execute('INSERT INTO findings_attempts (run_id, payload) VALUES (?, ?)', (run_id, result.model_dump_json()))
+        updates = {}
+        for name in names:
+            accounts = [getattr(r, name) for r in [*previous, result]]
+            usage = [a.usage for a in accounts if a.usage is not None]
+            updates[name] = PhaseAccounting(**{
+                key: sum(getattr(a, key) for a in accounts)
+                for key in ('planned', 'dispatched', 'completed', 'cached', 'failed', 'omitted', 'elapsed_seconds')},
+                models=sorted({m for a in accounts for m in a.models}),
+                usage=({'input_tokens': sum(u.input_tokens for u in usage),
+                        'output_tokens': sum(u.output_tokens for u in usage)} if usage else None))
+        return FindingsRunSummary.model_validate(result.model_copy(update=updates).model_dump(mode='json'))
+
+    def save_findings_terminal(self, run_id, result):
+        if result.sealed or result.status not in ('failed', 'cancelled', 'interrupted'):
+            raise ValueError('Only unsealed failures finish outside atomic publication')
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            total = self._accumulate_attempt(db, run_id, result)
+            db.execute('INSERT OR REPLACE INTO findings_run_results VALUES (?, ?)', (run_id, total.model_dump_json()))
+        return total
+
+    def findings_saved_batches(self, run_id, phase, *, page=1):
+        limit, offset = self._page_bounds(page, 20)
+        with self.connect() as db:
+            rows = db.execute('SELECT payload FROM findings_checkpoints WHERE run_id=? AND phase=? '
+                'ORDER BY identity_key, batch_id LIMIT ? OFFSET ?', (run_id, phase, limit, offset)).fetchall()
+        model = CompletedConversionBatch if phase == FindingsPhase.CONVERT else CompletedJevBatch
+        return [model.model_validate_json(r['payload']) for r in rows]
+
+    def seal_findings(self, run_id, result, publications):
+        """Publish rows, selected provenance, Validate, Seal and summary together."""
+        result = FindingsRunSummary.model_validate_json(result.model_dump_json())
+        publications = [FindingPublicationProvenance.model_validate_json(p.model_dump_json()) for p in publications]
+        if not result.sealed or result.published_finding_ids != [p.finding.finding_id for p in publications]:
+            raise ValueError('Publication must exactly match the sealed summary')
+        self.get_run(run_id)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if db.execute('SELECT cancellation_requested FROM runs WHERE run_id=?', (run_id,)).fetchone()[0]:
+                raise ValueError('Cancelled Findings cannot seal')
+            result = self._accumulate_attempt(db, run_id, result)
+            db.execute('DELETE FROM findings WHERE run_id=?', (run_id,))
+            db.executemany('INSERT INTO findings VALUES (?, ?, ?)',
+                [(run_id, p.finding.finding_id, p.finding.model_dump_json()) for p in publications])
+            db.execute('DELETE FROM findings_artifacts WHERE run_id=? AND phase=?', (run_id, FindingsPhase.VALIDATE))
+            db.executemany('INSERT INTO findings_artifacts VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [(run_id, FindingsPhase.VALIDATE, 'publication', p.concept.value, p.bundle_id, i, p.model_dump_json())
+                 for i, p in enumerate(publications)])
+            for step in result.steps:
+                db.execute('INSERT OR REPLACE INTO findings_steps VALUES (?, ?, ?, ?, ?)',
+                    (run_id, step.phase, step.input_hash, step.policy_hash, step.model_dump_json()))
+            db.execute('INSERT OR REPLACE INTO findings_run_results VALUES (?, ?)', (run_id, result.model_dump_json()))
+        return result
+
+    def finding_summary(self, run_id):
+        """Public accounting projection of the typed run summary; no legacy fallback."""
+        result = self.findings_run_result(run_id)
+        if result is None:
+            return None
+        names = ('jev_assign', 'jev_attach', 'jev_rank', 'llm_conversion', 'llm_repair')
+        phases = {name: getattr(result, name).model_dump(mode='json') for name in names}
+        return result.model_dump(mode='json') | {
+            'provider_requests': sum(p['dispatched'] for p in phases.values()),
+            'cached_batches': sum(p['cached'] for p in phases.values()),
+            'phases': phases,
+            'accounting_scope': ('current attempt while running' if result.status == 'running' else
+                                 'accumulated terminal attempts, with cache reuse separate'),
+        }
 
     def save_findings_run_result(self, run_id: str, result: FindingsRunSummary):
         self.get_run(run_id)

@@ -454,3 +454,13 @@ body:has(.pipeline-map--vertical) main { max-width: 88rem; }
   .findings-cardinality-flow { grid-template-columns: 1fr; }
   .findings-cardinality-arrow { transform: rotate(90deg); }
 }
+.findings-outcomes { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.findings-outcomes > div { display: flex; flex-direction: column; gap: .35rem; padding: .7rem; font-size: .78rem; overflow-wrap: anywhere; }
+.findings-composition--jev { max-width: none; }
+@media (max-width: 600px) { .findings-outcomes { grid-template-columns: 1fr; } }
+
+.findings-phase-group { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .55rem; align-items: stretch; }
+.findings-phase-group > .findings-down { display: none; }
+.findings-phase-group > .findings-validation { grid-column: 1 / -1; }
+.findings-phase-group > .findings-station { padding: .6rem; }
+@media (max-width: 800px) { .findings-phase-group { grid-template-columns: 1fr; }.findings-phase-group > .findings-down { display: block; } }

@@ -5,7 +5,7 @@
     sections: ['describe-score', 'score-select'],
     chunks: ['split-context', 'context-store'],
     evidence: ['describe-score', 'score-retain'],
-    findings: ['assemble-propose', 'propose-validate', 'validate-classify', 'classify-publish'],
+    findings: ['candidates-assign_lines', 'assign_lines-attach_context', 'attach_context-rank_select', 'rank_select-convert', 'convert-validate', 'validate-seal'],
     facts: ['checkpoint-retrieve', 'retrieve-normalize', 'normalize-enrich', 'enrich-store'],
     evaluate: ['pair-compare', 'compare-verify', 'verify-record']
   };

@@ -1,3 +1,5 @@
+from findings_test_support import seal_empty
+
 """SEC presentation joins use saved real records; failures never damage comparators."""
 import hashlib
 import io
@@ -82,6 +84,7 @@ def make_run(tmp_path):
     run = V2Run(run_id='presentation-test', ticker='MSFT', created_at=datetime.now(UTC), updated_at=datetime.now(UTC))
     repo.create_run(run)
     repo.save_filing(run.run_id, FILING['filing_id'], 'a' * 64, FILING)
+    seal_empty(repo, run.run_id)
     repo.update_stage(repo.stage(run.run_id, 'findings').model_copy(update={'status': 'completed'}), event_kind='stage_finished', event_summary='Sealed')
     repo.update_stage(repo.stage(run.run_id, 'facts').model_copy(update={'status': 'completed'}), event_kind='stage_finished', event_summary='Independent facts loaded')
     return repo, run

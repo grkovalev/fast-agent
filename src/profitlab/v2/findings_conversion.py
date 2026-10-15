@@ -1,4 +1,4 @@
-"""Prepared selected-bundle conversion. T76 alone activates this in the pipeline.
+"""Selected-bundle conversion in the active Findings pipeline.
 
 Wire requests, validation and inspection share these builders. No type classifier,
 source retrieval, chunk expansion or implicit structured-output retries occur here.

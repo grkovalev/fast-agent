@@ -42,7 +42,7 @@ from .findings_policy import FindingsPolicy, SupportDecision, support_decision
 
 
 class FindingsRankingPlan(V2Contract):
-    request_allowance: int = Field(ge=1)
+    request_allowance: int = Field(ge=0)
     filing: FindingsFilingMetadata
     bundles: list[FindingEvidenceBundle] = Field(max_length=10000)
     states: list[RankState] = Field(max_length=10000)
@@ -102,7 +102,7 @@ def build_ranking_plan(document: CanonicalDocument, filing: FindingsFilingMetada
         (b.bundle_id, b.assignment.answer.noul, _upstream(b)) for b in ordered]}
     digest = hashlib.sha256(json.dumps(inputs, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     cap = policy.max_jev_requests if max_requests is None else max_requests
-    if not 1 <= cap <= policy.max_jev_requests:
+    if not 0 <= cap <= policy.max_jev_requests:
         raise ValueError('Ranking allowance must fit Findings policy')
     identity = FindingsInputIdentity(canonical_source_hashes=[document.ref.source_hash],
         exact_inputs_hash=digest, phase=FindingsPhase.RANK, policy_hash=policy.identity(),

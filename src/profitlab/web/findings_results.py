@@ -42,30 +42,45 @@ def bounded_result(data):
     return {'data': preview, 'truncated': truncated}
 
 
-def findings_step_results(repo, run_id, summary, finding_count):
-    actions = {item['action_id']: item
-               for item in repo.exploration_actions(run_id, 'findings')}
+def findings_phase_detail(repo, run_id, phase, page=1):
+    from profitlab.v2.findings_contracts import FindingsPhase
+    from profitlab.v2.findings_storage import ARTIFACTS
+    step = repo.findings_step(run_id, phase)
+    artifacts = {model.__name__: [x.model_dump(mode='json') for x in
+                 repo.findings_artifacts(run_id, model, page=page, per_page=20)]
+                 for model, (_, owner, _) in ARTIFACTS.items() if owner == phase}
+    batches = repo.findings_saved_batches(run_id, phase, page=page) if phase.value in ('assign_lines', 'attach_context', 'rank_select', 'convert') else []
+    data = {'checkpoints': [b.model_dump(mode='json') for b in batches], 'step': step.model_dump(mode='json') if step else None, 'artifacts': artifacts}
+    if phase == FindingsPhase.SEAL:
+        summary = repo.findings_run_result(run_id)
+        data['summary'] = summary.model_dump(mode='json') if summary else None
+    # Public source routes resolve exactly the stored canonical references.
+    sources = {}
+    def visit(value):
+        if isinstance(value, dict):
+            if ({'document_id', 'source_hash', 'start_line', 'end_line'} <= value.keys()
+                    and isinstance(value['start_line'], int) and isinstance(value['document_id'], str)):
+                key = (value['document_id'], value['start_line'], value['end_line'])
+                sources[key] = {'label': f"Lines {key[1]}–{key[2]}",
+                    'url': f"/v2/runs/{run_id}/source?document={key[0]}&page={(key[1]-1)//100+1}#line-{key[1]}"}
+            else:
+                for item in value.values():
+                    visit(item)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item)
+    visit({'artifacts': artifacts, 'checkpoints': data['checkpoints']})
+    return data, list(sources.values())
+
+
+def findings_step_results(repo, run_id, summary=None, finding_count=0):
+    from profitlab.v2.findings_contracts import FindingsPhase
     results = {}
-    for step in ('assemble', 'propose', 'validate', 'classify', 'publish'):
-        action = actions.get(f'findings-step-{step}')
-        data = action.get('result') if action else None
-        provenance = 'Saved at this step in this run.'
-        if data is None and step == 'assemble' and 'findings-request' in actions:
-            data = {'request': actions['findings-request']['request']}
-            provenance = 'Saved request from this run’s extraction diagnostic.'
-        if data is None and step in ('classify', 'publish') and summary is not None:
-            data = {'findings': [item.model_dump(mode='json') for item in
-                                 repo.findings(run_id, page=1, per_page=20)],
-                    'count': finding_count}
-            provenance = ('Saved final findings; intermediate classification output was not recorded.'
-                          if step == 'classify' else 'Saved sealed findings from this run.')
-        if data is None:
-            results[step] = {'available': False,
-                             'provenance': 'No saved result for this step. It may not have run, '
-                                           'or this run predates step result recording.'}
-        else:
-            results[step] = {'available': True, 'provenance': provenance,
-                             **bounded_result(data)}
-            if step in ('classify', 'publish') and finding_count > 20:
-                results[step]['truncated'] = True
+    for phase in FindingsPhase:
+        data, sources = findings_phase_detail(repo, run_id, phase)
+        available = data['step'] is not None
+        results[phase.value] = {'available': available,
+            'provenance': 'Saved typed phase result from this run.' if available else
+                          'No saved result for this step. Pending or unavailable; no history is reconstructed.',
+            'sources': sources[:20], **(bounded_result(data) if available else {})}
     return results

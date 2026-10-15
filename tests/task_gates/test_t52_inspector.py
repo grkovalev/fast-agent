@@ -47,11 +47,11 @@ def test_overview_renders_shared_inspection_from_service_without_javascript(tmp_
     markup = Markup()
     markup.feed(response.text)
     assert len(markup.ids) == len(set(markup.ids))
-    assert len(markup.stations) == 30
+    assert len(markup.stations) == 32
     assert all((station.get('tabindex') == '0' or station.get('type') == 'button')
                and station.get('aria-controls')
                and station.get('aria-label') for station in markup.stations)
-    assert len(markup.templates) == 22
+    assert len(markup.templates) == 24
     assert 'New Runtime Field' in response.text
     assert 'from source service' in response.text
     assert 'data-station-card' in response.text

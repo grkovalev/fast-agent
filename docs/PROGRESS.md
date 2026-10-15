@@ -3,117 +3,140 @@
 ## Current state
 
 - Product: ProfitLab, a local SEC earnings-growth research experiment.
-- Implementation status: V2 has one product path: a ticker creates a live SEC filing
-  run, followed by configured LLM and Jev provider calls. Synthetic source and provider
-  paths no longer exist in V2 runtime code or UI.
-- Current implementation task: none. **T69–T75 DONE**; T76–T77 PLANNED, JEV-led Findings;
-  see [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
-  T75 prepared selected-bundle conversion, strict span/metadata validation and accepted-preserving repair.
-  T74 prepared bundle ranking, required-condition eligibility and whole-bundle conversion packing.
-  T73 prepared bounded context attachment, shared coverage pools and typed bundles.
-  T72 prepared independent JEV source-line assignments and successful-batch reuse.
-  T71 prepared fresh persistence/checkpoints and deterministic source candidates,
-  and performed the authorized scoped local V2 reset.
-  T70 prepared typed mixed JEV transport and bounded checkpoint-capable batching.
-  T69 retained baseline evidence and prepared isolated contracts/policy;
-  the active runtime stays unchanged. **T68 DONE**, Findings extraction/publication explanation.
-  **T67 DONE**, Chunks/Evidence explanation.
-  **T66 DONE**, Source/Outline/Sections explanation.
-  **T65 DONE**, shared discovery purpose and vocabulary.
-  The task register defines T65–T68 as sequential explanation-only tasks.
-  **T64 DONE**, two-company real-filing source acceptance;
-  the user confirmed that cell, year and scale are all visible on 2026-10-14.
-  **T63 implementation and automated gates are DONE**:
-  evaluation cards and Facts inspection expose saved canonical fact-source links,
-  quotes, periods/scales, multiple occurrences and explicit unavailable states.
-  The user confirmed the T63 UI review on 2026-10-14; detailed observations were
-  not supplied. T61–T62 manual visual review remains pending. **T60 is DONE** with
-  earlier user-confirmed verification.
-- UI documentation: the durable decisions and logic-change review rule are in
-  [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
-  T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
-  T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next when implementation is requested: **T76**, atomic runtime/UI activation and obsolete flow removal,
-  in a different fresh-context agent. T75 is complete;
-  no task starts automatically. T61–T62 broader visual reviews remain open.
-- Latest automated checks: T75 plus shared contract/storage example checks passed
-  (22 tests in 1.43s); standalone T75 gate passed (11 tests in 1.14s); final full suite
-  passed (119 tests in 20.28s); repository Ruff and diff checks passed.
-  Combined T69–T75 gates passed before the final recorded-response addition
-  (56 tests in 5.18s). Earlier: T69–T74 focused gates passed (46 tests in 4.47s);
-  full suite passed (108 tests in 20.13s); repository Ruff and diff checks passed.
-  Earlier: T73/T69–T72 focused gates passed (36 tests in 3.45s);
-  full suite passed (98 tests in 18.70s); repository Ruff and diff checks passed.
-  Earlier: T72 focused gates passed (32 tests in 1.76s);
-  full suite passed (88 tests in 15.73s); repository Ruff and diff checks passed.
-  Earlier: T71 gate passed (6 tests in 0.75s); T71/T69 final
-  parser gates passed (11 tests in 0.83s); full suite passed (80 tests in 15.29s);
-  repository Ruff and diff checks passed.
-  Earlier checks: T70 focused gates passed (29 tests in 1.55s), final T70
-  gate passed (7 tests in 0.57s), full suite passed (74 tests in 17.82s); lint/diff passed.
-  T69 gate plus existing Findings/schema/request inspection
-  checks passed (18 tests in 1.28s); repository lint and diff checks passed.
-  T68 final focused discovery/Findings checks passed
-  (22 tests in 2.01s); repository lint and diff checks passed.
-  T67 focused chunk/range/scoring, inspection, render,
-  hierarchy and Findings checks passed (20 tests in 2.13s); repository lint and diff checks passed.
-  T66 focused checks passed (17 tests in 1.67s).
-  Earlier T64 plus T61–T63 gates passed (11 tests in 12.02s);
-  final pre-commit full suite passed (61 tests in 15.39s). After adding explicit visible-caption
-  checks, T64 passed again (2 tests in 6.81s). Repository lint passed.
-- Last runnable T13 demo: `demo-t13-20260920` (complete offline managed workflow and validated synthetic report).
-- Earlier runnable demos: `demo-t11` and `losses-t11` (annual calculations and preliminary metrics tables; latest calculation snapshots use finalized code). Earlier demos remain readable.
-- Decisions: Python + uv; Pydantic; Pydantic AI; configurable OpenAI-compatible Chat Completions provider; separate Jev API; FastAPI/Jinja local UI; SQLite plus bounded source/payload blobs. Previous run data is unsupported by the active plan.
-- Scope: up to four fiscal years of 10-Ks; common-share earnings and diluted EPS, with supporting share-count information. Actual investment return is outside this version.
-- Data-retention decision: the user authorizes discarding the current local V2 data when
-  the fresh-only schema/storage cleanup is performed; no compatibility or preservation
-  work is required for existing local runs.
-- Verification provenance: the user confirmed T60 verification on 2026-10-13;
-  no browser automation or detailed observation log was produced by the agent.
-  Live Jev and LLM compatibility probes passed after the follow-up fixes;
-  SEC discovery/download checks remain recorded below.
+- **T69–T76 DONE; T77 PLANNED.** Current implementation task: none. The active
+  eight-stage V2 pipeline now uses JEV-led Findings in place: Candidates → Assign
+  lines → Attach context → Rank/select → Convert → Validate → Seal.
+- JEV assembles and selects concept/source/context bundles; only selected bundles
+  enter LLM conversion. Fixed concepts, exact displayed spans/amounts, selected
+  context provenance and accepted-preserving repair replace old discovery/type
+  classification/whole-set replacement. Facts, statement provenance and exact-source
+  enrichment require completed or partial sealed Findings. Evaluate's displayed
+  context follows selected bundle references; comparator and optional scale-verifier
+  decision inputs remain independent and unchanged.
+- Durable UI brief: [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md).
+  Task register: [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
+  **Next only on request: T77**, in a different fresh-context agent. Do not start
+  it automatically. T77 owns real-data quality and comparable cold/cached latency
+  acceptance; T76 does not claim either from controlled judgments or token counts.
+- Latest checks: T76 gate **8 passed in 4.74s**; final full suite after pinned-model
+  default **120 passed in 26.41s**; Ruff/diff checks passed. Existing Starlette/AnyIO
+  deprecation warning remains. No browser automation or live provider calls in T76.
+- Default JEV model is pinned `jev-1.13.0`; verified pinned `jev-1.14.0` is also
+  supported by Findings builders. Explicit `jev-latest` cannot satisfy their exact
+  model identity and fails before dispatch. The complete Findings policy enters
+  run cohorts. Terminal attempt accounting retains paid work across failed/cancelled
+  resumes; current phase results describe one attempt and cache reuse is separate.
+- **Scoped reset completed for schema 76** at resolved
+  `/Users/grkovalev/repos/src/fast-agent/data/v2`. Verified local ProfitLab server
+  PID 76483, stopped it with TERM, verified port 8000 closed, removed only that
+  namespace and initialized schema 76 with zero runs. Fixtures and other data were
+  preserved. The server remains stopped. Start once with `uv run profitlab serve`
+  for the manual UI checks below. Old run URLs are absent; no migrations/fallbacks.
+- Manual T76 visual review is pending. T61–T62 broader manual review remains pending;
+  earlier user-confirmed T63/T64 source-cell/year/scale review and the documented
+  Apple canonical-caption limitation remain unchanged. The pipeline consumes only
+  numbered canonical content, not external HTML captions missing from those lines.
 
 ## Resume after context reset
 
-Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
-[TASKS.md](TASKS.md), and [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
-**T65–T75 are DONE; T76–T77 are PLANNED. No automatic implementation.**
-Working branch is `findings-jev-discovery`. T69–T75 prepared replacement components
-without activating them. Preserve the baseline fixtures under
-`tests/fixtures/benchmarks/t69`, `t70` and `t72`; T69's three saved runs and genuine live
-old-stage replay remain available outside application data.
+Read [AGENTS.md](../AGENTS.md), [TASKS.md](TASKS.md),
+[PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md), this file and the full
+[Findings plan](FINDINGS_JEV_IMPLEMENTATION_PLAN.md). Working branch:
+`findings-jev-discovery`. **T76 is complete; T77 requires a new explicit request.**
+The user requested committing T76 and this context-reset handoff together. The
+commit is titled `Implement T76 Findings activation and record T77 handoff`.
+Preserve unrelated untracked `.DS_Store` and `tests/.DS_Store` files.
 
-T71 stopped the local server and performed the authorized reset only at resolved
-`/Users/grkovalev/repos/src/fast-agent/data/v2`, then initialized schema version 71
-with zero runs. Old local run URLs are now absent. The server remains stopped;
-`uv run profitlab serve` is the one-time UI restart prerequisite. Do not repeat the
-reset. Typed `findings_storage.py` and provider-free `findings_candidates.py` are
-used by prepared T72 line assignments, but current runtime, prompts, UI stations
-and Facts/Evaluate inputs retain their existing behavior until T76. T61–T62 broader visual review and
-the Apple canonical-caption limitation remain separately open.
+The active service now runs prepared T69–T75 components. Fresh schema 76 removes
+old extraction caches/summary tables; typed phase/checkpoint/attempt storage owns
+saved results and metrics. Successful batches survive failures. Recovery preserves
+checkpointed paid usage and marks interrupted phases; in-flight usage after hard
+process loss is explicitly unavailable. A crash between atomic seal and scheduler
+status persistence restores the existing seal without recomputation.
 
-T75 is complete; all replacement components remain prepared and unwired.
-T75 implementation, checks, live-smoke fixture and this context-reset handoff
-are committed together. Resume with T76 only when the user requests implementation.
-The existing runtime still uses extraction, whole-set repair and type classification.
-Do not repeat the T71 reset. Preserve baseline and live fixtures, including T75's
-one isolated LLM compatibility response. T76 must activate seven phases and their
-complete UI together, remove obsolete code/storage, update run cohorts/accounting,
-and enforce completed/partial Findings seal gates for Facts/provenance. T75's
-converter saves conversion/validation evidence together, but does not publish or
-seal active Findings. T76 must persist Validate/Seal phases and atomic publication.
+Preserve all baseline/live fixtures under `tests/fixtures/benchmarks/t69`, `t70`,
+`t72`, and `t75`. T69 retains three old-stage runs and genuine live old-stage
+responses outside application storage. T75 retains an isolated LLM compatibility
+response. T76 uses saved AZZ SEC canonical input with controlled provider responses,
+not a new live compatibility, financial-quality or performance measurement. Do not
+repeat the reset unless a later authorized schema change requires it.
 
 Suggested next-session instruction:
 
-> Implement only T76 from `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md` in a different
-> fresh-context agent. Read AGENTS.md, task policy, pipeline design, full Findings
-> plan and recent progress. Wire prepared T69–T75 components and seven-station UI
-> atomically; preserve selected-bundle provenance, accepted-preserving repair,
-> final-envelope omissions and independent Facts/Evaluate inputs. Update phase
-> accounting, cohorts and partial seal gates; remove obsolete runtime/storage and
-> perform only the already-authorized scoped reset if schema cleanup requires it.
-> Preserve all benchmark fixtures. Run focused gate, full suite, lint/diff; give
-> manual UI checks and stop without automatically starting T77 or committing.
+> Implement only T77 from `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md` in a different
+> fresh-context agent. Read AGENTS.md, TASKS.md execution policy, the pipeline design
+> brief, the full Findings plan and this progress handoff. T69–T76 are complete and
+> committed. Preserve baseline/live fixtures; do not repeat the schema-76 reset.
+> Compare identical retained inputs with the recorded T69 baseline, separate tuning
+> from held-out acceptance, and report quality and measured latency honestly. Run
+> required focused/full checks, update UI explanations with any behavior changes,
+> record live/manual gaps, and stop without automatically committing.
+
+## T76 — Atomic runtime/UI activation and cleanup — completed, 2026-10-15
+
+- Replaced `FindingsService.build` with seven sequential typed phases sharing one
+  policy, per-stage request allowance and deadline. Supported assignment/context
+  bundles reach deterministic eligibility/rank selection, then strict selected-only
+  conversion. Zero/uncertain/rejected/limited results remain explicit. Accepted
+  findings survive repair; no post-conversion JEV classification or LLM discovery
+  fallback remains. Existing provider transport/redaction/retry/concurrency is reused.
+- Atomic transaction commits published findings, selected bundle/context provenance,
+  Validate/Seal results and the sealed summary. Facts, presentation, exact source
+  mapping and evaluation require both a sealed typed result and completed/partial
+  stage status. Failure/cancellation/deadline cannot publish a subset. Scheduler
+  resumes sealed partial completion and recovers the post-seal crash window.
+- Added terminal-attempt ledger and checkpoint progress accounting. JEV assignment,
+  context and rank plus LLM conversion and repair each expose planned/dispatched/
+  completed/cached/failed/omitted work, model, usage and timing. Failed/resumed work
+  retains earlier paid totals; cache hits do not become live requests. Process
+  recovery preserves successful checkpoint usage, with unknown in-flight accounting
+  explicitly labeled. Evaluation/performance metrics consume these phase totals;
+  run cohorts include the full policy and pinned model. Zero remaining JEV allowance
+  records omissions and seals partial instead of dispatching additional work.
+- Replaced overview and selected-stage explanation/inspection together: compact
+  preparation/conversion groups, three concept lanes, shared source/context,
+  selected/uncertain/rejected/omitted groups, only-selected LLM boundary, accepted
+  bypass, bounded repair and empty/partial/failure branches. Seven saved phase
+  results precede runtime-class schemas, validated builder examples and current
+  policy. New paginated `/v2/runs/{run_id}/findings/phases/{phase}` pages show typed
+  artifacts, successful checkpoints and canonical source links without provider I/O.
+  Overview previews and accounting projections are bounded. Updated connector hooks,
+  shared purpose, selected Findings links, README and durable design brief.
+- Evaluate's evidence preview now reads only the saved source and selected context
+  references. Its `_scale_context` request still uses the existing retained chunk
+  input: this decision boundary was intentionally preserved independently of UI
+  presentation. No Company Facts or post-discovery provenance enters Findings.
+- Removed old extraction/request assembly/classifier/whole-set repair helpers,
+  settings, cache and summary tables, and legacy result reconstruction. Inspected
+  and timed old Findings + T75 baseline: **17 passed in 1.68s**. Removed six obsolete
+  T58 tests and one old T50 validator test, retained the surrounding contract tests,
+  and updated shared inspector/cohort/independent-Facts setup to the real seal gate.
+  No benchmark fixture was deleted or rewritten.
+- Automated gate: `uv run pytest tests/task_gates/test_t76_findings_pipeline_ui.py -q`
+  **8 passed in 4.74s**. It exercises real saved AZZ source through actual services,
+  controlled mixed Noul/Score/conversion transport, typed storage/restart/cache and
+  route renders; selected/uncertain/rejected/empty/partial/global budget/failure/
+  cancel/deadline; actual pipeline scheduling into independent lanes; cumulative
+  paid accounting and process/atomic-seal recovery. Existing T69–T75 tests continue
+  to validate source/span/sign/metadata isolation and accepted-preserving repair.
+  Final `uv run pytest -q`: **120 passed in 26.41s** (earlier pre-final checks:
+  118/25.58s and 120/26.43s). `uv run ruff check .` and `git diff --check` passed.
+- Live status: no new paid provider calls, SEC requests, real quality measurements
+  or latency claims. T77 remains responsible for labeled held-out comparison,
+  configured live end-to-end acceptance and measured cold/cached speed evidence.
+- Manual verification **pending**, no browser automation: start the stopped server
+  once with `uv run profitlab serve`, open http://127.0.0.1:8000/, create a fresh
+  ticker run, then Pipeline → Findings. Watch each of seven stations transition,
+  inspect saved results above contracts/examples, check losing bundle support and
+  eligibility reasons, selected context roles/unresolved roles, limits/omissions,
+  live/cache/conversion/repair accounting and published values/source links. Open
+  saved details and follow source/context anchors to the canonical filing. Compare
+  Evaluate's preview with the selected context and inspect independent fact sources.
+  A sealed partial result must allow Facts; a failed/cancelled result must not.
+  Check wide/phone widths, keyboard station selection/focus, JavaScript disabled,
+  reduced motion and 200% zoom; concept lanes, selection boundary, accepted bypass,
+  repair and empty/error branches remain readable. Old local URLs should be absent.
+- Next: **T77**, only when requested in a different fresh-context agent.
 
 ## T75 — Selected-bundle conversion/validation — completed, 2026-10-15
 

@@ -36,7 +36,7 @@ class V2Repository(FindingsStorage):
                 if new_database:
                     db.executescript(self._schema())
                 elif (db.execute('PRAGMA application_id').fetchone()[0] != self._APPLICATION_ID or
-                      db.execute('PRAGMA user_version').fetchone()[0] != 71):
+                      db.execute('PRAGMA user_version').fetchone()[0] != 76):
                     raise ValueError(self._unsupported_database_message())
                 else:
                     self._assert_current_schema(db)
@@ -49,13 +49,13 @@ class V2Repository(FindingsStorage):
 
     def _assert_current_schema(self, db):
         required_tables = {
-            'findings_steps', 'findings_artifacts', 'findings_checkpoints',
+            'findings_attempts', 'findings_steps', 'findings_artifacts', 'findings_checkpoints',
             'findings_phase_cache', 'findings_run_results',
             'runs', 'stages', 'events', 'filings', 'canonical_documents', 'outline_sections',
             'outline_run_summaries',
             'outline_batches', 'scores', 'exploration_actions', 'chunks', 'chunk_ranges',
             'findings', 'structured_facts', 'comparisons', 'chunk_score_batches',
-            'chunk_score_summaries', 'finding_batches', 'finding_summaries',
+            'chunk_score_summaries',
             'company_fact_datasets', 'fact_summaries', 'comparison_summaries',
             'section_score_batches', 'performance_summaries', 'evaluation_scale_verdicts',
             'ticker_selections', 'retrieval_benchmarks', 'evaluation_scorecards',
@@ -143,11 +143,6 @@ class V2Repository(FindingsStorage):
                 actual_model TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL,
                 PRIMARY KEY(source_range_hash, prompt_version, configuration_hash, actual_model));
             CREATE TABLE chunk_score_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
-            CREATE TABLE finding_batches (request_hash TEXT NOT NULL, prompt_version TEXT NOT NULL,
-                configuration_hash TEXT NOT NULL, actual_model TEXT NOT NULL, payload TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                PRIMARY KEY(request_hash, prompt_version, configuration_hash, actual_model));
-            CREATE TABLE finding_summaries (run_id TEXT PRIMARY KEY, payload TEXT NOT NULL);
             CREATE TABLE company_fact_datasets (run_id TEXT PRIMARY KEY,
                 cik TEXT NOT NULL, source_url TEXT NOT NULL, source_hash TEXT NOT NULL,
                 retrieved_at TEXT NOT NULL, payload BLOB NOT NULL);
@@ -186,7 +181,7 @@ class V2Repository(FindingsStorage):
             CREATE INDEX chunks_run_section ON chunks(run_id, section_id, chunk_id);
             CREATE INDEX exploration_actions_run_stage_sequence ON exploration_actions(run_id, stage, sequence);
             PRAGMA application_id=0x50524F46;
-            PRAGMA user_version=71;
+            PRAGMA user_version=76;
         ''' + FINDINGS_SCHEMA
 
     @contextmanager
@@ -345,7 +340,7 @@ class V2Repository(FindingsStorage):
         run_owned_tables = (
             'chunk_ranges', 'chunks', 'comparisons', 'structured_facts', 'findings',
             'scores', 'outline_sections', 'canonical_documents', 'filings',
-            'exploration_actions', 'chunk_score_summaries', 'finding_summaries',
+            'exploration_actions', 'chunk_score_summaries',
             'company_fact_datasets', 'fact_summaries', 'comparison_summaries',
             'performance_summaries',
         )
@@ -362,7 +357,7 @@ class V2Repository(FindingsStorage):
         """Remove reusable provider results without touching any run-owned data."""
         cache_tables = (
             'outline_batches', 'section_score_batches', 'chunk_score_batches',
-            'finding_batches', 'evaluation_scale_verdicts',
+            'findings_phase_cache', 'evaluation_scale_verdicts',
         )
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
@@ -888,37 +883,6 @@ class V2Repository(FindingsStorage):
                 VALUES (?, ?, ?, ?, ?, ?)''',
                        (pair_hash, prompt_version, configuration_hash, actual_model,
                         json.dumps(payload, sort_keys=True), datetime.now(UTC).isoformat()))
-
-    def finding_batch(self, request_hash: str, prompt_version: str,
-                      configuration_hash: str, actual_model: str):
-        with self.connect() as db:
-            row = db.execute('''SELECT payload FROM finding_batches WHERE request_hash=?
-                AND prompt_version=? AND configuration_hash=? AND actual_model=?''',
-                             (request_hash, prompt_version, configuration_hash,
-                              actual_model)).fetchone()
-        return json.loads(row['payload']) if row else None
-
-    def save_finding_batch(self, request_hash: str, prompt_version: str,
-                           configuration_hash: str, actual_model: str, payload: dict):
-        with self.connect() as db:
-            db.execute('BEGIN IMMEDIATE')
-            db.execute('''INSERT OR REPLACE INTO finding_batches
-                (request_hash, prompt_version, configuration_hash, actual_model, payload, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)''',
-                       (request_hash, prompt_version, configuration_hash, actual_model,
-                        json.dumps(payload, sort_keys=True), datetime.now(UTC).isoformat()))
-
-    def save_finding_summary(self, run_id: str, payload: dict):
-        self.get_run(run_id)
-        with self.connect() as db:
-            db.execute('BEGIN IMMEDIATE')
-            db.execute('INSERT OR REPLACE INTO finding_summaries (run_id, payload) VALUES (?, ?)',
-                       (run_id, json.dumps(payload, sort_keys=True)))
-
-    def finding_summary(self, run_id: str):
-        with self.connect() as db:
-            row = db.execute('SELECT payload FROM finding_summaries WHERE run_id=?', (run_id,)).fetchone()
-        return json.loads(row['payload']) if row else None
 
     def save_chunks(self, run_id: str, chunks: list[TextChunk]):
         self.get_run(run_id)

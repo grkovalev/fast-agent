@@ -282,8 +282,7 @@ class EvaluationService:
         return 'comparison-' + hashlib.sha256(material.encode()).hexdigest()[:20]
 
     def compare(self, run_id: str) -> EvaluationResult:
-        if self.repo.stage(run_id, 'findings').status != 'completed':
-            raise ValueError('Findings must be sealed before independent evaluation begins.')
+        self.repo.require_findings_seal(run_id)
         if self.repo.stage(run_id, 'facts').status != 'completed':
             raise ValueError('Structured facts must be loaded before independent evaluation begins.')
         findings = self.repo.findings(run_id)
@@ -372,7 +371,7 @@ class EvaluationService:
         # These persisted batch counts are available without reading evaluation from discovery.
         chunk_summary = self.repo.chunk_score_summary(run_id) or {}
         finding_summary = self.repo.finding_summary(run_id) or {}
-        return int(chunk_summary.get('calls', 0)) + int(finding_summary.get('calls', 0))
+        return int(chunk_summary.get('calls', 0)) + int(finding_summary.get('provider_requests', 0))
 
     def _summary(self, run_id, comparisons, facts):
         counts = {state: sum(item.state == state for item in comparisons)
@@ -411,7 +410,8 @@ class EvaluationService:
             'deterministic_recovery_applied': False,
             'discovery_output_mutated': False,
             'structured_facts_considered': len(facts),
-            'finding_provider_calls': finding_summary.get('calls', 0),
+            'finding_provider_calls': finding_summary.get('provider_requests', 0),
+            'finding_phases': finding_summary.get('phases', {}),
         }
 
     def _scale_context(self, run_id: str, finding: Finding):

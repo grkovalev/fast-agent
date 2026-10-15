@@ -16,7 +16,6 @@ from profitlab.v2.contracts import (
     TextChunk,
     V2Run,
 )
-from profitlab.v2.findings_service import FindingProposal, FindingsService
 from profitlab.v2.inspection import STAGE_CONTRACTS, contract_envelopes
 from profitlab.v2.storage import V2Repository
 from profitlab.web.app import create_app
@@ -103,38 +102,6 @@ def test_overview_uses_bounded_aggregates_instead_of_expanding_artifacts(tmp_pat
     assert 'Pipeline overview' in response.text
 
 
-def test_findings_proposal_model_matches_validator_without_changing_rejections(tmp_path):
-    ref = CanonicalDocumentRef(document_id='doc', filing_id='filing',
-                               source_hash='0' * 64, line_count=1)
-    document = CanonicalDocument(ref=ref, lines=[CanonicalLine(
-        line_number=1, text='Net income was $12.50.', element_type='paragraph',
-        html_anchor='line-1', dom_reference='/html/body/p[1]')])
-    chunk = TextChunk(chunk_id='chunk-1', section_id='section-1',
-                      core_range=SourceRange(document_id='doc', source_hash='0' * 64,
-                                             start_line=1, end_line=1), request_size_estimate=50)
-    proposal = FindingProposal(exact_quote='$12.50', source_chunk_id='chunk-1',
-                               source_line=1, amount='12.50').model_dump()
-    service = FindingsService(Settings(PROFITLAB_DATA_DIR=tmp_path, _env_file=None), None)
-    accepted, error = service._validate(document, [chunk], proposal, 'configured-model')
-    assert error is None
-    assert accepted.amount == Decimal('12.50')
-    assert accepted.source_range.start_character == 15
-    # Existing validation proves quote/amount, not metadata support or fiscal year.
-    metadata, error = service._validate(document, [chunk], {
-        **proposal, 'period': '1999', 'unit': 'unsupported unit',
-        'attribution': 'unsupported segment'}, 'configured-model')
-    assert error is None
-    assert metadata.period == '1999'
-    for amount in ('NaN', 'Infinity', '13'):
-        rejected, error = service._validate(document, [chunk], {**proposal, 'amount': amount},
-                                             'configured-model')
-        assert rejected is None and error
-    rejected, error = service._validate(document, [chunk], {**proposal, 'source_line': True},
-                                         'configured-model')
-    assert rejected is None
-    assert error == 'source line must be an integer core evidence line'
-
-
 def test_evidence_descriptor_schema_is_used_by_runtime_builder(tmp_path):
     source_range = SourceRange(document_id='doc', source_hash='0' * 64,
                                start_line=2, end_line=2)
@@ -161,9 +128,3 @@ def test_evidence_descriptor_schema_is_used_by_runtime_builder(tmp_path):
     assert descriptor['visible_heading_path'] == ['Performance', 'Revenue']
     request = service._request([descriptor])
     assert len(request.questions) == 5
-    findings = FindingsService(service.settings, None)
-    proposal = {'exact_quote': 'Revenue increased.', 'source_chunk_id': chunk.chunk_id,
-                'source_line': 1, 'amount': '12.50'}
-    rejected, error = findings._validate(document, [chunk], proposal, 'configured-model')
-    assert rejected is None
-    assert error == 'source line is outside the chunk core evidence range'

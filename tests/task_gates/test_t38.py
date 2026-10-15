@@ -13,12 +13,12 @@ def test_pipeline_captures_immutable_version_and_setting_change_creates_new_coho
     common = {'PROFITLAB_DATA_DIR': tmp_path, 'SEC_USER_AGENT': 'ProfitLab test@example.org',
               'PROFITLAB_APPLICATION_REVISION': 'revision-a', '_env_file': None}
     first = V2PipelineService(Settings(**common)).create('ACME')
-    changed = V2PipelineService(Settings(**{**common, 'FINDINGS_PROMPT_VERSION': 'findings-next'})).create('BETA')
+    changed = V2PipelineService(Settings(**{**common, 'findings_policy': {'version': 'findings-next'}})).create('BETA')
 
     assert first.version_state == 'comparable'
     assert first.version_id != changed.version_id
-    assert first.version_components['findings_prompt_version'] == 'findings-v5-jev-types'
-    assert changed.version_components['findings_prompt_version'] == 'findings-next'
+    assert 'findings-jev-policy-v1' in first.version_components['findings_policy']
+    assert 'findings-next' in changed.version_components['findings_policy']
     # Persisted run provenance does not change when a later service uses new settings.
     assert V2Repository(tmp_path).get_run(first.run_id).version_id == first.version_id
 

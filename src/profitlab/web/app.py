@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from time import monotonic
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -35,7 +35,7 @@ from profitlab.v2.outline_service import OutlineService
 from profitlab.v2.section_scoring import SectionScoringService
 from profitlab.v2.source_service import V2SourceService
 from profitlab.web.fact_provenance import presentation_preview, source_preview
-from profitlab.web.findings_results import findings_step_results
+from profitlab.web.findings_results import findings_phase_detail, findings_step_results
 
 WEB_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
@@ -342,8 +342,7 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
         for step, result in finding_results.items():
             findings_content['inspection'][step]['run_result'] = result
             findings_content['inspection'][step]['results_url'] = (
-                f'/v2/runs/{run_id}/pipeline?stage=findings' if step == 'publish'
-                else f'/v2/runs/{run_id}/pipeline/findings/trace')
+                f'/v2/runs/{run_id}/findings/phases/{step}')
         facts_content = {
             'inspection': CompanyFactsService.inspection_view(
                 settings=settings,
@@ -461,18 +460,14 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             documents = {}
 
             def visible_context(finding):
-                chunk = chunks.get(finding.source_chunk_id)
-                if not chunk:
-                    return []
-                document = documents.setdefault(
-                    chunk.core_range.document_id,
-                    pipeline.repo.canonical_document(run_id, chunk.core_range.document_id))
-                ranges = [chunk.core_range, *chunk.context_ranges]
+                document = documents.setdefault(finding.source_range.document_id,
+                    pipeline.repo.canonical_document(run_id, finding.source_range.document_id))
+                ranges = [finding.source_range, *finding.context_references]
                 lines = []
                 for source_range in ranges:
                     for line in document.lines[source_range.start_line - 1:source_range.end_line]:
                         lines.append({'number': line.line_number, 'text': line.text[:280]})
-                        if len(lines) == 6:
+                        if len(lines) == 13:
                             return lines
                 return lines
 
@@ -540,6 +535,19 @@ def create_app(settings: Settings | None = None, *, ticker_picker_factory=None,
             'run_id': run_id, 'fact_id': fact_id, 'mapping': mapping,
             'locations': mapping.locations[start:start + 20] if mapping else [],
             'page': page, 'has_next': bool(mapping and start + 20 < len(mapping.locations))})
+
+    @app.get('/v2/runs/{run_id}/findings/phases/{phase}')
+    def findings_detail(request: Request, run_id: str, phase: str, page: int = Query(1, ge=1)):
+        from profitlab.v2.findings_contracts import FindingsPhase
+        try:
+            phase = FindingsPhase(phase)
+            pipeline.repo.get_run(run_id)
+        except (ValueError, FileNotFoundError):
+            raise HTTPException(404, 'Findings phase not found') from None
+        data, sources = findings_phase_detail(pipeline.repo, run_id, phase, page)
+        return templates.TemplateResponse(request=request, name='v2_findings_phase.html', context={
+            'run_id': run_id, 'phase': phase.value, 'data': data, 'sources': sources,
+            'page': page, 'has_next': len(data['checkpoints']) == 20 or any(len(items) == 20 for items in data['artifacts'].values())})
 
     @app.get('/v2/runs/{run_id}/pipeline/{stage}/trace')
     def trace(request: Request, run_id: str, stage: str):

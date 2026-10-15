@@ -56,9 +56,9 @@ def test_validated_safe_examples_roundtrip_and_public_schemas():
     serialized = json.dumps(examples['conversion_state'].model_dump(mode='json'))
     assert 'owners' not in serialized and 'outline' not in serialized
     assert 'selected_bundles' in examples['conversion_messages'][0]['content']
-    # Examples are prepared only; active inspectors retain the old executed contracts.
+    # Active inspectors expose the replacement executed contracts.
     from profitlab.v2.inspection import STAGE_CONTRACTS
-    assert FindingLineCandidate not in STAGE_CONTRACTS['findings']
+    assert FindingLineCandidate in STAGE_CONTRACTS['findings']
 
 
 def test_contract_invariants_identity_eligibility_and_sealing():

@@ -45,7 +45,7 @@ from .findings_storage import reusable_input
 
 
 class FindingsContextPlan(V2Contract):
-    request_allowance: int = Field(ge=1)
+    request_allowance: int = Field(ge=0)
     filing: FindingsFilingMetadata
     pools: list[FindingContextPool] = Field(max_length=3)
     sources: list[FindingLineCandidate] = Field(max_length=10000)
@@ -249,7 +249,7 @@ def build_context_plan(document: CanonicalDocument, filing: FindingsFilingMetada
                 reason=f'Lines {start}–{end}: '+('Context candidate cap' if capped else
                        'Outside local/structural search within allowed pool')))
     cap = policy.max_jev_requests if max_requests is None else max_requests
-    if not 1 <= cap <= policy.max_jev_requests:
+    if not 0 <= cap <= policy.max_jev_requests:
         raise ValueError('Context request allowance must fit Findings policy')
     items = _items(filing, selected_sources, candidates, context_lines, pools, model, policy)
     identity = FindingsInputIdentity(canonical_source_hashes=[document.ref.source_hash],

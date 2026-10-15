@@ -1,3 +1,5 @@
+from findings_test_support import seal_empty
+
 """Two real statement layouts: independent cell identity and saved UI source links."""
 import gzip
 import hashlib
@@ -126,6 +128,7 @@ def test_two_company_exact_cells_and_evaluation_links(
         amount=mappings[i].locations[0].displayed_value if i == 0 else facts[i].value,
         finding_type=('annual_profit', 'diluted_eps')[i], unit=facts[i].unit,
         period='2024', validation_state='validated') for i in range(2)]
+    seal_empty(repo, run_id)
     repo.save_findings(run_id, findings)
     for stage in ('findings', 'facts'):
         repo.update_stage(repo.stage(run_id, stage).model_copy(update={'status': 'completed'}),

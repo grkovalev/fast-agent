@@ -49,17 +49,17 @@ class V2PipelineService:
         names = (
             'application_revision', 'outline_model', 'outline_prompt_version',
             'section_score_prompt_version', 'chunk_score_prompt_version',
-            'findings_prompt_version', 'finding_type_prompt_version',
             'evaluation_scale_prompt_version', 'typesafe_model', 'llm_model',
             'llm_output_mode', 'section_score_keep_threshold',
             'section_score_uncertain_threshold', 'chunk_score_keep_threshold',
             'chunk_score_uncertain_threshold', 'chunk_score_max_retained',
-            'findings_max_requests', 'evaluation_scale_max_pairs',
+            'evaluation_scale_max_pairs',
             'sec_statement_archive_bytes', 'sec_statement_expanded_bytes',
             'sec_statement_max_rows', 'sec_statement_projection_rows',
             'sec_statement_projection_bytes',
         )
         return {name: str(getattr(self.settings, name)) for name in names} | {
+            'findings_policy': self.settings.findings_policy.model_dump_json(),
             'fact_presentation_version': 'sec-pre-num-v1',
             'fact_source_mapping_version': 'inline-visible-1',
         }
@@ -77,7 +77,9 @@ class V2PipelineService:
             if self.repo.cancellation_requested(run_id):
                 return self._cancel(run_id, name)
             old = self.repo.stage(run_id, name)
-            if old.status == 'completed':
+            if old.status == 'completed' or (name == 'findings' and old.status == 'partial'
+                                             and self.repo.findings_run_result(run_id)
+                                             and self.repo.findings_run_result(run_id).sealed):
                 continue
             started_at = datetime.now(UTC)
             tick = monotonic()
@@ -304,6 +306,8 @@ class V2PipelineService:
                     result = await FindingsService(self.settings, self.repo).build(
                         run_id, document, self.repo.chunks(run_id),
                         self.repo.scores(run_id, 'chunk_score'))
+                except asyncio.CancelledError:
+                    return self._cancel(run_id, name, running)
                 except Exception as error:  # noqa: BLE001 - citation failures must be durable and inspectable
                     failed = running.model_copy(update={
                         'status': 'failed', 'finished_at': datetime.now(UTC),
@@ -317,16 +321,14 @@ class V2PipelineService:
                                          kind='run_finished')
                     return self.repo.get_run(run_id)
                 finished = running.model_copy(update={
-                    'status': 'completed', 'completed_work': len(result.findings),
-                    'total_work': len(result.findings), 'finished_at': datetime.now(UTC),
+                    'status': result.status, 'completed_work': 7,
+                    'total_work': 7, 'finished_at': datetime.now(UTC),
                     'elapsed_seconds': monotonic() - tick,
-                    'summary': (f'Published {len(result.findings)} exact quote-validated findings; '
-                                f'{result.rejected} invalid citation(s) rejected.' +
-                                (' Request budget fallback retained only highest-scored evidence.'
-                                 if result.context_fallback else '')),
-                    'limitation': None,
+                    'summary': (f'Published {len(result.published_finding_ids)} selected-bundle findings; '
+                                f'{result.rejection_count} rejected proposal(s).'),
+                    'limitation': result.limitation,
                     'input_hash': document.ref.source_hash,
-                    'output_hash': hashlib.sha256(''.join(item.finding_id for item in result.findings).encode()).hexdigest(),
+                    'output_hash': hashlib.sha256(''.join(result.published_finding_ids).encode()).hexdigest(),
                 })
                 self.repo.update_stage(finished, event_kind='stage_finished',
                                        event_summary=finished.summary)
@@ -408,9 +410,10 @@ class V2PipelineService:
         self.repo.save_performance_summary(run_id, {
             'wall_seconds': round(monotonic() - run_started, 6),
             'provider_requests': {'chunk_score_live': chunk.get('calls', 0),
-                                  'findings_live': findings.get('calls', 0)},
+                                  'findings_live': findings.get('provider_requests', 0)},
+            'findings_phases': findings.get('phases', {}),
             'cache': {'chunk_score_batches': chunk.get('cached_batches', 0),
-                      'findings_reused': findings.get('cached', False)},
+                      'findings_batches': findings.get('cached_batches', 0)},
             'database_bytes': self.repo.db_path.stat().st_size if self.repo.db_path.exists() else 0,
             'measurement': 'live SEC and provider requests; cached and live requests are counted separately',
         })
@@ -456,10 +459,23 @@ class V2PipelineService:
                 continue
             for stage in self.repo.stages(run.run_id):
                 if stage.status == 'running':
+                    if stage.stage == 'findings':
+                        sealed = self.repo.findings_run_result(run.run_id)
+                        if sealed and sealed.sealed:
+                            restored = stage.model_copy(update={
+                                'status': sealed.status, 'finished_at': datetime.now(UTC),
+                                'completed_work': 7, 'total_work': 7,
+                                'summary': f'Atomic Findings seal recovered: {len(sealed.published_finding_ids)} findings.',
+                                'limitation': sealed.limitation,
+                                'output_hash': hashlib.sha256(''.join(sealed.published_finding_ids).encode()).hexdigest(),
+                            })
+                            self.repo.update_stage(restored, event_kind='stage_finished', event_summary=restored.summary)
+                            continue
+                        self.repo.interrupt_findings(run.run_id)
                     interrupted = stage.model_copy(update={
                         'status': 'interrupted', 'finished_at': datetime.now(UTC),
                         'summary': 'Worker stopped while this stage was active.',
-                        'limitation': 'Create a fresh T14 shell run.',
+                        'limitation': 'Resume to reuse exact successful checkpoints; in-flight usage may be unavailable.',
                     })
                     self.repo.update_stage(interrupted, event_kind='stage_finished',
                                            event_summary=interrupted.summary)

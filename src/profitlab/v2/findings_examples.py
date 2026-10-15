@@ -1,4 +1,4 @@
-"""Validated illustrative objects through prepared runtime builders, never live data."""
+"""Validated illustrative objects through runtime builders, never live data."""
 import hashlib
 from datetime import date
 from decimal import Decimal

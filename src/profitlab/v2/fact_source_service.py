@@ -149,8 +149,7 @@ class FactSourceService:
         self.settings, self.repo = settings, repository
 
     def enrich(self, run, facts, presentations=()):
-        if self.repo.stage(run.run_id, 'findings').status != 'completed':
-            raise ValueError('Findings must be sealed before fact source mapping begins.')
+        self.repo.require_findings_seal(run.run_id)
         filing = self.repo.filing(run.run_id)
         try:
             document_id = filing['document_id']

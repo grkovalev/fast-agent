@@ -53,19 +53,34 @@ There are **three numeric finding types and five retrieval targets**:
 
 Retrieval relevance is a search signal, not financial correctness or published
 evidence. Findings validates exact source quotes and amounts before publication,
-then classifies the numeric type; a finding can retain an **unresolved type**.
+JEV assigns source lines to fixed concepts, attaches bounded context and ranks bundles.
+Only selected eligible bundles reach LLM conversion; there is no later type classifier.
 The pipeline extracts reported values; it does not compute EPS from profit and shares.
 
 **What Findings delivers:** a list of reported numbers sought for the filing’s
 current fiscal year. Each finding includes an amount, exact filing quote,
-source-line link, and numeric type or unresolved type. Period, unit, attribution,
+source-line link, fixed concept, and selected bundle/context provenance. Period, unit, attribution,
 and limitations accompany it when supported; unclear fields remain unresolved.
 Illustrative finding: **Diluted EPS · 2025 · $6.20**, backed by a quoted filing row
 and source link (an example, not saved run data). Three types does not mean exactly
-three findings: several numbers, missing types, unresolved types, or an empty result
+three findings: several numbers, missing concepts, unresolved metadata, or an empty result
 are possible. Earnings-change and comparability passages provide context without
 separate narrative findings. Source validation does not establish financial
 correctness; independent comparison comes later in Evaluate.
+
+Findings exposes seven stations: Candidates → Assign lines → Attach context →
+Rank/select → Convert → Validate → Seal. Saved phase pages include losing bundles,
+context roles, eligibility/omission reasons, request checkpoints and source links.
+Validation binds the displayed Decimal/sign/span to selected evidence; metadata
+references establish provenance rather than financial interpretation. Accepted
+findings survive one bounded repair. Facts starts only after an atomic completed
+or partial seal; failure/cancellation cannot publish a subset. Phase accounting
+separates JEV assignment/context/rank and LLM conversion/repair, accumulates paid
+work across resumed attempts, and records cache reuse separately. Phase steps
+show the current attempt. Version cohorts include the complete Findings policy. JEV defaults to pinned
+`jev-1.13.0`; Findings requires a verified pinned model (`jev-1.13.0` or
+`jev-1.14.0`), so an explicit `jev-latest` override fails before dispatch.
+Local V2 storage is fresh-only schema 76; older databases require a scoped reset.
 
 Run checks with:
 

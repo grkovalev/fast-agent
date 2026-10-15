@@ -1,3 +1,5 @@
+from findings_test_support import seal_empty
+
 """Real retained SEC HTML proves exact cells; controlled failures cannot invent lines."""
 import gzip
 import hashlib
@@ -17,7 +19,7 @@ from profitlab.v2.contracts import Finding, StructuredFact, V2Run
 from profitlab.v2.evaluation_service import EvaluationService
 from profitlab.v2.fact_source_service import FactSourceService
 from profitlab.v2.facts_service import CompanyFactsService
-from profitlab.v2.findings_service import FindingsService
+from profitlab.v2.findings_candidates import enumerate_candidates
 from profitlab.v2.storage import V2Repository
 from profitlab.web.app import create_app
 
@@ -137,13 +139,13 @@ def test_post_findings_persistence_no_render_io_and_comparison_inputs_unchanged(
     service = FactSourceService(settings, repo)
     with pytest.raises(ValueError, match='sealed'):
         service.enrich(run, facts)
+    seal_empty(repo, run.run_id)
     repo.update_stage(repo.stage(run.run_id, 'findings').model_copy(update={'status': 'completed'}),
                       event_kind='stage_finished', event_summary='Sealed')
     repo.update_stage(repo.stage(run.run_id, 'facts').model_copy(update={'status': 'completed'}),
                       event_kind='stage_finished', event_summary='Facts saved')
     baseline = EvaluationService(settings, repo).compare(run.run_id)
-    findings_service = FindingsService(settings, repo)
-    discovery_before = findings_service._request_data(run.run_id, document, [], [])
+    discovery_before = enumerate_candidates(document, [], [], relevance_threshold=.2, policy=settings.findings_policy).model_dump(mode="json")
     source_line = document.lines[825]
     from profitlab.v2.contracts import SourceRange
     finding = Finding(finding_id='finding-net', exact_quote=source_line.text,
@@ -154,7 +156,7 @@ def test_post_findings_persistence_no_render_io_and_comparison_inputs_unchanged(
     visible_context = {'declared_core_evidence_line': {'line_number': 826, 'text': source_line.text}}
     verification_before = evaluation_service._request(finding, facts[0], visible_context)
     mappings = service.enrich(run, facts)
-    assert findings_service._request_data(run.run_id, document, [], []) == discovery_before
+    assert enumerate_candidates(document, [], [], relevance_threshold=.2, policy=settings.findings_policy).model_dump(mode="json") == discovery_before
     assert evaluation_service._request(finding, facts[0], visible_context) == verification_before
     assert 'inline-visible' not in json.dumps(discovery_before)
     assert 'context_id' not in verification_before.model_dump_json()

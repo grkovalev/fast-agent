@@ -74,7 +74,7 @@ def test_shared_prompt_questions_and_discovery_vocabulary(tmp_path, monkeypatch)
     assert 'Three numeric finding types, five retrieval targets' in text
     assert text.count('no dedicated published output type') == 2
     assert 'not year-end shares outstanding' in text
-    assert 'unresolved type' in text
+    assert 'fixed concept' in text
     assert 'not financial correctness or published evidence' in text
     assert 'does not compute EPS from profit and shares' in text
     assert 'What Findings delivers' in text
@@ -148,17 +148,16 @@ def test_shared_prompt_questions_and_discovery_vocabulary(tmp_path, monkeypatch)
     assert 'Comparison uses exact Decimal equality' not in detail.text_content()
     assert 'same selected section' in selected['chunk'].text
 
-    # T68: cardinality and publication guarantees are legible without inspection.
+    # T76 replaces extraction/classification with seven evidence/conversion phases.
     findings, = document.xpath('//*[@data-findings-card]')
     illustration, = findings.xpath('.//*[@data-findings-cardinality]')
-    assert 'Not saved run data' in illustration.text_content()
+    assert 'not saved run data' in illustration.text_content()
     assert not illustration.xpath('.//button | .//details | .//template | .//*[@hidden]')
-    for phrase in ('including initially accepted ones', 'finite Decimal',
-                   'Keep the first candidate', 'zero or multiple types',
-                   'Per-request size overflow', 'Unresolved type alone does not reject'):
-        assert phrase in findings.text_content()
+    assert len(findings.xpath('.//*[@data-findings-station]')) == 7
+    for phrase in ('selected bundles only', 'finite Decimal', 'accepted findings bypass repair',
+                   'Known concepts', 'partial sealed result', 'zero LLM calls'):
+        assert phrase in findings.text_content() or phrase in page.text
     detail, = html.fromstring(selected['findings'].text).xpath('//section[@class="stage-detail"]')
-    for phrase in ('zero or more candidates', 'Saved results by step',
-                   'Initial and replacement candidates', 'not deterministic validation guarantees',
-                   'provider and total-call-budget failure limits'):
+    for phrase in ('JEV assigns numeric core lines', 'Saved results by step', 'Rank/select',
+                   'Initially accepted findings bypass', 'Failed or cancelled work cannot start Facts'):
         assert phrase in detail.text_content()

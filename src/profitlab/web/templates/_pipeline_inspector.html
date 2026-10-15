@@ -31,6 +31,7 @@
 {% if result.available %}
 {% if result.truncated %}<p class="muted">Bounded preview: up to 20 items per list and shortened long text. Open the saved details for the full result.</p>{% endif %}
 {{ value(result.data) }}
+{% for source in result.sources | default([]) %}<a class="source-action" href="{{ source.url }}">{{ source.label }}</a>{% endfor %}
 {% endif %}
 <p><a href="{{ url }}">Open saved details</a></p>
 </section>

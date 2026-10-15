@@ -1,7 +1,7 @@
-"""One inspectable policy for the prepared JEV-led Findings components.
+"""One inspectable policy for the active JEV-led Findings components.
 
-These are provisional application bounds. The prepared batch executor separately
-enforces conservative estimates against verified provider limits; T76 activates it.
+These are provisional application bounds. The batch executor separately
+enforces conservative estimates against verified provider limits.
 """
 import hashlib
 import json

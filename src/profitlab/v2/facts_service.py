@@ -33,9 +33,7 @@ class CompanyFactsService:
 
     def load(self, run):
         """Fetch exactly once after findings are sealed, then persist raw and normalized data."""
-        findings = self.repo.stage(run.run_id, 'findings')
-        if findings.status != 'completed':
-            raise ValueError('Findings must be sealed before Company Facts retrieval begins.')
+        self.repo.require_findings_seal(run.run_id)
         filing = self.repo.filing(run.run_id)
         cik = str(filing.get('cik', '')).zfill(10)
         if len(cik) != 10 or not cik.isdigit():
@@ -100,7 +98,7 @@ class CompanyFactsService:
             'checkpoint': {
                 'accepts': {'findings_completion': 'sealed stage status is a scheduling gate, not a value input',
                             'filing_identity': 'discovered company CIK and annual filing accession'},
-                'does': 'Requires the findings checkpoint to complete before the independent SEC-data lane can begin. Finding values are not read for normalization.',
+                'does': 'Requires a completed or partial sealed Findings result before the independent SEC-data lane can begin. Finding values are not read for normalization.',
                 'outputs': {'eligible_request': 'one company CIK scoped to the selected filing'},
                 'guarantee': 'Company Facts cannot enter discovery, scoring, or findings generation.',
             },

@@ -39,15 +39,10 @@ def test_inspected_requests_use_runtime_builders_and_current_configuration(tmp_p
         assert {key: displayed[key] for key in ('model', 'state', 'questions')} == actual.model_dump(mode='json')
 
     findings = FindingsService.inspection_view(settings)
-    initial = findings['propose']['request']['initial_messages']
-    repair = findings['propose']['request']['repair_messages']
-    assert initial[0] == repair[0]
-    assert 'Repair only the invalid citations' in repair[1]['content']
-    assert 'Repair only the invalid citations' not in initial[1]['content']
-    classification = findings['classify']['request']
-    built = FindingsService(settings, None)._classification_request_for_state(
-        FindingsService._illustrative_classification_state())
-    assert {key: classification[key] for key in ('model', 'state', 'questions')} == built.model_dump(mode='json')
+    from profitlab.v2.findings_examples import safe_findings_examples
+    example = safe_findings_examples(settings.findings_policy)
+    assert findings['convert']['request']['example'] == example['conversion_request'].model_dump(mode='json')
+    assert findings['assign_lines']['request']['example'] == example['assignment_request'].model_dump(mode='json')
 
     verify = EvaluationService.inspection_view(settings)['verify']['request']
     assert verify['questions']['same_visible_scaled_value']['instructions'] == (
@@ -65,7 +60,7 @@ def test_pipeline_renders_configured_requests_without_credentials(tmp_path):
                           created_at=now, updated_at=now))
     with TestClient(create_app(settings)) as client:
         page = client.get('/v2/runs/request-inspection/pipeline').text
-    assert 'repair_messages' in page
+    assert 'selected_bundles' in page
     assert 'same_visible_scaled_value' in page
     assert 'illustrative request built with current configuration' in page
     assert 'inspection-secret' not in page

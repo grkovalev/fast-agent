@@ -1,4 +1,4 @@
-"""Prepared, provider-free enumeration from selected persisted evidence only."""
+"""Provider-free enumeration from selected persisted evidence only."""
 import hashlib
 import json
 

@@ -22,12 +22,13 @@ They explain current behavior without changing runtime or Facts/Evaluate.
 
 Commands and checks below are acceptance contracts to implement, not claims that they already exist.
 
-The next runtime improvement is planned in
-[JEV-led Findings, T69–T77](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
+The active Findings replacement and remaining acceptance are tracked in
+[JEV-led Findings, T69–T77](FINDINGS_JEV_IMPLEMENTATION_PLAN.md). T69–T76 are DONE;
+T77 quality/latency acceptance is next only on explicit implementation request.
 Different fresh-context agents execute its tasks sequentially when implementation
-is requested. It replaces Findings in place with concept candidates, JEV line
-assignment/context assembly/ranking, then selected-evidence LLM conversion. UI and
-runtime activation are one task; the current local V2 database may be discarded.
+is requested. T76 replaced Findings in place with concept candidates, JEV line
+assignment/context assembly/ranking, then selected-evidence LLM conversion,
+activating runtime and UI atomically. Scoped local V2 reset to schema 76 is complete.
 Planning does not start implementation, create a v3 or require compatibility.
 
 Completed pipeline UI scopes T48–T59 are in

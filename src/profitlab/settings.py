@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     random_batch_continue_after_failure: bool = True
     typesafe_api_key: SecretStr = SecretStr("")
     typesafe_base_url: str = 'https://api.typesafe.ai'
-    typesafe_model: str = 'jev-latest'
+    typesafe_model: str = 'jev-1.13.0'
     max_http_attempts: int = Field(3, ge=1, le=5)
     provider_timeout: float = Field(60, gt=0, le=120)
     provider_total_timeout: float = Field(120, gt=0, le=300)
@@ -96,13 +96,7 @@ class Settings(BaseSettings):
     chunk_score_overlap_dedupe_ratio: float = Field(.65, ge=0, le=1)
     # Findings receive only the small retained visible-evidence set.  One repair is
     # intentionally permitted for a malformed citation; uncited prose is rejected.
-    findings_prompt_version: str = 'findings-v5-jev-types'
-    findings_max_requests: int = Field(2, ge=1, le=10)
-    findings_total_timeout: float = Field(300, gt=0, le=1800)
-    findings_request_char_budget: int = Field(60000, ge=1000, le=1000000)
-    finding_type_max_requests: int = Field(12, ge=0, le=100)
-    finding_type_request_char_budget: int = Field(30000, ge=1000, le=60000)
-    finding_type_prompt_version: str = 'finding-type-v2-outline-context'
+
     evaluation_scale_prompt_version: str = 'evaluation-scale-v1'
     evaluation_scale_max_pairs: int = Field(12, ge=0, le=100)
     evaluation_scale_request_char_budget: int = Field(12000, ge=1000, le=30000)

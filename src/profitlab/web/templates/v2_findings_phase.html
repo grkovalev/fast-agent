@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<p><a href="/v2/runs/{{ run_id }}/pipeline?stage=findings">← Findings</a></p>
+<h1>Saved Findings · {{ phase | replace('_', ' ') | title }}</h1>
+<p>Persisted typed results only; viewing this page makes no provider or SEC requests. Page {{ page }}; up to 20 records per artifact type.</p>
+{% if data.step %}<pre>{{ data.step | tojson(indent=2) }}</pre>{% else %}<p>No saved result. Pending or unavailable.</p>{% endif %}
+<h2>Saved successful batch checkpoints</h2><pre>{{ data.checkpoints | tojson(indent=2) }}</pre>
+{% for source in sources %}<a class="source-action" href="{{ source.url }}">{{ source.label }}</a> {% endfor %}
+{% for kind, values in data.artifacts.items() %}<h2>{{ kind }}</h2>{% for value in values %}<details open><summary>Saved record {{ loop.index + (page - 1) * 20 }}</summary><pre>{{ value | tojson(indent=2) }}</pre></details>{% else %}<p>No saved records.</p>{% endfor %}{% endfor %}
+{% if data.summary is defined and data.summary %}<h2>Run summary</h2><pre>{{ data.summary | tojson(indent=2) }}</pre>{% endif %}
+<nav aria-label="Saved results pages">{% if page > 1 %}<a href="?page={{ page - 1 }}">Previous</a>{% endif %} {% if has_next %}<a href="?page={{ page + 1 }}">Next</a>{% endif %}</nav>
+{% endblock %}
