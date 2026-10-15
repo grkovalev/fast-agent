@@ -1,6 +1,6 @@
 # JEV-led Findings implementation plan
 
-Status: T69–T71 DONE; T72–T77 PLANNED, 2026-10-15. Scoped V2 data reset completed in T71.
+Status: T69–T72 DONE; T73–T77 PLANNED, 2026-10-15. Scoped V2 data reset completed in T71.
 This replaces the Findings internals in the existing eight-stage pipeline. Keep
 the `v2` package, repository, database filename and URLs; do not create a v3,
 migration, compatibility mode or permanent old/new execution switch.
@@ -504,6 +504,10 @@ schema/request/result projections; active route unchanged. Gate:
 
 ### T72 — Assign lines to concepts
 
+Status: DONE, 2026-10-15. Prepared source assignment plans, exact requests,
+persisted answers/decisions and restart-safe successful batch reuse are implemented;
+no active pipeline switch.
+
 Implement source-line Noul request builders and service using T70/T71 batching,
 minimal exact state, supported/uncertain/rejected decisions, persisted raw answers
 and successful-batch reuse. Test multi-concept membership explicitly. No LLM calls,
@@ -513,6 +517,48 @@ Checks: saved real filing rows, one line supporting several concepts, basic vers
 diluted values, annual/quarterly labels, source support thresholds, no supported
 lines, omissions and restart reuse. Prepared Assign inspector uses exactly the
 executed question/state/results classes. Gate: `test_t72_findings_lines.py`.
+
+### T72 finalized source-assignment decisions — 2026-10-15
+
+- `findings_lines.py` prepares deterministic line/concept plans and executes only
+  Noul membership questions through T70 batching and T71 storage. Exact single-line
+  canonical text, filing identity and candidate ownership are validated before
+  planning. State is the actual `AssignmentState`; it contains filing metadata,
+  fixed concept/definition and exact source range/text, with no full chunks,
+  outline, chosen numeric spans, Facts or evaluation values.
+- Independent supported/uncertain/rejected decisions retain raw Noul answers,
+  reasons, current source references and model/question/request/batch provenance.
+  Multiple concepts may be supported on one occurrence. Basic-only values are
+  distinguished from diluted; explicit duration labels remain exact. No amount,
+  span or fiscal-year choice and no LLM call occurs here. Requested-year and
+  annual-duration eligibility remain later bundle judgments.
+- Atomic size and packed request-count omissions are explicit partial coverage;
+  nothing is truncated. Callers can supply a remaining request/deadline allowance,
+  bounded by the policy; T76 owns the shared whole-stage budget across phases.
+  Execution pins verified actual models to make checkpoint identity unambiguous.
+  Cache identity covers exact safe input requests (including omitted inputs),
+  source, questions, policy and model, excluding documented local routing IDs.
+- Successful batches persist before further work on that worker; restart/cache
+  reuse remaps current routes and records zero native usage for cache hits.
+  Final assignments and step results replace atomically. Failed/interrupted/
+  cancelled executions raise typed results and retain successful raw checkpoints;
+  they never write a successful subset. The prepared plan/result projection holds
+  the exact executed request/state/results for the future Assign inspector.
+- Eight focused checks cover genuine recorded six-question AZZ requests/responses,
+  real row 147 with controlled independent memberships, threshold boundaries,
+  basic/diluted output, annual/quarterly label preservation, no supported/empty
+  input, size/count omissions, source/policy isolation, deadline/cancellation/
+  failure, restart reuse and current local-ID remapping. Synthetic judgments and
+  label mutations are explicitly controlled invariants, not accuracy evidence.
+- One real live JEV request on six saved AZZ line/concept pairs used actual
+  `jev-1.13.0`, 3,395 input/124 output tokens and 0.4180s executor time. Basic EPS
+  was rejected; diluted EPS/shares were supported. Both row-147 assignments stayed
+  uncertain because its label includes adjusted calculation. No multi-concept
+  accuracy or speed acceptance is claimed. Official API/model limits were rechecked
+  before the probe; redacted evidence is retained under `benchmarks/t72`.
+- Gates and full suite passed; see PROGRESS.md for durations and manual handoff.
+  Active pipeline/UI/Facts/Evaluate paths remain unchanged; no reset or activation.
+  Next task: T73, in a different fresh-context agent, only when requested.
 
 ### T73 — Attach context and assemble bundles
 

@@ -8,7 +8,7 @@ from profitlab.providers.jev import JevRequest, NoulQuestion
 
 from .canonical import CanonicalDocument
 from .contracts import SourceRange
-from .finding_concepts import CONCEPT_DEFINITIONS
+from .finding_concepts import CONCEPT_DEFINITIONS, CONCEPT_SCOPE
 from .findings_contracts import (
     AssignmentState,
     ContextRole,
@@ -68,14 +68,25 @@ def _checked_request(state, questions, model, budget):
 
 
 def build_assignment_request(filing: FindingsFilingMetadata, candidate: FindingLineCandidate,
-                             model: str, policy: FindingsPolicy) -> JevRequest:
+                             model: str, policy: FindingsPolicy, *,
+                             enforce_budget: bool = True) -> JevRequest:
     state = AssignmentState(filing=filing, candidate_id=candidate.candidate_id,
         concept=candidate.concept, concept_definition=CONCEPT_DEFINITIONS[candidate.concept],
         candidate=VisibleFindingLine(source_range=candidate.source_range, exact_text=candidate.exact_text))
     question = NoulQuestion(instructions=(SOURCE_RULE + ' In state, does `candidate.exact_text` '
         'report a value belonging to `concept` as defined by `concept_definition`? '
-        'Judge this concept independently; the same source line may support other concepts.'))
-    return _checked_request(state, {'source_support': question}, model, policy.assign_budget)
+        + CONCEPT_SCOPE[candidate.concept] + ' '
+        'Judge this concept independently; the same source line may support other concepts. '
+        'Basic-only EPS or basic-only shares do not support a diluted concept. '
+        'Preserve explicit annual/quarterly labels and uncertainty when context is absent. '
+        'Do not select a numeric span, amount or fiscal year; requested-year and annual-duration '
+        'eligibility are later bundle judgments. Comparative columns are allowed.'))
+    if enforce_budget:
+        return _checked_request(state, {'source_support': question}, model, policy.assign_budget)
+    # The batch packer owns whole atomic size omissions, including scoped instructions.
+    guard_findings_payload(state.model_dump(mode='json'))
+    return JevRequest(state=state.model_dump(mode='json'),
+                      questions={'source_support': question}, model=model)
 
 
 def build_context_request(filing: FindingsFilingMetadata, candidate: FindingLineCandidate,
