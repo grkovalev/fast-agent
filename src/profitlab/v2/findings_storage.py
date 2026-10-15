@@ -12,6 +12,7 @@ from .findings_contracts import (
     ConversionDiagnostic,
     FindingContextLink,
     FindingContextPool,
+    FindingConversionPack,
     FindingEvidenceBundle,
     FindingLineCandidate,
     FindingPublicationProvenance,
@@ -31,6 +32,7 @@ ARTIFACTS = {
     FindingContextLink: ('context', FindingsPhase.ATTACH, 'link_id'),
     FindingEvidenceBundle: ('bundle', FindingsPhase.ATTACH, 'bundle_id'),
     RankedFindingBundle: ('rank', FindingsPhase.RANK, 'bundle_id'),
+    FindingConversionPack: ('conversion_pack', FindingsPhase.RANK, 'pack_id'),
     ConversionDiagnostic: ('conversion', FindingsPhase.CONVERT, 'bundle_id'),
     FindingPublicationProvenance: ('publication', FindingsPhase.VALIDATE, 'bundle_id'),
 }
@@ -71,7 +73,7 @@ class FindingsStorage:
             value = type(value).model_validate_json(value.model_dump_json())
             if phase != result.phase:
                 raise ValueError('Artifact belongs to a different phase')
-            concept = (value.proposal.concept if value.proposal else '') if isinstance(value, ConversionDiagnostic) else value.concept
+            concept = (value.proposal.concept if value.proposal else '') if isinstance(value, ConversionDiagnostic) else getattr(value, 'concept', '')
             rows.append((run_id, phase.value, kind, str(concept), str(getattr(value, key)), ordinal,
                          value.model_dump_json()))
         if result.availability != 'final' or result.status not in ('completed', 'partial', 'skipped'):

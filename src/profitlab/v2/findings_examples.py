@@ -13,6 +13,7 @@ from .findings_builders import (
     build_context_request,
     build_conversion_messages,
     build_conversion_state,
+    build_rank_request,
     build_rank_state,
 )
 from .findings_contracts import (
@@ -25,6 +26,7 @@ from .findings_contracts import (
     ContextRoleAnswer,
     FindingContextLink,
     FindingContextPool,
+    FindingConversionPack,
     FindingConversionProposal,
     FindingEvidenceBundle,
     FindingLineCandidate,
@@ -123,6 +125,8 @@ def safe_findings_examples(policy: FindingsPolicy | None = None) -> dict:
                     source_range=r, kind='core' if r == chunk.core_range else 'preceding_context')
                 for r in [chunk.core_range, *chunk.context_ranges]]),
             'candidate':candidate,'assignment':assignment,'context_link':links[0],'bundle':bundle,'rank':rank,
+            'conversion_pack':FindingConversionPack(pack_id='illustrative-pack',state=conversion,
+                messages=build_conversion_messages(conversion,policy)),
             'proposal':proposal,'publication':publication,
             'identity':FindingsInputIdentity(canonical_source_hashes=[digest],exact_inputs_hash=digest,
                 phase=FindingsPhase.ASSIGN,concept=concept,policy_hash=policy.identity(),
@@ -130,5 +134,7 @@ def safe_findings_examples(policy: FindingsPolicy | None = None) -> dict:
             'summary':FindingsRunSummary(status='completed',sealed=True,policy_hash=policy.identity(),steps=steps,
                 published_finding_ids=[finding.finding_id])},
         'assignment_request':request,'context_requests':context_requests,
-        'rank_state':build_rank_state(filing,bundle,document,policy),'conversion_state':conversion,
+        'rank_state':build_rank_state(filing,bundle,document,policy),
+        'rank_request':build_rank_request(build_rank_state(filing,bundle,document,policy),
+            'illustrative-jev',policy),'conversion_state':conversion,
         'conversion_messages':build_conversion_messages(conversion,policy),'policy':policy}

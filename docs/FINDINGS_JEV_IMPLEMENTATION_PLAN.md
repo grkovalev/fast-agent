@@ -1,6 +1,6 @@
 # JEV-led Findings implementation plan
 
-Status: T69–T73 DONE; T74–T77 PLANNED, 2026-10-15. Scoped V2 data reset completed in T71.
+Status: T69–T74 DONE; T75–T77 PLANNED, 2026-10-15. Scoped V2 data reset completed in T71.
 This replaces the Findings internals in the existing eight-stage pipeline. Keep
 the `v2` package, repository, database filename and URLs; do not create a v3,
 migration, compatibility mode or permanent old/new execution switch.
@@ -294,7 +294,7 @@ design brief and README at activation, removing obsolete Findings explanations.
 | T71 | Fresh storage/checkpoints and concept-to-chunk/line enumeration | T70 | DONE |
 | T72 | JEV multi-concept source-line assignments | T71 | DONE |
 | T73 | JEV context links and assembled evidence bundles | T72 | DONE |
-| T74 | JEV bundle ranking and deterministic selection | T73 | PLANNED |
+| T74 | JEV bundle ranking and deterministic selection | T73 | DONE |
 | T75 | Selected-bundle LLM conversion and strict validation | T74 | PLANNED |
 | T76 | Atomic runtime/UI activation and obsolete flow removal | T75 | PLANNED |
 | T77 | Real-data quality/latency acceptance and final closure | T76 | PLANNED |
@@ -602,6 +602,9 @@ T73 completed, 2026-10-15:
 
 ### T74 — Rank and select bundles
 
+Status: DONE, 2026-10-15. Prepared ranking/selection with exact request and
+result inspection, typed persistence and whole-bundle preconversion packing.
+
 Implement the shared Score rubric, required-condition Nouls, eligibility decisions,
 within-concept ordering, deterministic ties and per-concept/global/count/text
 limits. Persist winners and all uncertain/ineligible/omitted/losing records with
@@ -614,6 +617,43 @@ despite high Score, current/comparative row, several competing values, exact tie
 no eligible result, low-context result, batch-order independence and budget cutoff.
 Prepared Rank inspector uses real rubric/policy/results. Gate:
 `test_t74_findings_ranking.py`.
+
+### T74 finalized ranking/selection decisions — 2026-10-15
+
+- Prepared `findings_ranking.py` validates canonical bundles/current source/context
+  policy, then sends one atomic mixed Score/four-Noul group per bundle through
+  T70 batching. Requests use the shared 0–3 rubric and concept-specific required
+  conditions. Thresholds are inclusive at 0.20 uncertain and 0.65 supported by
+  default. Any rejected condition makes a bundle ineligible; any remaining
+  uncertain condition makes it uncertain. Score/confidence cannot override this.
+- Raw Score/probability/confidence values are preserved. `BundleScore` now shares
+  T70 transport's observed independent two-decimal rounding envelope rather than
+  requiring mathematical equality the provider does not supply. Source-support,
+  upstream concept score, source order and occurrence ID deterministically break
+  Score ties; confidence is inspection only. Current/comparative rows may qualify
+  and unresolved optional context can survive with limitations.
+- Eligible lanes are traversed in stable concept-value order (`annual_profit`,
+  `diluted_eps`, `diluted_shares`), preserving the within-concept rank ordering.
+  Under a reduced global cap earlier concepts are considered first. Per-concept
+  and global top-N selection is intentional: losing ranks are retained and these
+  limits alone do not mark partial. Text limits, oversized whole bundles and
+  preconversion request-count cuts record coverage omissions and mark partial.
+- Greedy preconversion packing preserves each source/context/spans/roles bundle
+  whole and persists the exact shared system/user message envelope as typed
+  `FindingConversionPack` artifacts in the rank phase, atomically with ranks/step.
+  It tries the current pack, then a new pack within the configured count; it never
+  strips context or truncates evidence. The size boundary covers serialized
+  messages, not a provider-specific model/tool/output-schema envelope: T75 must
+  enforce that final transport envelope before executing LLM calls and persist
+  any additional omissions. No LLM conversion is performed here.
+- Failed/interrupted/cancelled ranking retains successful batch checkpoints and
+  inspectable partial judgments, but produces no conversion packs and publishes
+  no final phase artifacts. Exact source/request/rubric/policy/model plus ranking
+  tie inputs bind reuse; run-local IDs remap on restart/cross-run reuse. No schema
+  reset, runtime activation or active UI change. Prepared schemas/examples/plans
+  and results use executed builders and actual typed requests/answers. Test and
+  pending manual verification evidence are in PROGRESS.md. Next: T75 only when
+  requested, in a different fresh-context agent.
 
 ### T75 — Convert and validate selected evidence
 

@@ -6,8 +6,9 @@
 - Implementation status: V2 has one product path: a ticker creates a live SEC filing
   run, followed by configured LLM and Jev provider calls. Synthetic source and provider
   paths no longer exist in V2 runtime code or UI.
-- Current implementation task: none. **T69–T73 DONE**; T74–T77 PLANNED, JEV-led Findings;
+- Current implementation task: none. **T69–T74 DONE**; T75–T77 PLANNED, JEV-led Findings;
   see [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
+  T74 prepared bundle ranking, required-condition eligibility and whole-bundle conversion packing.
   T73 prepared bounded context attachment, shared coverage pools and typed bundles.
   T72 prepared independent JEV source-line assignments and successful-batch reuse.
   T71 prepared fresh persistence/checkpoints and deterministic source candidates,
@@ -31,10 +32,12 @@
   [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md) and [AGENTS.md](../AGENTS.md).
   T60 is closed in the [UI task file](PIPELINE_IMPROVEMENT_TASKS.md);
   T48–T59 scopes are preserved in [completed UI tasks](PIPELINE_UI_COMPLETED_TASKS.md).
-- Next when implementation is requested: **T74**, JEV bundle ranking and deterministic selection,
-  in a different fresh-context agent. T73 is complete;
+- Next when implementation is requested: **T75**, selected-bundle conversion and strict validation,
+  in a different fresh-context agent. T74 is complete;
   no task starts automatically. T61–T62 broader visual reviews remain open.
-- Latest automated checks: T73/T69–T72 focused gates passed (36 tests in 3.45s);
+- Latest automated checks: T69–T74 focused gates passed (46 tests in 4.47s);
+  full suite passed (108 tests in 20.13s); repository Ruff and diff checks passed.
+  Earlier: T73/T69–T72 focused gates passed (36 tests in 3.45s);
   full suite passed (98 tests in 18.70s); repository Ruff and diff checks passed.
   Earlier: T72 focused gates passed (32 tests in 1.76s);
   full suite passed (88 tests in 15.73s); repository Ruff and diff checks passed.
@@ -69,8 +72,8 @@
 
 Start with [AGENTS.md](../AGENTS.md), [PIPELINE_PAGE_DESIGN.md](PIPELINE_PAGE_DESIGN.md),
 [TASKS.md](TASKS.md), and [FINDINGS_JEV_IMPLEMENTATION_PLAN.md](FINDINGS_JEV_IMPLEMENTATION_PLAN.md).
-**T65–T73 are DONE; T74–T77 are PLANNED. No automatic implementation.**
-Working branch is `findings-jev-discovery`. T69–T73 prepared replacement components
+**T65–T74 are DONE; T75–T77 are PLANNED. No automatic implementation.**
+Working branch is `findings-jev-discovery`. T69–T74 prepared replacement components
 without activating them. Preserve the baseline fixtures under
 `tests/fixtures/benchmarks/t69`, `t70` and `t72`; T69's three saved runs and genuine live
 old-stage replay remain available outside application data.
@@ -84,21 +87,87 @@ used by prepared T72 line assignments, but current runtime, prompts, UI stations
 and Facts/Evaluate inputs retain their existing behavior until T76. T61–T62 broader visual review and
 the Apple canonical-caption limitation remain separately open.
 
-T73 is complete; its context service remains prepared and unwired. The T73
-implementation and this handoff are committed together; all recorded
-baseline/provider fixtures remain intact.
-Resume with T74 only when requested, in a different fresh-context agent. Do not
-repeat the completed reset or activate T76 early. No speedup is expected from
-unwired prepared components; quality/latency acceptance remains T77.
+T74 is complete; ranking and all earlier replacement components remain prepared
+and unwired. The T74 implementation and this context-reset handoff are committed
+together. Exact rank plans/results and typed conversion packs persist through
+the existing T71 storage. Per-concept/global top-N count selection is intentional;
+text/packing cuts are partial. Stable concept-value traversal fills the global cap.
+T75 must enforce the actual provider/model/tool/output-schema envelope beyond the
+shared exact system/user messages already bounded by T74. Preserve all fixtures;
+do not repeat the reset or activate T76 early. No speedup is expected from
+unwired components; quality/latency acceptance remains T77.
 
 Suggested next-session instruction:
 
-> Implement only T74 from `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md` in a different
+> Implement only T75 from `docs/FINDINGS_JEV_IMPLEMENTATION_PLAN.md` in a different
 > fresh-context agent. Read AGENTS.md, task policy, pipeline design, the full Findings
-> plan and recent progress. Use T73's pools/links/bundles and T70 batching for bundle
-> ranking, required-condition judgments and deterministic selection. Keep prepared
-> components unwired until T76; preserve fixtures and do not reset storage. Run the
-> focused gate/lint and required shared-code full suite, document T75, then stop.
+> plan and recent progress. Reuse T74's eligible selected ranks and exact whole-bundle
+> conversion packs for LLM conversion and strict source/span/metadata validation.
+> Preserve initially accepted findings through bounded selected-bundle repair;
+> do not add a post-conversion type call. Enforce the final provider/model/tool/schema
+> request envelope in addition to T74 message bounds. Keep components unwired until
+> T76, preserve fixtures and do not reset storage. Run focused gates/lint and required
+> full suite, document T76, then stop without committing automatically.
+
+## T74 — Rank/select bundles — completed, 2026-10-15
+
+- Added prepared `findings_ranking.py` and shared `build_rank_request`: exact
+  assembled source/context/spans, concept definition, common Score rubric and four
+  independent required-condition Nouls use T70 batching and T71 checkpoint storage.
+  Canonical inputs/current raw source support/context policy are checked before
+  provider work. Exact executed request/answer/result classes and validated safe
+  examples prepare the Rank inspector without adding an active station.
+- Any known-negative required condition defeats high Score; uncertainty stays
+  separate from eligible/rejected. Optional missing context and low confidence
+  do not veto eligibility. Raw Score/distribution/confidence persist without
+  rewriting; BundleScore now shares the transport's independently rounded-value
+  validation envelope observed in real T70 responses.
+- Within each concept: descending Score, source-support Noul, upstream relevance,
+  then source order/occurrence ID. Across concepts: stable value order annual
+  profit → diluted EPS → diluted shares. A smaller global cap fills earlier lanes
+  first. Per-concept/global top-N limits retain losing ranks and intentionally do
+  not mark partial. Text and request-packing cuts record omissions and partial.
+- Whole-bundle greedy packing persists exact shared system/user conversion messages
+  with canonical context/roles intact, atomically alongside ranks and phase result.
+  New `FindingConversionPack` uses existing typed artifact tables; no schema reset.
+  T75 must additionally enforce its actual provider/model/tool/output-schema
+  envelope; T74 bounds messages, not that future provider-specific envelope.
+  Failed/interrupted/cancelled work has inspectable/checkpointed judgments and no
+  conversion packs/final publication. Restart/cross-run local-ID reuse validates
+  exact source/request/policy/pinned model and all ranking tie inputs.
+- Tests inspected/timed: T69–T73 baseline **36 passed in 3.38s**. No obsolete tests
+  removed. Ten T74 checks use saved real AZZ canonical/chunk/score provenance and
+  T73 context assembly with explicitly controlled judgments, not live quality
+  evidence. Coverage: all four high-Score eligibility vetoes, threshold edges,
+  unresolved-context/low-Score eligibility, competing values, source/support/
+  upstream ties, reversed input/batch completion, count/text/packing limits,
+  empty/no eligible/oversized requests, failures/cancellation/deadline, restart,
+  local-ID remap, policy/input tampering and raw rounded Score persistence.
+  Initial gate fixed test fixture reuse/lane ordering; combined gate caught a
+  missing typed pack illustration, corrected. Final focused T69–T74:
+  **46 passed in 4.47s**. Standalone `uv run pytest -q
+  tests/task_gates/test_t74_findings_ranking.py`: **10 passed in 1.72s**. Full suite: **108 passed in 20.13s**, with the existing
+  Starlette/AnyIO deprecation warning.
+  `uv run ruff check .` and `git diff --check`: passed. uv checks needed sandbox
+  escalation to read the existing cache. No dependencies/lockfile changes.
+- No live provider probe or browser automation performed; this task reuses the
+  already verified mixed adapter and makes no new live accuracy/latency claim.
+  Existing T69/T70/T72 fixtures remain intact; no application data/credentials changed.
+- UI review: `pipeline.py` still calls existing `FindingsService.build`; web
+  `app.py` still renders that service's saved inspection. No prepared ranking
+  import enters either route. Thus current extraction/validation/repair/type/seal,
+  budgets, branches and independent Facts/Evaluate inputs remain accurate and need
+  no active UI edit. PIPELINE_PAGE_DESIGN.md's explicit inactive-until-T76 decision
+  remains current. At T76 use the saved rank/packs and exact prepared builders.
+- Manual verification **pending**: if stopped, `uv run profitlab serve` is the
+  one-time prerequisite. Open `http://127.0.0.1:8000`, create/open a ticker run,
+  follow Pipeline → Findings and select existing stations. Expect current retained-
+  chunk extraction/validation/repair/classification, with saved results/source jumps
+  and independent Facts/Evaluate. No Rank/select station is active yet. Check wide
+  and phone widths, keyboard station selection, JavaScript disabled and 200% zoom;
+  no visible change or manual visual verification is claimed.
+- Next: **T75**, selected-bundle LLM conversion/strict validation, in a different
+  fresh-context agent only when requested. No automatic commit/next task.
 
 ## T73 — Attach context and assemble bundles — completed, 2026-10-15
 

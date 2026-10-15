@@ -12,7 +12,7 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from profitlab.providers.jev import NoulAnswer, Probability, TokenUsage
+from profitlab.providers.jev import NoulAnswer, Probability, ScoreAnswer, TokenUsage
 
 from .contracts import Finding, Hash, SourceRange, StableID, TextChunk, V2Contract
 from .finding_concepts import FindingConcept
@@ -276,9 +276,9 @@ class BundleScore(V2Contract):
 
     @model_validator(mode='after')
     def distribution(self):
-        if (abs(sum(self.probabilities.values()) - 1) > 1e-6 or
-                abs(sum(int(k) * v for k, v in self.probabilities.items()) - self.score) > 1e-6):
-            raise ValueError('Score must equal weighted complete rubric distribution')
+        # Preserve native independently rounded values using the transport's exact envelope.
+        ScoreAnswer(type='score', score=self.score, probabilities=self.probabilities,
+                    legend={str(i): str(i) for i in range(4)}, confidence=self.confidence)
         return self
 
 
@@ -557,6 +557,20 @@ class ConversionState(V2Contract):
         ids = [x.bundle_id for x in self.selected_bundles]
         if len(set(ids)) != len(ids):
             raise ValueError('Conversion bundles must be unique')
+        return self
+
+
+class FindingConversionPack(V2Contract):
+    """Prepared whole-message request; provider/tool envelope is enforced in T75."""
+    pack_id: StableID
+    state: ConversionState
+    messages: list[dict[str, str]] = Field(min_length=2, max_length=2)
+
+    @model_validator(mode='after')
+    def exact_state_message(self):
+        if (self.messages[0].get('role') != 'system' or
+                self.messages[1] != {'role': 'user', 'content': self.state.model_dump_json()}):
+            raise ValueError('Conversion pack must retain exact shared state messages')
         return self
 
 

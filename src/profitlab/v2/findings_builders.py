@@ -4,7 +4,7 @@ No provider I/O, settings serialization, storage reads or active UI registration
 """
 import json
 
-from profitlab.providers.jev import JevRequest, NoulQuestion
+from profitlab.providers.jev import JevRequest, NoulQuestion, ScoreQuestion
 
 from .canonical import CanonicalDocument
 from .contracts import SourceRange
@@ -138,6 +138,29 @@ def build_rank_state(filing: FindingsFilingMetadata, bundle: FindingEvidenceBund
         required_conditions=policy.required_conditions(bundle.concept), rubric=list(RANK_RUBRIC))
     guard_findings_payload(state.model_dump(mode='json'))
     return state
+
+
+def build_rank_request(state: RankState, model: str, policy: FindingsPolicy, *,
+                       enforce_budget: bool = True) -> JevRequest:
+    if (state.required_conditions != policy.required_conditions(state.bundle.concept) or
+            state.rubric != list(RANK_RUBRIC) or
+            state.concept_definition != CONCEPT_DEFINITIONS[state.bundle.concept]):
+        raise ValueError('Rank state differs from shared rubric/concept policy')
+    base = (SOURCE_RULE + ' Evaluate the assembled `bundle` in state, using its exact '
+            '`source` and selected `context` with `concept_definition` and filing.report_date. '
+            'Missing context remains unknown; do not infer unavailable units or periods. ')
+    questions = {'bundle_score': ScoreQuestion(instructions=base +
+        'Score evidence completeness using `rubric`; confidence is a signal, not proof.',
+        criteria=list(RANK_RUBRIC))}
+    questions.update({condition.value: NoulQuestion(instructions=base +
+        f'Independently judge `required_conditions.{condition.value}`: {definition} '
+        'A comparative row can support the current requested year; do not require a single column. '
+        'Do not use the Score or other answers to decide this condition.')
+        for condition, definition in state.required_conditions.items()})
+    if enforce_budget:
+        return _checked_request(state, questions, model, policy.rank_budget)
+    guard_findings_payload(state.model_dump(mode='json'))
+    return JevRequest(state=state.model_dump(mode='json'), questions=questions, model=model)
 
 
 def build_conversion_state(filing: FindingsFilingMetadata,
